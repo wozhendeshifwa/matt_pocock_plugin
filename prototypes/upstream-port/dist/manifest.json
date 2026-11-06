@@ -1,0 +1,9 @@
+{
+  "upstreamVersion": "1.8.0-rc.7",
+  "upstreamClientSha256": "f78b6b17073453b4327d7d6e9cb1e55db8aa6d6a9e9b384d53bc24d79f1570ce",
+  "output": "client.js",
+  "adaptedBoundaries": [
+    "inject",
+    "openTextInNewSession"
+  ]
+}
