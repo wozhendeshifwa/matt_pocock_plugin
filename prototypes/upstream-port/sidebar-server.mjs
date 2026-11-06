@@ -6,12 +6,11 @@ import { createProjectHosts } from "./project-hosts.mjs";
 import { summarizeHostContext } from "./host-context.mjs";
 import { resolveSessionProject } from "./session-project.mjs";
 
-// This staging server requires an explicit project. Automatic active-project
-// discovery is a separate host capability and must not be inferred from cwd.
-const configuredRoot = process.env.DECK_PROJECT_ROOT ?? process.argv[2];
-if (!configuredRoot) throw new Error("DECK_PROJECT_ROOT or an explicit project directory is required");
-const workspaceRoot = await realpath(configuredRoot);
-const key = createHash("sha256").update(workspaceRoot.toLowerCase()).digest("hex").slice(0, 16);
+// The service owns no project. Each sidebar instance resolves its project per
+// request from the host-provided thread identity, so the data root is keyed by
+// this adapter checkout rather than by a startup workspace path.
+const adapterRoot = await realpath(fileURLToPath(new URL("../../", import.meta.url)));
+const key = createHash("sha256").update(adapterRoot.toLowerCase()).digest("hex").slice(0, 16);
 const dataRoot = fileURLToPath(new URL("../../.scratch/upstream-sidebar/" + key + "/", import.meta.url));
 await mkdir(dataRoot, { recursive: true });
 process.chdir(dataRoot);
@@ -61,11 +60,11 @@ async function handle(request) {
     }));
   }
   switch (request.method) {
-    case "initialize": return { protocolVersion: request.params.protocolVersion, capabilities: { tools: {}, resources: {} }, serverInfo: { name: "mattskills-original-port", version: "0.2.1" } };
+    case "initialize": return { protocolVersion: request.params.protocolVersion, capabilities: { tools: {}, resources: {} }, serverInfo: { name: "deck-sidebar-probe", version: "1.8.0-rc.7-codex.1" } };
     case "ping": return {};
     case "tools/list": return { tools: [
       { name: "deck_current_project", description: "Resolve this UI request's host-provided thread identity to its local project.", inputSchema: { type: "object", additionalProperties: false }, annotations: { readOnlyHint: true }, _meta: { ui: { visibility: ["app"] } } },
-      { name: "open_deck_sidebar_probe", title: "MattSkillsDeck", description: "Open the original MattSkills sidebar for the explicitly configured project.", inputSchema: { type: "object", additionalProperties: false }, annotations: { readOnlyHint: true }, _meta: { ui: { resourceUri: uri }, "openai/ui": { entrypoints: [{ type: "thread" }] } } },
+      { name: "open_deck_sidebar_probe", title: "MattSkillsDeck", description: "Open the original MattSkills sidebar. Each panel follows the active chat's project when the host supplies a trustworthy thread identity.", inputSchema: { type: "object", additionalProperties: false }, annotations: { readOnlyHint: true }, _meta: { ui: { resourceUri: uri }, "openai/ui": { entrypoints: [{ type: "thread" }] } } },
       { name: "deck_upstream_read", description: "Read original MattSkills plugin data through the Codex adapter.", inputSchema: { type: "object", required: ["method"], additionalProperties: false, properties: { method: { type: "string" }, payload: { type: "object" } } }, annotations: { readOnlyHint: true }, _meta: { ui: { visibility: ["app"] } } },
       { name: "deck_host_context_probe", description: "Record sanitized Codex MCP host-context fields for project-follow diagnostics.", inputSchema: { type: "object", required: ["capture"], additionalProperties: false, properties: { capture: { type: "object" } } }, annotations: { readOnlyHint: false }, _meta: { ui: { visibility: ["app"] } } },
     ] };
@@ -83,7 +82,7 @@ async function handle(request) {
           return { isError: true, content: [{ type: "text", text: error.message }] };
         }
       }
-      if (request.params.name === "open_deck_sidebar_probe") return { content: [{ type: "text", text: "Original MattSkills sidebar; project: " + workspaceRoot }] };
+      if (request.params.name === "open_deck_sidebar_probe") return { content: [{ type: "text", text: "Original MattSkills sidebar" }] };
       if (request.params.name === "deck_host_context_probe") {
         const capture = request.params.arguments?.capture;
         if (!capture || typeof capture !== "object" || Array.isArray(capture)) throw new Error("Invalid host context capture");

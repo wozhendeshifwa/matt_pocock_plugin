@@ -49,3 +49,25 @@
 主题适配由 `theme.css` 与 `sidebar-bridge.js` 完成：Codex 的 `--background`、`--foreground`、`--border` 等变量映射到上游 DSH 别名，同时支持 MCP `host-context-changed` 和 Apps SDK `openai:set_globals` 的实时更新。宿主变量缺失时按 `light`/`dark` 使用 `light-dark()` 兜底，避免继续落到上游固定深色默认值。
 
 聊天动作适配检查实际握手声明的 openai/message 能力，以 send:false 保留原版预填语义。未声明能力时显示错误，不伪造成功。本机 `deck-sidebar-probe` 注册已替换为上游适配服务；宿主热加载日志确认服务以 `0.2.0` 初始化。当前仍未验证原生桌面中的列表/详情视觉、当前项目自动跟随、新聊天项目继承、技能加载、版本管理及写入操作；这些仍是完整移植的验收项。
+
+### 2026-11-07 身份检查、挂载键与派发边界
+
+- `verify-sidebar.mjs` 改为临时 `CODEX_HOME` + `_meta.threadId`：先写入一条映射到本项目 cwd 的 `session_meta`，再走真实 thread→cwd 解析；服务端返回 `isError` 时直接报可读错误，不再把错误文本当 JSON 解析。真实 GitHub 列表/详情/主题检查已重跑通过。
+- `sidebar-server.mjs` 不再要求启动项目参数；数据根按 adapter checkout 隔离，项目按每次请求的 thread 身份解析。`open_deck_sidebar_probe` 也不再宣称固定项目。
+- `sidebar-bridge.js` 以 cwd 作为面板挂载键：同一项目换聊天只更新请求身份、不重挂；切换项目才重挂；`threadId` 用于本次请求和旧请求校验。
+- port 的 `执行/新会话` 仍只生成 `send:false` 草稿；独立任务会话与结果回显只存在于旧 `sidebar-probe`。边界见 `docs/adr/0002-prefill-dispatch-boundary.md`。
+
+### 2026-11-07 Codex 宿主边界研究
+
+- `codex-host-surfaces.md`：Codex 只支持 MCP Apps 的 `global` / `thread` / `file` 三种入口；`sidebar.right.pane.tab` 就是 `thread` 入口，位置由宿主决定。状态栏、运行面板、设置页没有宿主槽位，原生 tab 类型/图标/优先级不能注册；工具走 MCP `tools/list`；没有 skills provider；locale 只有信号，需要 bridge 拼 DSH 形状适配器。状态栏/运行/设置改为面板内标签页，技能页保留自绘。
+- `codex-message-dispatch.md`：真实桌面声明 `openai/message`（含 `.draft`）；`ui/message` + `send:false` 只生成 composer 草稿，不返回线程 ID、没有结果订阅，`target:"new"` 的新草稿不继承当前 thread 的项目。继续按 ADR-0002 保留草稿边界，界面文案不得暗示独立任务会话或结果回显。
+- `codex-thread-identity.md`：UI 的每次 `tools/call` 都带 `_meta.thread_id` + `threadId`；`resources/read`、`ui/initialize`、`host-context-changed` 不带身份。项目 cwd 的耐久来源是 `~/.codex/state_5.sqlite` 的 `threads.cwd`（220/220），`session_meta` 只覆盖 55% 且移动过的会话会返回旧项目。`session-project.mjs` 需改为 state_5 优先、rollout/zstd 兜底、来源冲突 fail closed；#11 已按此补充。
+- 新增 `#23`：验证裸 `mcp_servers` 能否获得 `global` 入口；若不能，评估插件化安装。ADR-0001 的全局入口要求仍需真实桌面证据。
+
+### 2026-11-07 安装与真实宿主夹具
+
+- `prototypes/upstream-port/install.mjs` 与 `install.ps1`：一键检查/安装，自动备份 `~/.codex/config.toml`；写入绝对 node 路径、只传 `sidebar-server.mjs`、`cwd`、`CODEX_HOME`、`startup_timeout_sec`，并确保 `features.enable_mcp_apps = true`。依赖缺失时执行 `npm ci`/`npm install`，构建过期时重跑 `node build.mjs`。
+- `prototypes/upstream-port/executables.mjs`：`gh` / `git` 改为 PATH + `DECK_GH` / `DECK_GIT` 覆盖 + 常见安装路径兜底，不再硬编码一台机器的路径。
+- `prototypes/upstream-port/doctor.mjs`：安装、配置、构建、MCP 握手、资源、thread 身份、真实 GitHub 读取的总健康检查；GitHub API 网络不可用时 `gh auth` 显示 WARN，不误报未登录。
+- `prototypes/upstream-port/verify-host-harness.mjs`：回放真实桌面 `ui/initialize` 的 `hostCapabilities` 键集，验证 `openai/message` 能力、真实 GitHub 列表/详情、`执行`/`新会话` 的 `send:false` 草稿；原生面板位置与视觉验收仍归用户。
+- 安装后的 `codex mcp get deck-sidebar-probe` 显示 command / args / cwd / env / startup_timeout_sec；`serverInfo.name` 与配置键对齐为 `deck-sidebar-probe`。

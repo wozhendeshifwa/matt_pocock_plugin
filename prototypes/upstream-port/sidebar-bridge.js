@@ -109,7 +109,7 @@
   });
   try {
     const initialization = await rpc("ui/initialize", {
-      appInfo: { name: "mattskills-original-port", version: "0.2.2" },
+      appInfo: { name: "mattskills-original-port", version: "0.3.0" },
       appCapabilities: {}, protocolVersion: "2026-01-26",
     });
     const hostContext = initialization.hostContext ?? initialization.context ?? {};
@@ -123,13 +123,32 @@
       hostContext,
       openai: window.openai ?? null,
     });
-    // No verified panel-to-project association is implemented yet.
-    // Keep diagnostics active without displaying the global server's repository.
-    document.getElementById("root").textContent =
-      "MattSkillsDeck 尚未关联当前聊天的项目。项目自动跟随适配尚未完成，暂时无法显示任务或派发草稿。";
+    // Show a neutral loading state until the host's thread identity resolves.
+    document.getElementById("root").textContent = "正在识别当前聊天的项目…";
     let current = null;
     let dispose = null;
     let checking = false;
+    // The board is scoped to the local project (cwd), not to an individual chat.
+    // Same-project chats share one mounted panel; the thread id is only the
+    // identity used for the current request and the stale-request guard.
+    const projectKeyOf = project => project.cwd;
+    const sessionOf = project => ({ id: projectKeyOf(project), cwd: project.cwd });
+    const sessions = {
+      list: {
+        getSnapshot: () => {
+          const project = current;
+          if (!project) return { current: "", byId: {}, items: [] };
+          const session = sessionOf(project);
+          return { current: session.id, byId: { [session.id]: session }, items: [session] };
+        },
+        subscribe: () => () => {},
+      },
+      get: id => {
+        const project = current;
+        const session = project ? sessionOf(project) : null;
+        return session && id === session.id ? session : undefined;
+      },
+    };
     async function readProject() {
       const reply = await rpc("tools/call", { name: "deck_current_project", arguments: {} });
       if (reply.isError) throw new Error(reply.content?.[0]?.text ?? "项目关联失败。");
@@ -147,33 +166,40 @@
       checking = true;
       try {
         const project = await readProject();
-        if (current?.threadId === project.threadId && current.cwd === project.cwd) return;
+        if (current?.cwd === project.cwd) {
+          // Same project, different chat: keep the mounted board and its state.
+          // Only the identity used for the next request moves to the new thread.
+          current = project;
+          return;
+        }
         clearPanel("");
         current = project;
-        const session = { id: project.threadId, cwd: project.cwd };
+        const mountedProject = project;
+        const session = sessionOf(project);
         dispose = window.MattSkillsCodex.mount(document.getElementById("root"), {
-          sessions: {
-            list: { getSnapshot: () => ({ current: session.id, byId: { [session.id]: session }, items: [session] }), subscribe: () => () => {} },
-            get: id => id === session.id ? session : undefined,
-          },
+          sessions,
           codexActions: { async prefill(target, text) {
+            if (!current || current.cwd !== mountedProject.cwd) throw new Error("项目已切换，旧面板已失效。");
             const active = await readProject();
-            if (current !== project || active.threadId !== project.threadId || active.cwd !== project.cwd) {
+            if (!current || current.cwd !== active.cwd) {
               clearPanel("聊天已切换，正在重新加载项目。");
               throw new Error("聊天已切换，请在重新加载后操作。");
             }
+            if (current.threadId !== active.threadId) current = active;
             if (!initialization.hostCapabilities?.experimental?.["openai/message"]) throw new Error("宿主未提供聊天草稿接口。");
             return rpc("ui/message", { role: "user", content: [{ type: "text", text: String(text) }], _meta: { "openai/message": { target, send: false } } });
           } },
           connection: { rpc: { async call(channel, endpoint, request) {
             if (channel !== "/api" || endpoint !== "dsws") throw new Error("Unknown upstream channel");
-            const reply = await rpc("tools/call", { name: "deck_upstream_read", arguments: { ...request, payload: { ...request.payload, expectedThreadId: project.threadId } } });
-            if (current !== project) throw new Error("项目已切换，旧请求已丢弃。");
+            const atCall = current;
+            if (!atCall || atCall.cwd !== mountedProject.cwd) throw new Error("项目已切换，旧请求已丢弃。");
+            const reply = await rpc("tools/call", { name: "deck_upstream_read", arguments: { ...request, payload: { ...request.payload, expectedThreadId: atCall.threadId } } });
+            if (!current || current.threadId !== atCall.threadId || current.cwd !== atCall.cwd) throw new Error("项目已切换，旧请求已丢弃。");
             if (reply.isError) throw new Error(reply.content?.[0]?.text ?? "项目数据读取失败。");
             return reply.structuredContent ?? JSON.parse(reply.content[0].text);
           } } },
         }, { sessionId: session.id });
-      } catch (error) { clearPanel(error.message); }
+      } catch (error) { clearPanel("项目未关联：" + error.message); }
       finally { checking = false; }
     }
     await synchronizeProject();

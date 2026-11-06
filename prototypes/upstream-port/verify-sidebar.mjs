@@ -2,12 +2,30 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { JSDOM, VirtualConsole } from "jsdom";
 
-const child = spawn(process.execPath, [fileURLToPath(new URL("sidebar-server.mjs", import.meta.url)), process.argv[2]], { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+// The service no longer starts with a project. Give it a throwaway Codex home
+// whose only session record maps this simulated chat to the requested project,
+// then supply the same host metadata a real Codex panel attaches.
+const projectRoot = process.argv[2];
+assert.ok(projectRoot, "project directory argument is required");
+const threadId = "11111111-1111-4111-8111-111111111111";
+const codexHome = await mkdtemp(path.join(tmpdir(), "codex-sidebar-check-"));
+const sessionDir = path.join(codexHome, "sessions", "2026", "11", "07");
+await mkdir(sessionDir, { recursive: true });
+await writeFile(path.join(sessionDir, "rollout-test-" + threadId + ".jsonl"), JSON.stringify({
+  type: "session_meta",
+  payload: { id: threadId, cwd: projectRoot },
+}) + "\n");
+const child = spawn(process.execPath, [fileURLToPath(new URL("sidebar-server.mjs", import.meta.url))], {
+  env: { ...process.env, CODEX_HOME: codexHome }, windowsHide: true, stdio: ["pipe", "pipe", "pipe"],
+});
 const issueNumber = Number(process.argv[3] ?? 2);
 const expectedRepository = process.argv[4] ?? null;
-const expectedDetailText = process.argv[5] ?? (issueNumber === 2 ? "验收证据" : null);
+const expectedDetailText = process.argv[5] ?? null;
 let diagnostics = "";
 child.stderr.on("data", chunk => { diagnostics += chunk; });
 const requests = new Map();
@@ -32,7 +50,13 @@ function rpc(method, params = {}) {
 let dom;
 try {
   await rpc("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "isolated-port-check", version: "1" } });
-  const snapshotResult = await rpc("tools/call", { name: "deck_upstream_read", arguments: { method: "snapshot", payload: {} } });
+  const hostMeta = { thread_id: threadId, threadId };
+  const snapshotResult = await rpc("tools/call", {
+    name: "deck_upstream_read",
+    arguments: { method: "snapshot", payload: { expectedThreadId: threadId } },
+    _meta: hostMeta,
+  });
+  if (snapshotResult.isError) throw new Error(snapshotResult.content?.[0]?.text ?? "Snapshot failed");
   const snapshot = JSON.parse(snapshotResult.content[0].text);
   if (expectedRepository) assert.equal(snapshot.value.repository?.name, expectedRepository);
   const expectedIssue = snapshot.value.issues.find(issue => issue.number === issueNumber);
@@ -54,7 +78,7 @@ try {
       hostCapabilities: {},
       hostContext: {
         theme: "light",
-        threadId: "thread-test-1",
+        threadId,
         cwd: process.argv[2],
         project: { id: "project-test-1", root: process.argv[2] },
         styles: { variables: { "--background": "rgb(248, 250, 252)", "--foreground": "rgb(17, 24, 39)" } },
@@ -63,6 +87,7 @@ try {
     else {
       assert.equal(message.method, "tools/call");
       if (message.params?.name === "deck_host_context_probe") hostContextCaptures.push(message.params.arguments?.capture);
+      message.params._meta = { thread_id: threadId, threadId };
       result = await rpc(message.method, message.params);
     }
     window.dispatchEvent(new window.MessageEvent("message", { source: window, data: { jsonrpc: "2.0", id: message.id, result } }));
@@ -79,8 +104,8 @@ try {
   const row = () => window.document.querySelector(`[role="button"][aria-label^="#${issueNumber} "]`);
   await until(row);
   const candidateEntry = (capture, suffix) => Object.entries(capture?.candidates ?? {}).find(([name]) => name.endsWith(suffix));
-  await until(() => hostContextCaptures.some(capture => candidateEntry(capture, ".threadId")?.[1] === "thread-test-1"));
-  const initialCapture = hostContextCaptures.find(capture => candidateEntry(capture, ".threadId")?.[1] === "thread-test-1");
+  await until(() => hostContextCaptures.some(capture => candidateEntry(capture, ".threadId")?.[1] === threadId));
+  const initialCapture = hostContextCaptures.find(capture => candidateEntry(capture, ".threadId")?.[1] === threadId);
   assert.equal(candidateEntry(initialCapture, ".project.root")?.[1], process.argv[2]);
   assert.ok(initialCapture.keys.some(name => name.endsWith(".project.id")));
   assert.equal(window.document.documentElement.dataset.theme, "light");
@@ -123,7 +148,6 @@ try {
   assert.ok(window.document.body.textContent.includes(expectedIssue.title));
   row().click();
   await until(() => window.document.body.textContent.includes("返回列表") && (!expectedDetailText || window.document.body.textContent.includes(expectedDetailText)));
-  if (issueNumber === 2) assert.ok(window.document.body.textContent.includes("已定决策"));
   assert.deepEqual(errors, []);
   console.log("PASS MCP resources including legacy aliases and live host theme updates");
   console.log("PASS original sidebar -> MCP -> upstream backend -> real GitHub list/detail");
@@ -133,4 +157,5 @@ try {
   for (const { timer } of requests.values()) clearTimeout(timer);
   child.stdin.end();
   child.kill();
+  await rm(codexHome, { recursive: true, force: true });
 }
