@@ -167,6 +167,7 @@ export function inspectConfig(text, {
     const installedCwd = parseTomlString(valueOf(server, "cwd"));
     add("command", installedCommand === command, installedCommand || "missing", "node install.mjs --apply");
     add("args[0]", installedArgs[0] === args[0], installedArgs.join(" ") || "missing", "node install.mjs --apply");
+    add("args count", installedArgs.length === args.length, String(installedArgs.length), "node install.mjs --apply");
     add("cwd", installedCwd === cwd, installedCwd || "missing", "node install.mjs --apply");
     add("env.CODEX_HOME", Boolean(env) && parseTomlString(valueOf(env, "CODEX_HOME")) === codexHome,
       env ? parseTomlString(valueOf(env, "CODEX_HOME")) : "missing", "node install.mjs --apply");
