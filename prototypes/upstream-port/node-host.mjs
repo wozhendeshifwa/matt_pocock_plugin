@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import originalHost from "../../vendor/mattskills-1.8.0-rc.7/lib/index.js";
 import { createPlatform } from "../../vendor/mattskills-1.8.0-rc.7/lib/platform/index.js";
+import { resolveExecutable } from "./executables.mjs";
 
 const readMethods = new Set([
   "cwd", "snapshot", "refresh", "selection", "registry", "probe", "chain",
@@ -80,13 +81,7 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
   };
   const subprocess = {
     async resolveExecutable(name) {
-      const known = {
-        gh: process.env.DECK_GH ?? "C:/Program Files/GitHub CLI/gh.exe",
-        git: process.env.DECK_GIT ?? "C:/Program Files/Git/cmd/git.exe",
-      };
-      const candidate = known[name];
-      if (!candidate) return null;
-      try { await fs.access(candidate); return candidate; } catch { return null; }
+      return resolveExecutable(name, { env: process.env });
     },
     spawn(options) {
       if (!isReadCommand(options.argv)) throw new Error("Command is outside read-only port verification.");
