@@ -198,11 +198,11 @@
     let current = null;
     let dispose = null;
     let checking = false;
-    // The board is scoped to the local project (cwd), not to an individual chat.
-    // Same-project chats share one mounted panel; the thread id is only the
+    // The board is scoped to the Codex project root, not to an individual chat.
+    // Same-project chats share one project key; the thread id is only the
     // identity used for the current request and the stale-request guard.
-    const projectKeyOf = project => project.cwd;
-    const sessionOf = project => ({ id: projectKeyOf(project), cwd: project.cwd });
+    const projectKeyOf = project => project.projectRoot;
+    const sessionOf = project => ({ id: projectKeyOf(project), cwd: projectKeyOf(project) });
     const sessions = {
       list: {
         getSnapshot: () => {
@@ -222,21 +222,32 @@
     async function readProject() {
       const reply = await rpc("tools/call", { name: "deck_current_project", arguments: {} });
       if (reply.isError) throw new Error(reply.content?.[0]?.text ?? "项目关联失败。");
-      if (!reply.structuredContent?.threadId || !reply.structuredContent?.cwd) throw new Error("项目身份不完整。");
-      return reply.structuredContent;
+      const project = reply.structuredContent;
+      if (!project?.threadId || !project?.cwd) throw new Error("项目身份不完整。");
+      if (!project.projectRoot) {
+        clearPanel(project.message ?? "此聊天不属于 Codex 项目。");
+        return null;
+      }
+      return project;
     }
     function clearPanel(message) {
+      const root = document.getElementById("root");
+      if (current === null && !dispose) {
+        if (message && root.textContent !== message) root.textContent = message;
+        return;
+      }
       current = null;
       dispose?.();
       dispose = null;
-      document.getElementById("root").textContent = message;
+      if (message !== undefined) root.textContent = message;
     }
     async function synchronizeProject() {
       if (checking) return;
       checking = true;
       try {
         const project = await readProject();
-        if (current?.cwd === project.cwd) {
+        if (!project) return;
+        if (current?.projectRoot === project.projectRoot) {
           // Same project, different chat: keep the mounted board and its state.
           // Only the identity used for the next request moves to the new thread.
           current = project;
@@ -263,9 +274,10 @@
           sessions,
           locale: localeService,
           codexActions: { async prefill(target, text) {
-            if (!current || current.cwd !== mountedProject.cwd) throw new Error("项目已切换，旧面板已失效。");
+            if (!current || current.projectRoot !== mountedProject.projectRoot) throw new Error("项目已切换，旧面板已失效。");
             const active = await readProject();
-            if (!current || current.cwd !== active.cwd) {
+            if (!active) throw new Error("此聊天不属于 Codex 项目。");
+            if (!current || current.projectRoot !== active.projectRoot) {
               clearPanel("聊天已切换，正在重新加载项目。");
               throw new Error("聊天已切换，请在重新加载后操作。");
             }
@@ -276,9 +288,9 @@
           connection: { rpc: { async call(channel, endpoint, request) {
             if (channel !== "/api" || endpoint !== "dsws") throw new Error("Unknown upstream channel");
             const atCall = current;
-            if (!atCall || atCall.cwd !== mountedProject.cwd) throw new Error("项目已切换，旧请求已丢弃。");
+            if (!atCall || atCall.projectRoot !== mountedProject.projectRoot) throw new Error("项目已切换，旧请求已丢弃。");
             const reply = await rpc("tools/call", { name: "deck_upstream_read", arguments: { ...request, payload: { ...request.payload, expectedThreadId: atCall.threadId } } });
-            if (!current || current.threadId !== atCall.threadId || current.cwd !== atCall.cwd) throw new Error("项目已切换，旧请求已丢弃。");
+            if (!current || current.threadId !== atCall.threadId || current.projectRoot !== atCall.projectRoot) throw new Error("项目已切换，旧请求已丢弃。");
             if (reply.isError) throw new Error(reply.content?.[0]?.text ?? "项目数据读取失败。");
             return reply.structuredContent ?? JSON.parse(reply.content[0].text);
           } } },

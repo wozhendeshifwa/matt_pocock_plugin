@@ -1,24 +1,22 @@
 import assert from "node:assert/strict";
 import { createInterface } from "node:readline";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
+import { rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { repoRoot, serverScript } from "./install.mjs";
+import { createTestCodexHome } from "./test-codex-home.mjs";
 
 const expected = [
   "deck_context", "deck_issue_get", "deck_map_snapshot", "deck_issue_list",
   "deck_issue_create", "deck_map_plan_create", "deck_map_link", "deck_issue_patch", "deck_issue_report",
 ];
 const threadId = "55555555-5555-4555-8555-555555555555";
-const codexHome = await mkdtemp(path.join(tmpdir(), "mattskills-tools-"));
-const sessionDir = path.join(codexHome, "sessions", "2026", "11", "07");
-await mkdir(sessionDir, { recursive: true });
-await writeFile(path.join(sessionDir, "rollout-test-" + threadId + ".jsonl"), JSON.stringify({
-  type: "session_meta",
-  payload: { id: threadId, cwd: repoRoot },
-}) + "\n");
+const { home: codexHome } = await createTestCodexHome({
+  prefix: "mattskills-tools-",
+  threads: [{ id: threadId, cwd: repoRoot }],
+  projectRoots: [repoRoot],
+  rollouts: [{ id: threadId, cwd: repoRoot }],
+});
 
 const child = spawn(process.execPath, [serverScript], {
   cwd: fileURLToPath(new URL(".", import.meta.url)),

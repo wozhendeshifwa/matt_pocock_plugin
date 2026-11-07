@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {JSDOM} from 'jsdom';
 const dom=new JSDOM('<main id="root"></main>',{runScripts:'outside-only'});
 const w=dom.window;
-let active={threadId:'project-a',cwd:'C:/a'};
+let active={threadId:'project-a-1',projectRoot:'C:/a',cwd:'C:/a'};
 let poll;
 let disposed=0;
 let lastPayload=null;
@@ -23,10 +23,11 @@ w.postMessage=message=>{
 w.eval(await readFile(new URL('sidebar-bridge.js',import.meta.url),'utf8'));
 await new Promise(r=>setTimeout(r,20));
 assert.equal(mounts[0].props.sessionId,'C:/a');
+assert.equal(mounts[0].props.session.cwd,'C:/a');
 
 // A different chat in the same project must keep the mounted board (and its
 // state) while moving only the identity used for the next request.
-active={threadId:'project-a-2',cwd:'C:/a'};
+active={threadId:'project-a-2',projectRoot:'C:/a',cwd:'C:/a'};
 await poll();
 assert.equal(mounts.length,1,'same-project chat switch must not remount');
 assert.equal(disposed,0);
@@ -40,14 +41,31 @@ assert.equal(messages.length,1);
 assert.equal(messages[0]._meta['openai/message'].target,'new');
 assert.equal(messages[0]._meta['openai/message'].send,false);
 
-active={threadId:'project-b',cwd:'C:/b'};
+// A cwd below the same project root is still the same board.
+active={threadId:'project-a-3',projectRoot:'C:/a',cwd:'C:/a/sub'};
+await poll();
+assert.equal(mounts.length,1,'subdirectory of the same project must not remount');
+assert.equal(disposed,0);
+const subdirResult=await mounts[0].services.connection.rpc.call('/api','dsws',{method:'snapshot'});
+assert.deepEqual(subdirResult,{ok:true,value:{}});
+assert.equal(lastPayload.expectedThreadId,'project-a-3');
+
+active={threadId:'project-b',projectRoot:'C:/b',cwd:'C:/b'};
 await poll();
 assert.equal(disposed,1);
 assert.equal(mounts[1].props.sessionId,'C:/b');
 await assert.rejects(mounts[0].services.connection.rpc.call('/api','dsws',{method:'snapshot'}));
-active=null;
+
+// A projectless task chat (state_5 cwd outside every project root) must fail
+// closed: unmount, never fall back to the previous project.
+active={threadId:'project-p',projectRoot:null,cwd:'C:/task'};
 await poll();
 assert.equal(disposed,2);
-assert.match(w.document.getElementById('root').textContent,/项目/);
+assert.equal(mounts.length,2,'projectless chat must not mount a board');
+assert.match(w.document.getElementById('root').textContent,/不属于 Codex 项目/);
+
+active=null;
+await poll();
+assert.match(w.document.getElementById('root').textContent,/项目未关联/);
 dom.window.close();
-console.log('PASS same-project chat keeps the panel; cross-project remounts; stale requests rejected; missing identity cleared');
+console.log('PASS same-project chat keeps the panel; project-root subdirs keep the panel; cross-project remounts; projectless and missing identity clear');

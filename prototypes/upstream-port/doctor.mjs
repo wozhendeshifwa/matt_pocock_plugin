@@ -1,7 +1,6 @@
 import { createInterface } from "node:readline";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import os from "node:os";
+import { rm } from "node:fs/promises";
 import path from "node:path";
 import {
   adapterRoot,
@@ -16,6 +15,7 @@ import {
   serverScript,
   summarize,
 } from "./install.mjs";
+import { createTestCodexHome } from "./test-codex-home.mjs";
 
 function parseArgs(argv) {
   const options = {
@@ -83,14 +83,13 @@ function rpcClient(child) {
 async function smokeTest({ github = false, serverName = defaultServerName } = {}) {
   const checks = [];
   const add = (name, ok, detail, fix) => checks.push({ name, ok, detail, fix });
-  const codexHome = await mkdtemp(path.join(os.tmpdir(), "mattskills-doctor-"));
   const threadId = "22222222-2222-4222-8222-222222222222";
-  const sessionDir = path.join(codexHome, "sessions", "2026", "11", "07");
-  await mkdir(sessionDir, { recursive: true });
-  await writeFile(path.join(sessionDir, "rollout-test-" + threadId + ".jsonl"), JSON.stringify({
-    type: "session_meta",
-    payload: { id: threadId, cwd: repoRoot },
-  }) + "\n");
+  const { home: codexHome } = await createTestCodexHome({
+    prefix: "mattskills-doctor-",
+    threads: [{ id: threadId, cwd: repoRoot }],
+    projectRoots: [repoRoot],
+    rollouts: [{ id: threadId, cwd: repoRoot }],
+  });
   const child = spawn(process.execPath, [serverScript], {
     cwd: adapterRoot,
     env: { ...process.env, CODEX_HOME: codexHome },
@@ -139,7 +138,7 @@ async function smokeTest({ github = false, serverName = defaultServerName } = {}
       arguments: {},
       _meta: metadata,
     });
-    add("MCP thread identity", project?.structuredContent?.cwd === repoRoot,
+    add("MCP thread identity", project?.structuredContent?.cwd === repoRoot && project?.structuredContent?.projectRoot === repoRoot,
       project?.structuredContent?.cwd ?? project?.content?.[0]?.text ?? "no cwd",
       "Check session-project.mjs and the thread session record");
     if (github) {

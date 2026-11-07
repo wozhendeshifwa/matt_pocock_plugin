@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { glob, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { glob, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { JSDOM, VirtualConsole } from "jsdom";
 import { repoRoot } from "./install.mjs";
+import { createTestCodexHome } from "./test-codex-home.mjs";
 
 // This harness replays the real desktop handshake's capability key set. It does
 // not claim native pane placement or visual acceptance: those still require a
@@ -81,13 +81,12 @@ const capabilities = capabilitiesFrom(handshake.keys);
 assert.ok(capabilities.experimental?.["openai/message"], "Replayed handshake must advertise openai/message");
 
 const threadId = "33333333-3333-4333-8333-333333333333";
-const codexHome = await mkdtemp(path.join(tmpdir(), "mattskills-harness-"));
-const sessionDir = path.join(codexHome, "sessions", "2026", "11", "07");
-await mkdir(sessionDir, { recursive: true });
-await writeFile(path.join(sessionDir, "rollout-test-" + threadId + ".jsonl"), JSON.stringify({
-  type: "session_meta",
-  payload: { id: threadId, cwd: repoRoot },
-}) + "\n");
+const { home: codexHome } = await createTestCodexHome({
+  prefix: "mattskills-harness-",
+  threads: [{ id: threadId, cwd: repoRoot }],
+  projectRoots: [repoRoot],
+  rollouts: [{ id: threadId, cwd: repoRoot }],
+});
 
 const child = spawn(process.execPath, [fileURLToPath(new URL("sidebar-server.mjs", import.meta.url))], {
   cwd: fileURLToPath(new URL(".", import.meta.url)),

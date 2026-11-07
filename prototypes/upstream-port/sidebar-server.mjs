@@ -55,6 +55,10 @@ async function persistHostContextCapture(capture) {
 }
 const projectHosts = createProjectHosts(dataRoot + "projects");
 const deckToolDefinitions = createDeckToolsForHost({}).definitions;
+function projectKey(project) {
+  if (!project.projectRoot) throw new Error("此聊天不属于 Codex 项目，侧栏不会读取或派发上一个项目的数据。");
+  return project.projectRoot;
+}
 async function handle(request) {
   if (request.method === "resources/read" ||
       request.method === "tools/call") {
@@ -99,10 +103,11 @@ async function handle(request) {
       if (deckTool) {
         try {
           const project = await resolveSessionProject(request.params._meta);
-          const result = await projectHosts.call(project.cwd, "__deck_tool_call__", {
+          const cwd = projectKey(project);
+          const result = await projectHosts.call(cwd, "__deck_tool_call__", {
             name: deckTool.name,
             arguments: request.params.arguments ?? {},
-            context: { cwd: project.cwd, sessionId: project.threadId },
+            context: { cwd, sessionId: project.threadId },
           });
           return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
         } catch (error) {
@@ -122,9 +127,10 @@ async function handle(request) {
       if (request.params.name !== "deck_upstream_read") throw new Error("Unknown tool");
       try {
         const project = await resolveSessionProject(request.params._meta);
+        const cwd = projectKey(project);
         const { method, payload } = request.params.arguments ?? {};
         if (payload?.expectedThreadId !== project.threadId) throw new Error("聊天已切换，请等待项目重新加载。");
-        const result = await projectHosts.call(project.cwd, method, payload);
+        const result = await projectHosts.call(cwd, method, payload);
         return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
       } catch (error) {
         return { isError: true, content: [{ type: "text", text: error.message }] };

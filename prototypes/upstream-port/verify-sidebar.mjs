@@ -2,24 +2,22 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
+import { rm } from "node:fs/promises";
 import { JSDOM, VirtualConsole } from "jsdom";
+import { createTestCodexHome } from "./test-codex-home.mjs";
 
 // The service no longer starts with a project. Give it a throwaway Codex home
-// whose only session record maps this simulated chat to the requested project,
-// then supply the same host metadata a real Codex panel attaches.
+// whose state_5 row and project root map this simulated chat to the requested
+// project, then supply the same host metadata a real Codex panel attaches.
 const projectRoot = process.argv[2];
 assert.ok(projectRoot, "project directory argument is required");
 const threadId = "11111111-1111-4111-8111-111111111111";
-const codexHome = await mkdtemp(path.join(tmpdir(), "codex-sidebar-check-"));
-const sessionDir = path.join(codexHome, "sessions", "2026", "11", "07");
-await mkdir(sessionDir, { recursive: true });
-await writeFile(path.join(sessionDir, "rollout-test-" + threadId + ".jsonl"), JSON.stringify({
-  type: "session_meta",
-  payload: { id: threadId, cwd: projectRoot },
-}) + "\n");
+const { home: codexHome } = await createTestCodexHome({
+  prefix: "codex-sidebar-check-",
+  threads: [{ id: threadId, cwd: projectRoot }],
+  projectRoots: [projectRoot],
+  rollouts: [{ id: threadId, cwd: projectRoot }],
+});
 const child = spawn(process.execPath, [fileURLToPath(new URL("sidebar-server.mjs", import.meta.url))], {
   env: { ...process.env, CODEX_HOME: codexHome }, windowsHide: true, stdio: ["pipe", "pipe", "pipe"],
 });

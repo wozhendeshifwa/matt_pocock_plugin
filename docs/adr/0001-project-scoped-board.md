@@ -21,3 +21,4 @@
 2026-11-07：port 的派发保留宿主草稿语义，任务卡/独立任务会话与结果回显仍归旧 probe；边界见 ADR-0002。
 
 2026-11-07：`#8` 确认 Codex 只支持 MCP Apps 的 `global` / `thread` / `file` 三种入口；port 当前使用 `thread` 入口。ADR 要求的全局入口是否对裸 `mcp_servers` 生效尚未验证，由地图 `#23` 做真实桌面探测；若 `global` 只对插件安装的服务开放，首版入口形态需要重新评估，不能把 `thread` 入口直接当作 ADR 已满足。
+2026-11-07：项目身份解析落地为 `state_5.threads.cwd` 优先、rollout 首行只作旁证；cwd 必须落在已知项目根内，项目外 cwd（projectless 任务目录）一律 fail closed，不挂载、不沿用上一个项目。同一项目按 project root 共享看板。自动化证据见 #11；真实桌面四场景仍归 #15。
