@@ -22,3 +22,4 @@
 
 2026-11-07：`#8` 确认 Codex 只支持 MCP Apps 的 `global` / `thread` / `file` 三种入口；port 当前使用 `thread` 入口。ADR 要求的全局入口是否对裸 `mcp_servers` 生效尚未验证，由地图 `#23` 做真实桌面探测；若 `global` 只对插件安装的服务开放，首版入口形态需要重新评估，不能把 `thread` 入口直接当作 ADR 已满足。
 2026-11-07：项目身份解析落地为 `state_5.threads.cwd` 优先、rollout 首行只作旁证；cwd 必须落在已知项目根内，项目外 cwd（projectless 任务目录）一律 fail closed，不挂载、不沿用上一个项目。同一项目按 project root 共享看板。自动化证据见 #11；真实桌面四场景仍归 #15。
+2026-11-07：#23 在 Windows Codex 桌面端 `26.1103.4239.0` 实测：裸 `mcp_servers` 声明 `global` 不产生主侧栏条目；本地 Codex 插件安装后主侧栏仍无条目，插件详情页的 `打开插件` 只能开出不带 `threadId`/`cwd` 的全屏 App 视图。首版入口因此确定为 `thread`，ADR 的「全局入口」要求记为宿主限制，不再作为首版发布门槛；若宿主未来开放本地插件侧栏固定，再评估「global + 显式项目选择器」。证据见 `docs/research/codex-global-entrypoint.md`。
