@@ -126,6 +126,12 @@
   const pending = new Map();
   let sequence = 0;
   let lastHostContextCapture = "";
+  // Routing source of truth comes from the server-injected list (same set as
+  // rpc-endpoints.mjs). Writes go through the write tool so the host never sees a
+  // write carried by a readOnlyHint tool.
+  const writeMethods = new Set(Array.isArray(window.__DECK_WRITE_METHODS__) ? window.__DECK_WRITE_METHODS__ : []);
+  const isWriteCall = (method, payload) =>
+    method === "setupLayout" ? payload?.layout !== undefined && payload?.layout !== null : writeMethods.has(method);
   const send = message => parent.postMessage({ jsonrpc: "2.0", ...message }, "*");
   function rpc(method, params) {
     return new Promise((resolve, reject) => {
@@ -289,9 +295,10 @@
             if (channel !== "/api" || endpoint !== "dsws") throw new Error("Unknown upstream channel");
             const atCall = current;
             if (!atCall || atCall.projectRoot !== mountedProject.projectRoot) throw new Error("项目已切换，旧请求已丢弃。");
-            const reply = await rpc("tools/call", { name: "deck_upstream_read", arguments: { ...request, payload: { ...request.payload, expectedThreadId: atCall.threadId } } });
+            const tool = isWriteCall(request.method, request.payload) ? "deck_upstream_write" : "deck_upstream_read";
+            const reply = await rpc("tools/call", { name: tool, arguments: { ...request, payload: { ...request.payload, expectedThreadId: atCall.threadId } } });
             if (!current || current.threadId !== atCall.threadId || current.projectRoot !== atCall.projectRoot) throw new Error("项目已切换，旧请求已丢弃。");
-            if (reply.isError) throw new Error(reply.content?.[0]?.text ?? "项目数据读取失败。");
+            if (reply.isError) throw new Error(reply.content?.[0]?.text ?? (tool === "deck_upstream_write" ? "操作未完成。" : "项目数据读取失败。"));
             return reply.structuredContent ?? JSON.parse(reply.content[0].text);
           } } },
         }, { sessionId: session.id, session, useSessions, labels });
