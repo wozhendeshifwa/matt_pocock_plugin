@@ -5,6 +5,22 @@
 
 export const WRITE_AUDIT_FILE = "write-audit.jsonl";
 
+// The upstream write endpoints this port has actually opened. One list so the
+// node host and the panel bridge injected by the server cannot drift apart.
+// #12 opened the issue surface; #18 opened the settings surface (log switch,
+// log clear, and opening a folder/file that already lives under an allowed
+// root). Everything else in WRITE_ENDPOINTS still fails closed.
+export const ENABLED_WRITE_ENDPOINTS = Object.freeze([
+  "commentIssue",
+  "setLabelColors",
+  "bind",
+  "handoffResolve",
+  "logSetSwitch",
+  "logClear",
+  "openFolder",
+  "openPath",
+]);
+
 export const CATEGORIES = Object.freeze([
   "project-write",
   "external-github-write",
@@ -204,15 +220,6 @@ export const WRITE_POLICY = Object.freeze({
     commands: [],
     fsTargets: ["<data-root>/.dsh-mattskillsdeck-cache/logs/YYYY-MM-DD.log"],
     audit: true,
-  },
-  logExport: {
-    category: "read-only-export",
-    confirmation: CONFIRMATION.none,
-    destructive: false,
-    commands: [],
-    fsTargets: [],
-    audit: false,
-    notes: "Reads and returns log text; should move to the read endpoint set in #18.",
   },
   openFolder: {
     category: "host-side-effect",

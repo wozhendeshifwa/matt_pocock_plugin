@@ -39,8 +39,10 @@ export async function resolveExecutable(name, {
   const override = name === "gh" ? env.DECK_GH : name === "git" ? env.DECK_GIT : null;
   if (override && await readable(override)) return override;
 
+  // A caller may hand us an already-suffixed name (the vendored platform layer
+  // maps cmd -> cmd.exe before resolving). Do not double the extension.
   const extensions = platform === "win32"
-    ? String(env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";").filter(Boolean)
+    ? (path.extname(name) ? [""] : String(env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";").filter(Boolean))
     : [""];
   for (const directory of pathEntries(env)) {
     for (const extension of extensions) {

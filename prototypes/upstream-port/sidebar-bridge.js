@@ -273,6 +273,10 @@
         const language = localeService.getSnapshot().active;
         const labels = {
           board: language === "en" ? "Board" : "看板",
+          settings: language === "en" ? "Settings" : "设置",
+          settingsNote: language === "en"
+            ? "Updates: this Codex port does not bundle dsh-plugin-update. Pull this repository and run install.mjs --apply."
+            : "更新：Codex 版不内置 dsh-plugin-update；请在仓库拉取新版本后运行 install.mjs --apply。",
           status: language === "en" ? "Status" : "状态",
           run: language === "en" ? "Run" : "运行",
         };

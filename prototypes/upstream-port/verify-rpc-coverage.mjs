@@ -76,11 +76,11 @@ try {
     _meta: metadata,
   });
   const manifest = manifestResult.structuredContent ?? JSON.parse(manifestResult.content?.[0]?.text ?? "{}");
-  assert.equal(manifest.read.length, 30, "read endpoint count");
-  assert.equal(manifest.write.length, 26, "write endpoint count");
+  assert.equal(manifest.read.length, 31, "read endpoint count");
+  assert.equal(manifest.write.length, 25, "write endpoint count");
   assert.equal(manifest.upstream.length, 56, "upstream endpoint count");
-  for (const name of ["skill.readDoc", "gitStatus", "gitDiff", "gitLog", "setupLayout", "detect"]) {
-    assert.ok(manifest.read.includes(name), `read manifest missing ${name}`);
+  for (const name of ["skill.readDoc", "gitStatus", "gitDiff", "gitLog", "setupLayout", "detect", "logExport"]) {
+    assert.ok(manifest.read.includes(name), "read manifest missing " + name);
   }
   for (const name of ["bind", "commentIssue", "gitStage", "updateInstall"]) {
     assert.ok(manifest.write.includes(name), `write manifest missing ${name}`);
@@ -97,6 +97,7 @@ try {
     ["mapTickets", { number: 3 }],
     ["setupLayout", {}],
     ["updateStatus", {}],
+    ["logExport", {}],
   ];
   for (const [method, payload] of reads) {
     const result = await read(method, payload);

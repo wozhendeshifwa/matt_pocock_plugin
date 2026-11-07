@@ -6,6 +6,7 @@ import { createProjectHosts } from "./project-hosts.mjs";
 import { summarizeHostContext } from "./host-context.mjs";
 import { resolveSessionProject } from "./session-project.mjs";
 import { rpcManifest, WRITE_ENDPOINTS } from "./rpc-endpoints.mjs";
+import { ENABLED_WRITE_ENDPOINTS } from "./write-policy.mjs";
 import { createDeckToolsForHost } from "../../vendor/mattskills-1.8.0-rc.7/lib/platform/deckToolsAssembly.js";
 
 // The service owns no project. Each sidebar instance resolves its project per
@@ -27,7 +28,7 @@ const html = '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><met
   // The write-method list is injected by the server so the bridge never keeps a
   // second copy of rpc-endpoints.mjs and read/write routing cannot drift.
   '<script>window.__DECK_WRITE_METHODS__=' + JSON.stringify([...WRITE_ENDPOINTS].sort()) + ';' +
-  'window.__DECK_WRITE_SURFACE__=' + JSON.stringify(["commentIssue", "setLabelColors", "bind", "handoffResolve"]) + ';</script>' +
+  'window.__DECK_WRITE_SURFACE__=' + JSON.stringify([...ENABLED_WRITE_ENDPOINTS]) + ';</script>' +
   scripts.map(script => '<script>' + script.replace(/<\/script/gi, '<\\/script') + '</script>').join('') + '</body></html>';
 async function persistHostContextCapture(capture) {
   const serialized = JSON.stringify(capture);

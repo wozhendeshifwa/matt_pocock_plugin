@@ -29,6 +29,7 @@ export const READ_ENDPOINTS = new Set([
   "namingPlan",
   "awaitCreatedIssue",
   "logBatch",
+  "logExport",
   "logGetSwitch",
   "updateStatus",
   "updateCheck",
@@ -58,7 +59,6 @@ export const WRITE_ENDPOINTS = new Set([
   "pickDirectory",
   "pickFile",
   "openPath",
-  "logExport",
   "logClear",
   "logSetSwitch",
   "updateInstall",
@@ -66,8 +66,10 @@ export const WRITE_ENDPOINTS = new Set([
 
 export const UPSTREAM_ENDPOINTS = new Set([...READ_ENDPOINTS, ...WRITE_ENDPOINTS]);
 
-// setupLayout is a read when it has no layout value (the settings page asks for
-// the last choice) and a write when a layout is supplied.
+// logExport only reads the day's log and returns its text, so #18 moved it to
+// the read set (write-policy already classified it "read-only-export").
+// setupLayout is a read when it has no layout value and a write when a layout
+// is supplied.
 export function classifyEndpoint(method, payload = {}) {
   if (method === "setupLayout") return payload?.layout == null ? "read" : "write";
   if (READ_ENDPOINTS.has(method)) return "read";
