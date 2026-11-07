@@ -77,3 +77,11 @@
 - `prototypes/upstream-port/rpc-endpoints.mjs` 把 vendor `lib/index.js` 的 56 个 `harness.handle` 注册分成 30 条读端点与 26 条写端点。`skill.readDoc` 命名修正；`detect`、`gitStatus`、`gitDiff`、`gitLog`、`gitWriteCheck`、`gateStats`、`bindings`、`handoffLatest`、`awaitCreatedIssue`、`updateStatus/Check/Changelog` 等读取路径纳入。
 - `node-host.mjs` 不再维护 `readMethods` 白名单：读端点全部路由，写端点显式返回 `Host action is a write and is not enabled in this ticket`，未知端点显式报 `Unknown upstream endpoint`。`setupLayout` 按是否带 `layout` 分为读/写。
 - `sidebar-server.mjs` 新增 `deck_rpc_manifest`；`verify-rpc-manifest.mjs` 对照 vendor 注册表校验清单，`verify-rpc-coverage.mjs` 走 MCP 代表性读取端点并验证写端点/未知端点被拒绝；`doctor.mjs` 增加 manifest 检查，当前 `doctor` 29/29（未跑 GitHub 时）。
+
+### 2026-11-07 工具、locale 与会话服务
+
+- `node-host.mjs` 补 `tools` 服务：上游 `hookDeckAgentTools` 注册的 9 个 `deck_*` 工具被捕获，`sidebar-server.mjs` 通过 MCP `tools/list` 暴露；`project-worker.mjs` 的 `__deck_tool_call__` 把当前项目 cwd/thread 作为 `exec` 上下文传给工具。
+- 真实数据已验证：`deck_context`、`deck_issue_list`、`deck_issue_get`、`deck_map_snapshot` 返回真实仓库/票/地图数据；写工具仍受 #5 的写授权边界约束。
+- `sidebar-bridge.js` 从 `hostContext.locale` / `document.documentElement.lang` / `window.openai.locale` 拼 DSH 形状 locale 服务（`register` / `bind` / `getSnapshot`），`tr()` 不再永久中文；`verify-locale.mjs` 覆盖 en-US 初始与 zh-CN 切换。
+- 新增 `session-store.mjs`：只读 `state_5.sqlite` 的 `threads.cwd`，给 `sessions.get` / `sessionQuery.filterSessions` / `readSession` / `listEvents` 提供真实记录；bridge 的 `useSessions` 返回当前项目会话，缺失时返回空快照。
+- `verify-deck-tools.mjs` 验证 9 个工具与真实数据；`verify-sessions.mjs` 验证会话存储映射；`doctor.mjs` 增加 9/9 工具表检查（当前 30/30，未跑 GitHub 时）。

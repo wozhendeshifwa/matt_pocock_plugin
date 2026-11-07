@@ -6,6 +6,7 @@ import { createProjectHosts } from "./project-hosts.mjs";
 import { summarizeHostContext } from "./host-context.mjs";
 import { resolveSessionProject } from "./session-project.mjs";
 import { rpcManifest } from "./rpc-endpoints.mjs";
+import { createDeckToolsForHost } from "../../vendor/mattskills-1.8.0-rc.7/lib/platform/deckToolsAssembly.js";
 
 // The service owns no project. Each sidebar instance resolves its project per
 // request from the host-provided thread identity, so the data root is keyed by
@@ -53,6 +54,7 @@ async function persistHostContextCapture(capture) {
   return hostContextWrite;
 }
 const projectHosts = createProjectHosts(dataRoot + "projects");
+const deckToolDefinitions = createDeckToolsForHost({}).definitions;
 async function handle(request) {
   if (request.method === "resources/read" ||
       request.method === "tools/call") {
@@ -61,7 +63,7 @@ async function handle(request) {
     }));
   }
   switch (request.method) {
-    case "initialize": return { protocolVersion: request.params.protocolVersion, capabilities: { tools: {}, resources: {} }, serverInfo: { name: "deck-sidebar-probe", version: "1.8.0-rc.7-codex.2" } };
+    case "initialize": return { protocolVersion: request.params.protocolVersion, capabilities: { tools: {}, resources: {} }, serverInfo: { name: "deck-sidebar-probe", version: "1.8.0-rc.7-codex.3" } };
     case "ping": return {};
     case "tools/list": return { tools: [
       { name: "deck_current_project", description: "Resolve this UI request's host-provided thread identity to its local project.", inputSchema: { type: "object", additionalProperties: false }, annotations: { readOnlyHint: true }, _meta: { ui: { visibility: ["app"] } } },
@@ -69,6 +71,14 @@ async function handle(request) {
       { name: "deck_upstream_read", description: "Read original MattSkills plugin data through the Codex adapter.", inputSchema: { type: "object", required: ["method"], additionalProperties: false, properties: { method: { type: "string" }, payload: { type: "object" } } }, annotations: { readOnlyHint: true }, _meta: { ui: { visibility: ["app"] } } },
       { name: "deck_rpc_manifest", description: "Return the read/write upstream RPC endpoint manifest used by this port.", inputSchema: { type: "object", additionalProperties: false }, annotations: { readOnlyHint: true }, _meta: { ui: { visibility: ["app"] } } },
       { name: "deck_host_context_probe", description: "Record sanitized Codex MCP host-context fields for project-follow diagnostics.", inputSchema: { type: "object", required: ["capture"], additionalProperties: false, properties: { capture: { type: "object" } } }, annotations: { readOnlyHint: false }, _meta: { ui: { visibility: ["app"] } } },
+      ...deckToolDefinitions.map(definition => ({
+        name: definition.name,
+        title: definition.name,
+        description: definition.description,
+        inputSchema: definition.parameters,
+        annotations: { readOnlyHint: ["deck_context", "deck_issue_get", "deck_map_snapshot", "deck_issue_list"].includes(definition.name) },
+        _meta: { ui: { visibility: ["model"] } },
+      })),
     ] };
     case "resources/list": return { resources: [{ uri, name: "MattSkillsDeck", mimeType }] };
     case "resources/templates/list": return { resourceTemplates: [] };
@@ -85,6 +95,20 @@ async function handle(request) {
         }
       }
       if (request.params.name === "open_deck_sidebar_probe") return { content: [{ type: "text", text: "Original MattSkills sidebar" }] };
+      const deckTool = deckToolDefinitions.find(tool => tool.name === request.params.name);
+      if (deckTool) {
+        try {
+          const project = await resolveSessionProject(request.params._meta);
+          const result = await projectHosts.call(project.cwd, "__deck_tool_call__", {
+            name: deckTool.name,
+            arguments: request.params.arguments ?? {},
+            context: { cwd: project.cwd, sessionId: project.threadId },
+          });
+          return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
+        } catch (error) {
+          return { isError: true, content: [{ type: "text", text: error.message }] };
+        }
+      }
       if (request.params.name === "deck_rpc_manifest") {
         const manifest = rpcManifest();
         return { content: [{ type: "text", text: JSON.stringify(manifest) }], structuredContent: manifest };

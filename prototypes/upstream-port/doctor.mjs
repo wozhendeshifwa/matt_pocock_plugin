@@ -116,6 +116,10 @@ async function smokeTest({ github = false, serverName = defaultServerName } = {}
     for (const name of ["open_deck_sidebar_probe", "deck_current_project", "deck_upstream_read", "deck_host_context_probe", "deck_rpc_manifest"]) {
       add(`MCP tool ${name}`, names.has(name), names.has(name) ? "listed" : "missing", "Fix sidebar-server.mjs");
     }
+    const deckToolNames = ["deck_context", "deck_issue_get", "deck_map_snapshot", "deck_issue_list", "deck_issue_create", "deck_map_plan_create", "deck_map_link", "deck_issue_patch", "deck_issue_report"];
+    add("MCP deck tool table", deckToolNames.every(name => names.has(name)),
+      `${deckToolNames.filter(name => names.has(name)).length}/${deckToolNames.length}`,
+      "Fix the tools service in node-host.mjs");
     const manifestResponse = await rpc.request("tools/call", {
       name: "deck_rpc_manifest",
       arguments: {},

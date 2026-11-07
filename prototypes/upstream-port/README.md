@@ -46,6 +46,8 @@ node verify-host-harness.mjs    # 用真实桌面的 ui/initialize 能力集回�
 - 工具走 MCP `tools/list`；没有 skills provider；locale 只有信号，需要 bridge 拼 DSH 形状适配器。技能页保留自绘。
 - `global` 入口是否对裸 `mcp_servers` 生效尚未验证，见 #23；若只有插件安装的服务才有全局入口，首版入口形态需要重新评估。
 - 读取端点已按 `rpc-endpoints.mjs` 全量路由（30 条）；写入端点 26 条仍显式拒绝（`write and is not enabled`），由 #5/#6 落地。`deck_rpc_manifest` 返回清单。
+- 9 个 `deck_*` 工具已通过 MCP `tools/list` 暴露；`deck_context`、`deck_issue_list`、`deck_issue_get`、`deck_map_snapshot` 已用真实数据调用。写工具的真实执行仍受 #5 授权边界约束。
+- locale 由 bridge 从 `hostContext.locale` / `document.documentElement.lang` / `window.openai.locale` 取信号，拼 `register/bind/getSnapshot` 服务；`verify-locale` 覆盖 en-US / zh-CN。会话读取由 `session-store.mjs` 映射 `state_5.sqlite`，bridge 通过 `useSessions` 提供当前项目会话。
 - 证据：`../../docs/research/codex-host-surfaces.md`、`codex-message-dispatch.md`、`codex-thread-identity.md`。
 
 ## 验证命令
@@ -57,11 +59,14 @@ node verify-sidebar.mjs C:/Users/27263/Desktop/matt_pocock_ 14 wozhendeshifwa/ma
 node verify-host-context.mjs
 node verify-rpc-manifest.mjs
 node verify-rpc-coverage.mjs
+node verify-deck-tools.mjs
+node verify-locale.mjs
+node verify-sessions.mjs
 node doctor.mjs --github
 node verify-host-harness.mjs --issue 14
 ```
 
-前两个使用本地采集的数据；`verify-sidebar` 通过实际 MCP 服务读取真实 GitHub 数据；`verify-rpc-manifest` 对照 vendor 的 56 个 `harness.handle` 校验读/写分类，`verify-rpc-coverage` 走 MCP 代表性读取端点并验证写入端点被拒绝；`verify-host-harness` 回放真实桌面 `ui/initialize` 的能力集并验证执行/新会话草稿；`doctor --github` 是安装后的总健康检查。DOM 验证不等同于原生桌面视觉验收，最终仍需用户在 Windows Codex 侧栏实际点击验收。
+前两个使用本地采集的数据；`verify-sidebar` 通过实际 MCP 服务读取真实 GitHub 数据；`verify-rpc-manifest` 对照 vendor 的 56 个 `harness.handle` 校验读/写分类，`verify-rpc-coverage` 走 MCP 代表性读取端点并验证写入端点被拒绝；`verify-deck-tools` 验证 9 个 `deck_*` 工具与真实数据；`verify-locale` 验证宿主语言切换；`verify-sessions` 验证 Codex 会话存储映射；`verify-host-harness` 回放真实桌面 `ui/initialize` 的能力集并验证执行/新会话草稿；`doctor --github` 是安装后的总健康检查。DOM 验证不等同于原生桌面视觉验收，最终仍需用户在 Windows Codex 侧栏实际点击验收。
 
 ## 说明
 

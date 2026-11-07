@@ -6,6 +6,7 @@ import originalHost from "../../vendor/mattskills-1.8.0-rc.7/lib/index.js";
 import { createPlatform } from "../../vendor/mattskills-1.8.0-rc.7/lib/platform/index.js";
 import { resolveExecutable } from "./executables.mjs";
 import { classifyEndpoint } from "./rpc-endpoints.mjs";
+import { createSessionStore } from "./session-store.mjs";
 
 function isReadCommand(argv) {
   const program = path.basename(argv[0]).replace(/\.exe$/i, "").toLowerCase();
@@ -138,6 +139,24 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
       return () => routes.delete(route.path);
     } } }],
   ]);
+  const sessionStore = createSessionStore();
+  const deckTools = new Map();
+  const toolsService = {
+    register(definition) {
+      if (!definition || typeof definition.name !== "string") throw new Error("Invalid deck tool definition");
+      deckTools.set(definition.name, definition);
+      return () => deckTools.delete(definition.name);
+    },
+    get(name) { return deckTools.get(name); },
+    list() { return [...deckTools.values()]; },
+  };
+  services.set("tools", toolsService);
+  services.set("sessions", { get: sessionId => sessionStore.get(sessionId) });
+  services.set("sessionQuery", {
+    filterSessions: filters => sessionStore.filterSessions(filters),
+    readSession: sessionId => sessionStore.readSession(sessionId),
+    listEvents: sessionId => sessionStore.listEvents(sessionId),
+  });
   const context = {
     get: name => services.get(name),
     set: (name, service) => services.set(name, service),
@@ -153,6 +172,10 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
   };
   services.set("platform", await createPlatform(context, { homedir: () => dataRoot }));
   originalHost.apply(context);
+  const toolDeadline = Date.now() + 12000;
+  while (deckTools.size < 9 && Date.now() < toolDeadline) {
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
   let deadline;
   const route = await Promise.race([
     routeReady,
@@ -177,9 +200,28 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
       const response = await route(request);
       return (await response.json()).result;
     },
+    listTools() {
+      return [...deckTools.values()].map(tool => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      }));
+    },
+    async callTool(name, args, context = {}) {
+      const tool = deckTools.get(name);
+      if (!tool || typeof tool.execute !== "function") throw new Error("Deck tool unavailable: " + name);
+      const cwd = context.cwd || workspaceRoot;
+      const exec = {
+        cwd,
+        session: context.sessionId ? { id: String(context.sessionId), cwd } : undefined,
+        signal: undefined,
+      };
+      return tool.execute(args ?? {}, exec);
+    },
     dispose() {
       for (const child of processes) child.kill();
       for (const dispose of disposers.reverse()) dispose();
+      sessionStore.close();
     },
   };
 }
