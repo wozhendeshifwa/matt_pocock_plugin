@@ -15,6 +15,37 @@ window.__ModuleLoader__ = {
   },
 };
 
+// Codex has no host slot for the DSH status bar or run panel. They live in the
+// same panel as board tabs instead; the original components are unchanged.
+const DEFAULT_LABELS = { board: "看板", status: "状态", run: "运行" };
+
+function PanelShell({ Panel, Status, Run, panelProps, labels = DEFAULT_LABELS }) {
+  const tabs = [{ id: "board", label: labels.board, component: Panel }];
+  if (Status) tabs.push({ id: "status", label: labels.status, component: Status });
+  if (Run) tabs.push({ id: "run", label: labels.run, component: Run });
+  const [active, setActive] = React.useState("board");
+  return React.createElement("div", { className: "mattskills-shell" },
+    tabs.length > 1
+      ? React.createElement("div", { className: "mattskills-tabs", role: "tablist" },
+          tabs.map(tab => React.createElement("button", {
+            key: tab.id,
+            type: "button",
+            role: "tab",
+            "data-mattskills-tab": tab.id,
+            "aria-selected": active === tab.id,
+            className: active === tab.id ? "is-active" : "",
+            onClick: () => setActive(tab.id),
+          }, tab.label)))
+      : null,
+    tabs.map(tab => React.createElement("div", {
+      key: tab.id,
+      className: "mattskills-tabpanel",
+      "data-mattskills-panel": tab.id,
+      hidden: active !== tab.id,
+    }, React.createElement(tab.component, panelProps)))
+  );
+}
+
 // The caller provides real host services. This layer does not manufacture
 // native session IDs, repository bindings, or successful action responses.
 window.MattSkillsCodex = {
@@ -49,8 +80,16 @@ window.MattSkillsCodex = {
     plugin.apply(context);
     const Panel = slots.get("sidebar.right.pane.tab");
     if (!Panel) throw new Error("Original sidebar did not register");
+    const Status = slots.get("conversation.input.dock") ?? null;
+    const Run = slots.get("tool.view.cordis") ?? null;
     const root = createRoot(element);
-    root.render(React.createElement(Panel, panelProps));
+    root.render(React.createElement(PanelShell, {
+      Panel,
+      Status,
+      Run,
+      panelProps,
+      labels: panelProps.labels ?? DEFAULT_LABELS,
+    }));
     return () => {
       root.unmount();
       for (const dispose of disposers.reverse()) dispose();

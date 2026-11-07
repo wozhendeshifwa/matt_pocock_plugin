@@ -42,7 +42,8 @@ node verify-host-harness.mjs    # 用真实桌面的 ui/initialize 能力集回�
 
 ## 宿主边界（2026-11-07 研究）
 
-- Codex 只支持 MCP Apps 的 `global` / `thread` / `file` 三种入口；port 当前使用 `thread` 入口。状态栏、运行面板、设置页没有宿主 slot，后续改为面板内标签页；原生 tab 类型/图标/优先级不能注册。
+- Codex 只支持 MCP Apps 的 `global` / `thread` / `file` 三种入口；port 当前使用 `thread` 入口。状态栏、运行面板已改为面板内的 `看板 / 状态 / 运行` 标签页，设置页仍归 #18；原生 tab 类型/图标/优先级不能注册。
+- 面板 shell 在 `browser-runtime.mjs`：收集上游 `sidebar.right.pane.tab`、`conversation.input.dock`、`tool.view.cordis` 三个组件，复用原 `StatusBar` / `RunPanel`，把 `session` / `useSessions` / locale 标签传进去；主看板保持挂载，切 tab 不丢状态。
 - 工具走 MCP `tools/list`；没有 skills provider；locale 只有信号，需要 bridge 拼 DSH 形状适配器。技能页保留自绘。
 - `global` 入口是否对裸 `mcp_servers` 生效尚未验证，见 #23；若只有插件安装的服务才有全局入口，首版入口形态需要重新评估。
 - 读取端点已按 `rpc-endpoints.mjs` 全量路由（30 条）；写入端点 26 条仍显式拒绝（`write and is not enabled`），由 #5/#6 落地。`deck_rpc_manifest` 返回清单。
@@ -66,7 +67,7 @@ node doctor.mjs --github
 node verify-host-harness.mjs --issue 14
 ```
 
-前两个使用本地采集的数据；`verify-sidebar` 通过实际 MCP 服务读取真实 GitHub 数据；`verify-rpc-manifest` 对照 vendor 的 56 个 `harness.handle` 校验读/写分类，`verify-rpc-coverage` 走 MCP 代表性读取端点并验证写入端点被拒绝；`verify-deck-tools` 验证 9 个 `deck_*` 工具与真实数据；`verify-locale` 验证宿主语言切换；`verify-sessions` 验证 Codex 会话存储映射；`verify-host-harness` 回放真实桌面 `ui/initialize` 的能力集并验证执行/新会话草稿；`doctor --github` 是安装后的总健康检查。DOM 验证不等同于原生桌面视觉验收，最终仍需用户在 Windows Codex 侧栏实际点击验收。
+前两个使用本地采集的数据；`verify-sidebar` 通过实际 MCP 服务读取真实 GitHub 数据；`verify-rpc-manifest` 对照 vendor 的 56 个 `harness.handle` 校验读/写分类，`verify-rpc-coverage` 走 MCP 代表性读取端点并验证写入端点被拒绝；`verify-deck-tools` 验证 9 个 `deck_*` 工具与真实数据；`verify-locale` 验证宿主语言切换；`verify-sessions` 验证 Codex 会话存储映射；`verify-host-harness` 回放真实桌面 `ui/initialize` 的能力集并验证执行/新会话草稿与面板内状态/运行标签页；`doctor --github` 是安装后的总健康检查。DOM 验证不等同于原生桌面视觉验收，最终仍需用户在 Windows Codex 侧栏实际点击验收。
 
 ## 说明
 

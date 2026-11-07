@@ -253,6 +253,12 @@
             : { current: "", byId: {}, items: [] };
           return typeof selector === "function" ? selector(snapshot) : snapshot;
         };
+        const language = localeService.getSnapshot().active;
+        const labels = {
+          board: language === "en" ? "Board" : "看板",
+          status: language === "en" ? "Status" : "状态",
+          run: language === "en" ? "Run" : "运行",
+        };
         dispose = window.MattSkillsCodex.mount(document.getElementById("root"), {
           sessions,
           locale: localeService,
@@ -276,7 +282,7 @@
             if (reply.isError) throw new Error(reply.content?.[0]?.text ?? "项目数据读取失败。");
             return reply.structuredContent ?? JSON.parse(reply.content[0].text);
           } } },
-        }, { sessionId: session.id, useSessions });
+        }, { sessionId: session.id, session, useSessions, labels });
       } catch (error) { clearPanel("项目未关联：" + error.message); }
       finally { checking = false; }
     }

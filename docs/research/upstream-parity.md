@@ -85,3 +85,10 @@
 - `sidebar-bridge.js` 从 `hostContext.locale` / `document.documentElement.lang` / `window.openai.locale` 拼 DSH 形状 locale 服务（`register` / `bind` / `getSnapshot`），`tr()` 不再永久中文；`verify-locale.mjs` 覆盖 en-US 初始与 zh-CN 切换。
 - 新增 `session-store.mjs`：只读 `state_5.sqlite` 的 `threads.cwd`，给 `sessions.get` / `sessionQuery.filterSessions` / `readSession` / `listEvents` 提供真实记录；bridge 的 `useSessions` 返回当前项目会话，缺失时返回空快照。
 - `verify-deck-tools.mjs` 验证 9 个工具与真实数据；`verify-sessions.mjs` 验证会话存储映射；`doctor.mjs` 增加 9/9 工具表检查（当前 30/30，未跑 GitHub 时）。
+
+### 2026-11-07 面板内状态/运行标签页
+
+- `browser-runtime.mjs` 新增面板 shell：收集上游 `sidebar.right.pane.tab`、`conversation.input.dock`（`StatusBar`）、`tool.view.cordis`（`RunPanel`）三个组件，渲染成 `看板 / 状态 / 运行` 标签页；主看板保持挂载，切 tab 不丢状态。
+- 复用原 `StatusBar` / `RunPanel`，把 `session` / `useSessions` / locale 标签传入；`sidebarRightTabs` 仍是明确注释的空桩，不注册原生 tab 元数据。
+- `theme.css` 增加面板 shell 的标签栏与面板容器样式；`verify-build.mjs` 与 `verify-host-harness.mjs` 均断言三个标签页可渲染、状态/运行内容非空且无 jsdom 错误。
+- 设置页 (`settings.plugins.tab`) 仍无宿主槽位，归 #18 的面板内设置标签页。

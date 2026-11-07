@@ -17,6 +17,10 @@ const session = { id: "build-test-only", cwd: snapshot.value.workspaceRoot };
 const calls = [];
 const actions = [];
 window.eval(await readFile(new URL("dist/client.js", import.meta.url), "utf8"));
+const useSessions = selector => {
+  const snapshot = { current: session.id, byId: { [session.id]: session }, items: [session] };
+  return typeof selector === "function" ? selector(snapshot) : snapshot;
+};
 const dispose = window.MattSkillsCodex.mount(window.document.getElementById("root"), {
   codexActions: { async prefill(target, text) { actions.push({ target, text }); } },
   sessions: process.env.DECK_TEST_NO_SESSION ? undefined : {
@@ -32,7 +36,7 @@ const dispose = window.MattSkillsCodex.mount(window.document.getElementById("roo
     if (request.method === "cwd") return { ok: true, value: { ok: true, cwd: session.cwd, workspaceRoot: session.cwd } };
     return { ok: true, value: { ok: false, error: { kind: "unsupported", message: "Build verification" } } };
   } } },
-}, process.env.DECK_TEST_NO_SESSION ? {} : { sessionId: session.id });
+}, process.env.DECK_TEST_NO_SESSION ? {} : { sessionId: session.id, session, useSessions });
 async function until(check) {
   for (let attempt = 0; attempt < 100; attempt++) {
     if (check()) return;
@@ -60,9 +64,21 @@ try {
   }
   assert.equal(actions[0].text, actions[1].text, "Original action prompt must be preserved across targets");
   assert.ok(actions[0].text.includes("2"));
+  for (const id of ["board", "status", "run"]) {
+    assert.ok(window.document.querySelector(`[data-mattskills-tab="${id}"]`), `Panel tab ${id} must render`);
+  }
+  for (const id of ["status", "run"]) {
+    window.document.querySelector(`[data-mattskills-tab="${id}"]`).click();
+    await until(() => {
+      const panel = window.document.querySelector(`[data-mattskills-panel="${id}"]`);
+      return panel && !panel.hidden && panel.textContent.trim().length > 0;
+    });
+    assert.ok(window.document.body.textContent.length > 0);
+  }
   assert.deepEqual(errors, []);
   console.log("PASS bundled production React, original list, row interaction, full detail and comments");
   console.log("PASS original execute/new-session buttons produce the same upstream prompt with separate host targets");
+  console.log("PASS panel-internal board/status/run tabs render from the original slot components");
 } finally {
   dispose();
   window.close();

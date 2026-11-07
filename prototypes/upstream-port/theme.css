@@ -44,3 +44,53 @@ html {
 .dsws-body > div:has(input[name="dsws-gate-pick"]) {
   overflow-y: auto;
 }
+
+.mattskills-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+
+.mattskills-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.mattskills-tabs button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mattskills-tabs button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.mattskills-tabs button.is-active {
+  border-color: var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
+}
+
+.mattskills-tabpanel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.mattskills-tabpanel[hidden] {
+  display: none;
+}
