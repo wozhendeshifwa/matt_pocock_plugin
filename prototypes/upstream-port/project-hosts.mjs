@@ -33,7 +33,8 @@ export function createProjectHosts(baseDirectory) {
       call(method, payload) {
         return new Promise((resolve, reject) => {
           const id = ++sequence;
-          const timer = setTimeout(() => { pending.delete(id); reject(new Error("项目数据请求超时。")); }, 55000);
+          const timeout = /^(git(?:Commit|Pull|Fetch|Push)|initPublish|retryPush)$/.test(method) ? 300000 : 55000;
+          const timer = setTimeout(() => { pending.delete(id); reject(new Error("项目数据请求超时。")); }, timeout);
           pending.set(id, { resolve, reject, timer });
           child.send({ id, method, payload }, error => { if (error) fail(error); });
         });

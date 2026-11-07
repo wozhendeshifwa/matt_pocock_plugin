@@ -1,4 +1,6 @@
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { realpathSync, existsSync, mkdirSync, copyFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import path from "node:path";
@@ -12,13 +14,14 @@ import { createSessionStore } from "./session-store.mjs";
 import { createSkillsService } from "./skills-service.mjs";
 import { classifyOpenCommand } from "./open-command.mjs";
 import { classifyWriteCommand } from "./write-gate.mjs";
+import { classifyGitWriteCommand } from "./git-write-gate.mjs";
 import { namingCapability } from "./naming-capability.mjs";
 import { createManualNaming } from "./manual-naming.mjs";
 import { DECK_TOOL_POLICY, ENABLED_WRITE_ENDPOINTS, WRITE_POLICY } from "./write-policy.mjs";
 
-// The write endpoints earlier tickets opened (#12 issue writes, #18 settings).
+// Write endpoints opened by the issue, settings, handoff and Git tickets.
 // Everything else in WRITE_ENDPOINTS keeps returning "write and is not enabled":
-// each remaining ticket (#9 git writes, #7 handoff UI) turns on its own surface.
+// Each remaining ticket turns on its own surface.
 const WRITE_SURFACE = new Set(ENABLED_WRITE_ENDPOINTS);
 
 // Project files the workspace binding may write (write-policy: project-write).
@@ -46,6 +49,7 @@ function confirmationFor(method) {
 export async function createOriginalHost({ dataRoot, workspaceRoot }) {
   dataRoot = await fs.realpath(dataRoot);
   workspaceRoot = await fs.realpath(workspaceRoot);
+  const gitExecutable = await resolveExecutable("git", { env: process.env });
   if (await fs.realpath(process.cwd()) !== dataRoot) {
     throw new Error("Run the upstream host in its dedicated data directory.");
   }
@@ -54,6 +58,16 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
   let resolveRoute;
   const routeReady = new Promise(resolve => { resolveRoute = resolve; });
   const processes = new Set();
+  const operation = new AsyncLocalStorage();
+  let writeQueue = Promise.resolve();
+  function terminate(child) {
+    if (!processes.has(child)) return;
+    if (process.platform === "win32" && child.pid) {
+      // Git may have credential/ssh grandchildren. Only terminate a process
+      // still owned by this host; never act on a completed handle's recycled pid.
+      spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }).on("error", () => child.kill());
+    } else child.kill();
+  }
   const auditPath = path.join(dataRoot, "write-audit.jsonl");
   const projectHash = digest(workspaceRoot);
   let auditQueue = Promise.resolve();
@@ -132,7 +146,11 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
     },
     spawn(options) {
       const read = classifyReadCommand(options.argv);
-      const write = read ? null : classifyWriteCommand(options.argv);
+      const active = operation.getStore();
+      const gitWrite = read ? null : classifyGitWriteCommand(options.argv, {
+        method: active?.method, cwd: options.cwd ?? workspaceRoot, workspaceRoot,
+      });
+      const write = read ? null : gitWrite ?? classifyWriteCommand(options.argv);
       // #18: the settings page may reveal a log directory. Codex has no folder
       // host service, so the vendored platform recipe's `cmd /c start` shape is
       // the only other program allowed, and only for a root this port owns.
@@ -140,9 +158,50 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
       if (!read && !write && !opened) {
         throw new Error("Command is outside the Codex port's allowlisted git/gh/open commands.");
       }
+      const environment = { ...process.env, GIT_TERMINAL_PROMPT: "0", GH_PROMPT_DISABLED: "1", GCM_INTERACTIVE: "never", GIT_SSH_COMMAND: "ssh -o BatchMode=yes -o ConnectTimeout=30", ...options.env, ...active?.identity };
+      // DSH's undefined env values are tombstones (not the string 'undefined').
+      for (const key of ["GIT_ASKPASS", "SSH_ASKPASS", "DISPLAY"]) delete environment[key];
+      for (const key of Object.keys(environment)) if (environment[key] === undefined) delete environment[key];
+      if (gitWrite) {
+        // Also inherited by gh repo create --push's own git child. Publication
+        // must not push configured follow-tags or a remote.*.mirror refset.
+        const remote = active.method === "gitPush" ? String(options.argv.at(-2)) : "origin";
+        const overrides = [["push.followTags", "false"], ["push.default", "nothing"], ["remote." + remote + ".mirror", "false"]];
+        const base = /^\d+$/.test(environment.GIT_CONFIG_COUNT ?? "") ? Number(environment.GIT_CONFIG_COUNT) : 0;
+        overrides.forEach(([key, value], i) => { environment["GIT_CONFIG_KEY_" + (base + i)] = key; environment["GIT_CONFIG_VALUE_" + (base + i)] = value; });
+        environment.GIT_CONFIG_COUNT = String(base + overrides.length);
+      }
+      if (gitWrite) {
+        const git = gitExecutable;
+        // The upstream pins git to its detected toplevel. A nested project must
+        // never silently write an enclosing repo, even when the UI can read it.
+        let top;
+        try { top = execFileSync(git, ["-C", workspaceRoot, "rev-parse", "--show-toplevel"], { encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: environment }).trim(); }
+        catch { if (!(active.method === "initPublish" && options.argv.at(-1) === "init")) throw new Error("Git write requires this project's own working tree."); }
+        if (top && realpathSync(top) !== workspaceRoot) throw new Error("Git write would change an enclosing repository.");
+        for (const relative of gitWrite.paths ?? []) {
+          let target = path.resolve(workspaceRoot, relative);
+          while (!existsSync(target) && target !== path.dirname(target)) target = path.dirname(target);
+          if (!isInside(workspaceRoot, realpathSync(target))) throw new Error("Git path resolves outside this project.");
+        }
+        if (gitWrite.identity) {
+          Object.assign(active.identity, gitWrite.identity);
+          return { done: Promise.resolve({ exitCode: 0 }), terminate() {}, collected: { stdout: createBoundedCollector(), stderr: createBoundedCollector() } };
+        }
+        if (gitWrite.configChange && top) {
+          const common = execFileSync(git, ["-C", workspaceRoot, "rev-parse", "--git-common-dir"], { encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: environment }).trim();
+          const config = path.resolve(workspaceRoot, common, "config");
+          if (existsSync(config)) {
+            const backupDir = path.join(dataRoot, "git-config-backups");
+            mkdirSync(backupDir, { recursive: true });
+            copyFileSync(config, path.join(backupDir, Date.now() + "-" + sequence++ + ".config"));
+          }
+        }
+      }
       const [program, ...args] = options.argv;
       const child = spawn(program, args, {
         cwd: options.cwd ?? workspaceRoot, windowsHide: true,
+        env: environment,
         stdio: ["ignore", opened ? "ignore" : "pipe", opened ? "ignore" : "pipe"],
       });
       processes.add(child);
@@ -178,7 +237,7 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
         });
       });
       return {
-        done, terminate: () => child.kill(), collected,
+        done, terminate: () => terminate(child), collected,
       };
     },
   };
@@ -297,15 +356,19 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
         }),
       });
       try {
-        const response = await route(request);
+        const execute = () => operation.run({ method, identity: {} }, () => route(request));
+        const responsePromise = kind === "write" ? writeQueue.then(execute, execute) : execute();
+        if (kind === "write") writeQueue = responsePromise.catch(() => {});
+        const response = await responsePromise;
         const result = (await response.json()).result;
         if (policy) {
           // Endpoint-level entry: it exists even when the backend refuses below
           // (missing repo, no permission), so a write attempt is never invisible.
+          const outcome = result?.value ?? result;
           await recordWrite({
             method, category: policy.category ?? "external-github-write", projectHash,
             confirmation: policy.confirmation ?? "upstream-dialog", stage: "endpoint",
-            ok: result?.ok !== false, errorKind: result?.ok === false ? String(result?.error?.kind ?? "backend") : "",
+            ok: outcome?.ok !== false, errorKind: outcome?.ok === false ? String(outcome?.error?.kind ?? outcome?.errorKind ?? "backend") : "",
           });
         }
         return result;
@@ -351,7 +414,7 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
       return result;
     },
     dispose() {
-      for (const child of processes) child.kill();
+      for (const child of processes) terminate(child);
       for (const dispose of disposers.reverse()) dispose();
       sessionStore.close();
     },

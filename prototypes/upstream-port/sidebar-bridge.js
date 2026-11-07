@@ -136,7 +136,8 @@
   function rpc(method, params) {
     return new Promise((resolve, reject) => {
       const id = ++sequence;
-      const timer = setTimeout(() => { pending.delete(id); reject(new Error("Codex host request timed out: " + method)); }, 60000);
+      const timeout = params?.name === "deck_upstream_write" ? 310000 : 60000;
+      const timer = setTimeout(() => { pending.delete(id); reject(new Error("Codex host request timed out: " + method)); }, timeout);
       pending.set(id, { resolve, reject, timer });
       send({ id, method, params });
     });

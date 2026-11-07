@@ -136,8 +136,6 @@ try {
     console.log(`PASS read tool refuses write endpoint: ${method}`);
   }
   for (const [method, payload] of [
-    ["gitStage", { paths: ["README.md"] }],
-    ["gitPush", {}],
     ["setupLayout", { layout: "multi" }],
     ["updateInstall", {}],
   ]) {
@@ -149,6 +147,9 @@ try {
   // The endpoints this ticket opened must reach the backend. These payloads are
   // rejected before any remote write, so exercising them here is side-effect free.
   for (const [method, payload, pattern] of [
+    ["gitStage", { paths: [] }, /paths|path|路径/],
+    ["gitPush", {}, /ticket|票据/],
+    ["initPublish", { name: "" }, /bad-name|仓库名/],
     ["commentIssue", { number: 14, body: "" }, /评论内容为空|body/],
     ["setLabelColors", { changes: "not-a-list" }, /改动清单|changes/],
     ["bind", { backendId: "no-such-backend" }, /not registered|unknown-backend/],

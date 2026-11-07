@@ -9,7 +9,7 @@ export const WRITE_AUDIT_FILE = "write-audit.jsonl";
 // node host and the panel bridge injected by the server cannot drift apart.
 // #12 opened the issue surface; #18 opened the settings surface (log switch,
 // log clear, and opening a folder/file that already lives under an allowed
-// root). Everything else in WRITE_ENDPOINTS still fails closed.
+// root). #9 opens the Git write/publication family. Other endpoints fail closed.
 export const ENABLED_WRITE_ENDPOINTS = Object.freeze([
   "commentIssue",
   "setLabelColors",
@@ -20,6 +20,7 @@ export const ENABLED_WRITE_ENDPOINTS = Object.freeze([
   "logClear",
   "openFolder",
   "openPath",
+  "gitStage", "gitUnstage", "gitCommit", "gitPull", "gitFetch", "gitPush", "initPublish", "retryPush",
 ]);
 
 export const CATEGORIES = Object.freeze([
@@ -187,13 +188,14 @@ export const WRITE_POLICY = Object.freeze({
     commands: [
       "git init",
       "git add .",
-      "git commit --allow-empty -m {message} (with user.name/user.email fallback)",
+      "git commit --allow-empty -m {message} (with request-local identity env fallback)",
       "gh repo create {name} {visibility} --source=. --push",
       "git remote set-url origin {remoteUrl}",
       "git push -u origin HEAD",
     ],
     fsTargets: [],
     audit: true,
+    notes: "Git config is backed up before remote/upstream changes. No global safe.directory writes; identity fallback uses environment only.",
   },
   retryPush: {
     category: "git-write",

@@ -70,7 +70,7 @@ function stripGitGlobalOptions(args) {
     if (arg === "-c") {
       const value = rest[1];
       if (typeof value !== "string" || value.indexOf("=") <= 0) return null;
-      if (!SAFE_CONFIG_KEYS.has(value.slice(0, value.indexOf("=")))) return null;
+      if (value !== "credential.interactive=false" && !SAFE_CONFIG_KEYS.has(value.slice(0, value.indexOf("=")))) return null;
       rest.splice(0, 2);
       continue;
     }
@@ -93,7 +93,7 @@ function isReadSubcommand(rest) {
     case "worktree":
       return rest[1] === "list";
     case "remote":
-      return rest[1] === "get-url" || rest[1] === "-v";
+      return rest.length === 1 || rest[1] === "get-url" || rest[1] === "-v";
     case "config":
       return rest.some(arg => ["--get", "--get-all", "--get-regexp", "--list"].includes(arg));
     default:

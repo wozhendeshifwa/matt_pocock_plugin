@@ -182,11 +182,8 @@ async function checkDirtyRepo() {
     assert.equal(pinned.ok, true);
     assert.equal(normalize(pinned.screen.identity.worktreePath), normalize(await realpath(dir)), "reads stay on the project cwd");
 
-    await assert.rejects(
-      () => host.call("gitStage", { paths: ["tracked.txt"] }),
-      /still not enabled/,
-      "write endpoints stay blocked",
-    );
+    // #9 enables writes on the dedicated write channel. This read fixture
+    // deliberately exercises no writes; MCP routing is covered separately.
   });
 
   const after = await gitState(dir);
