@@ -15,6 +15,7 @@ export const ENABLED_WRITE_ENDPOINTS = Object.freeze([
   "setLabelColors",
   "bind",
   "handoffResolve",
+  "cancelNewSessionWatcher",
   "logSetSwitch",
   "logClear",
   "openFolder",
@@ -83,13 +84,10 @@ export const WRITE_POLICY = Object.freeze({
     audit: true,
   },
   handoffResolve: {
-    category: "external-github-write",
-    confirmation: CONFIRMATION.upstreamDialog,
+    category: "read-only-export",
+    confirmation: CONFIRMATION.none,
     destructive: false,
-    commands: [
-      "gh issue edit {n} --add-assignee @me",
-      "tracker.setAssignees({owner}/{repo}, {n}, [currentUser])",
-    ],
+    commands: [],
     fsTargets: [],
     audit: true,
   },
@@ -130,7 +128,7 @@ export const WRITE_POLICY = Object.freeze({
     confirmation: CONFIRMATION.none,
     destructive: false,
     commands: [],
-    fsTargets: ["<data-root>/.dsh-mattskillsdeck-cache/naming-guardian.json"],
+    fsTargets: ["<data-root>/manual-naming.json (cancel current manual suggestion only)"],
     audit: true,
   },
   gitStage: {

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import originalHost from "../../vendor/mattskills-1.8.0-rc.7/lib/index.js";
+import originalHost from "./upstream-host.mjs";
 import { createPlatform } from "../../vendor/mattskills-1.8.0-rc.7/lib/platform/index.js";
 import { resolveExecutable } from "./executables.mjs";
 import { classifyEndpoint } from "./rpc-endpoints.mjs";
@@ -12,6 +12,8 @@ import { createSessionStore } from "./session-store.mjs";
 import { createSkillsService } from "./skills-service.mjs";
 import { classifyOpenCommand } from "./open-command.mjs";
 import { classifyWriteCommand } from "./write-gate.mjs";
+import { namingCapability } from "./naming-capability.mjs";
+import { createManualNaming } from "./manual-naming.mjs";
 import { DECK_TOOL_POLICY, ENABLED_WRITE_ENDPOINTS, WRITE_POLICY } from "./write-policy.mjs";
 
 // The write endpoints earlier tickets opened (#12 issue writes, #18 settings).
@@ -211,6 +213,13 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
     } } }],
   ]);
   const sessionStore = createSessionStore();
+  const manualNaming = createManualNaming({ dataRoot, workspaceRoot, sessionStore,
+    async writeText(file, text) {
+      await filesystem.writeText(file, text);
+      await recordWrite({ method: "manualNaming", category: "local-state-write", projectHash,
+        fsTargetHash: digest("manual-naming.json"), confirmation: "upstream-dialog", ok: true });
+    },
+  });
   const deckTools = new Map();
   const toolsService = {
     register(definition) {
@@ -263,6 +272,10 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
   let sequence = 0;
   return {
     async call(method, payload = {}) {
+      if (method === "namingPlan") return { ok: true, value: await manualNaming.plan(payload.sessionId) };
+      if (method === "cancelNewSessionWatcher") return { ok: true, value: await manualNaming.cancel(payload.sessionId, payload.suggestionId) };
+      const naming = namingCapability(method);
+      if (naming) return { ok: true, value: naming };
       const kind = classifyEndpoint(method, payload);
       if (kind === "unknown") throw new Error("Unknown upstream endpoint: " + method);
       if (kind === "write" && !WRITE_SURFACE.has(method)) {
@@ -323,7 +336,19 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
         session: context.sessionId ? { id: String(context.sessionId), cwd } : undefined,
         signal: undefined,
       };
-      return tool.execute(args ?? {}, exec);
+      const result = await tool.execute(args ?? {}, exec);
+      if (name === "deck_issue_create" && context.sessionId) {
+        try {
+          const parsed = typeof result === "string" ? JSON.parse(result) : result;
+          const ticket = parsed?.data?.ticket ?? parsed?.value?.data?.ticket;
+          if (ticket) await manualNaming.created(context.sessionId, ticket);
+        } catch {
+          // The issue already exists. A local suggestion failure must never
+          // turn success into a retried (possibly duplicate) GitHub write.
+          process.stderr.write("manual-naming-record-skipped\n");
+        }
+      }
+      return result;
     },
     dispose() {
       for (const child of processes) child.kill();

@@ -26,7 +26,7 @@ Codex port 的写权限必须走**固定 argv 白名单 + 项目/数据根白名
 | `bind` | `workspaceCwd.js:41-74` | `gh` 不参与；fs 写 `<project>/docs/agents/workspace.json`、`<project>/docs/agents/label-colors.json`、`<data-root>/.dsh/mattskillsdeck/choices.json` | project | 后端选择卡片 | 否 | 首绑才写 workspace 文件；失败不回滚绑定 |
 | `setupLayout` | `workspaceCwd.js:77-83` | `<data-root>/.dsh/mattskillsdeck/choices.json` | local-state | 布局卡片 | 否 | `layout == null` 是读；有值才是写 |
 | `setLabelColors` | `workspaceLabelColors.js`；`github/label-colors-ops.js:192` | GitHub：`gh label edit {name} --repo {owner}/{repo} --color {6hex}`；Markdown：`docs/agents/label-colors.json` | external-github / project | 配色弹窗保存 | 否 | 颜色必须是 6 位十六进制 |
-| `handoffResolve` | `handoffClaim.js:100-160` | `gh issue edit {n} --add-assignee @me` 或 `tracker.setAssignees(...)` | external-github | 接手点击 | 否 | 只认领当前项目当前票 |
+| `handoffResolve` | `handoffClaim.js:77-96` | 只扫描项目 `.scratch/handoff` | read-only-export | 无 | 否 | 不执行 Issue 认领；认领 argv 归 `deck_issue_patch` |
 | `namingRegister` | `namingGuardian.js:239` | `<data-root>/.dsh-mattskillsdeck-cache/naming-guardian.json` | local-state | 无 | 否 | 命名状态全文覆写 |
 | `registerNewSessionWatcher` | 同上 | 同上 | local-state | 无 | 否 | 与 namingRegister 同体 |
 | `namingSignal` | `namingGuardian.js:242-251` | 同上 | local-state | 无 | 否 | 非受踪会话直接忽略 |
