@@ -55,6 +55,10 @@ function isSamePath(left, right) {
   return Boolean(left) && Boolean(right) && comparable(left) === comparable(right);
 }
 
+async function isDirectory(file) {
+  try { return (await stat(file)).isDirectory(); } catch { return false; }
+}
+
 async function fileSignature(file) {
   try {
     const info = await stat(file);
@@ -244,8 +248,9 @@ export function createSessionProjectResolver(options = {}) {
     const cached = cache.get(threadId);
     if (cached && cached.signature === signature) {
       const fileStillSame = !cached.rolloutFile || (await fileSignature(cached.rolloutFile)) === cached.rolloutFileSignature;
+      const directoryStillSame = !cached.value || await isDirectory(cached.value.cwd);
       const fresh = !cached.error || Date.now() < cached.expiresAt;
-      if (fileStillSame && fresh) {
+      if (fileStillSame && directoryStillSame && fresh) {
         if (cached.error) throw new Error(cached.error);
         return cached.value;
       }
