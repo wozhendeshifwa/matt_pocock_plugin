@@ -100,6 +100,22 @@ try {
     console.log(`PASS read endpoint reached: ${method}`);
   }
 
+  // Reaching the endpoint is not the same as reading real data. The version
+  // control reads used to pass the check above while every git command died at
+  // the host's subprocess gate, so the panel showed its error page.
+  const statusRead = await read("gitStatus", {});
+  const status = statusRead.structuredContent?.value;
+  assert.equal(status?.ok, true, "gitStatus must return a first screen: " + JSON.stringify(status?.error));
+  assert.ok(Array.isArray(status.screen?.commits), "gitStatus screen carries the commit list");
+  const logRead = await read("gitLog", { count: 2 });
+  const log = logRead.structuredContent?.value;
+  assert.equal(log?.ok, true, "gitLog must return commits: " + JSON.stringify(log?.error));
+  assert.ok(log.commits.length > 0, "gitLog returns real commits");
+  const diffRead = await read("gitDiff", { path: "AGENTS.md" });
+  const diff = diffRead.structuredContent?.value;
+  assert.equal(diff?.ok, true, "gitDiff must return a patch envelope: " + JSON.stringify(diff?.error));
+  console.log("PASS version-control reads return real git data through MCP");
+
   for (const [method, payload] of [
     ["bind", { backendId: "github" }],
     ["commentIssue", { number: 14, body: "coverage test" }],
