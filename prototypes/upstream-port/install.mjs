@@ -58,6 +58,7 @@ function serverBlock(serverName, { command, args, cwd, codexHome, startupTimeout
     `args = [${args.map(tomlString).join(", ")}]`,
     `cwd = ${tomlString(cwd)}`,
     `startup_timeout_sec = ${startupTimeoutSec}`,
+    "tool_timeout_sec = 320",
     "",
     `[mcp_servers.${serverName}.env]`,
     `CODEX_HOME = ${tomlString(codexHome)}`,
