@@ -14,6 +14,7 @@ import { createSessionStore } from "./session-store.mjs";
 import { createSkillsService } from "./skills-service.mjs";
 import { classifyOpenCommand } from "./open-command.mjs";
 import { classifyWriteCommand } from "./write-gate.mjs";
+import { classifyGraphWriteCommand, observeGraphIssueId } from "./graph-write-gate.mjs";
 import { classifyGitWriteCommand } from "./git-write-gate.mjs";
 import { namingCapability } from "./naming-capability.mjs";
 import { createManualNaming } from "./manual-naming.mjs";
@@ -150,7 +151,8 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
       const gitWrite = read ? null : classifyGitWriteCommand(options.argv, {
         method: active?.method, cwd: options.cwd ?? workspaceRoot, workspaceRoot,
       });
-      const write = read ? null : gitWrite ?? classifyWriteCommand(options.argv);
+      const graphWrite = read ? null : classifyGraphWriteCommand(options.argv, active);
+      const write = read ? null : gitWrite ?? graphWrite ?? classifyWriteCommand(options.argv);
       // #18: the settings page may reveal a log directory. Codex has no folder
       // host service, so the vendored platform recipe's `cmd /c start` shape is
       // the only other program allowed, and only for a root this port owns.
@@ -226,6 +228,9 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
         });
         child.once("close", (exitCode, signal) => {
           processes.delete(child);
+          if (read && exitCode === 0 && !collected.stdout.lossy) {
+            observeGraphIssueId(options.argv, collected.stdout.finalize().text, active);
+          }
           if (write) {
             void recordWrite({
               method: write.method, category: write.category, projectHash,
@@ -393,13 +398,27 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
     async callTool(name, args, context = {}) {
       const tool = deckTools.get(name);
       if (!tool || typeof tool.execute !== "function") throw new Error("Deck tool unavailable: " + name);
-      const cwd = context.cwd || workspaceRoot;
+      const cwd = workspaceRoot;
       const exec = {
         cwd,
         session: context.sessionId ? { id: String(context.sessionId), cwd } : undefined,
         signal: undefined,
       };
-      const result = await tool.execute(args ?? {}, exec);
+      const execute = async () => {
+        let repo;
+        if (["deck_issue_create", "deck_map_plan_create", "deck_map_link"].includes(name)) {
+          // Resolve the repository through the same upstream backend selection
+          // as the tool, never from model arguments or an arbitrary git remote.
+          const raw = await deckTools.get("deck_context").execute({}, exec);
+          const selected = typeof raw === "string" ? JSON.parse(raw) : raw;
+          if (selected?.data?.backend?.id === "github") repo = selected.data.repo?.refId;
+        }
+        return operation.run({ method: name, repo, issueIds: new Set(), identity: {} }, () => tool.execute(args ?? {}, exec));
+      };
+      const writing = DECK_TOOL_POLICY[name]?.category === "external-github-write";
+      const resultPromise = writing ? writeQueue.then(execute, execute) : execute();
+      if (writing) writeQueue = resultPromise.catch(() => {});
+      const result = await resultPromise;
       if (name === "deck_issue_create" && context.sessionId) {
         try {
           const parsed = typeof result === "string" ? JSON.parse(result) : result;

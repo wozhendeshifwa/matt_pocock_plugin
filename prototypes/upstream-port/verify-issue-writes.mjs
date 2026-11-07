@@ -165,13 +165,15 @@ try {
   assert.ok(missingValue?.error?.kind, "failure carries an error kind for the panel");
   console.log("PASS missing issue returns a readable backend error");
 
-  // --- 6. writes outside this ticket stay closed --------------------------
-  const gitStage = await upstreamResult("deck_upstream_write", "gitStage", { paths: ["README.md"] });
-  assert.ok(gitStage.isError, "gitStage is not part of this ticket");
-  assert.match(gitStage.content?.[0]?.text ?? "", /still not enabled/);
-  const gitPush = await upstreamResult("deck_upstream_write", "gitPush", {});
-  assert.ok(gitPush.isError, "gitPush is not part of this ticket");
-  console.log("PASS untouched write endpoints still fail closed");
+  // #9 enabled Git writes; they must still refuse a request without a ticket.
+  for (const method of ["gitStage", "gitPush"]) {
+    const refused = await upstream("deck_upstream_write", method, { paths: ["README.md"] });
+    assert.equal(refused.ok, false, method + " requires an approved write ticket");
+  }
+  const unsupported = await upstreamResult("deck_upstream_write", "updateInstall", {});
+  assert.ok(unsupported.isError);
+  assert.match(unsupported.content?.[0]?.text ?? "", /still not enabled/);
+  console.log("PASS Git writes require tickets; unsupported writes remain closed");
 
   // --- 7. panel -> MCP -> host -> GitHub, through the real comment form ----
   const resource = await rpc("resources/read", { uri: "ui://deck-sidebar/board.html" });

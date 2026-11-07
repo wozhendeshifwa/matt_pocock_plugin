@@ -294,7 +294,12 @@ export const DECK_TOOL_POLICY = Object.freeze({
     category: "external-github-write",
     confirmation: CONFIRMATION.toolApproval,
     destructive: false,
-    commands: ["gh issue edit {n} --parent {parent}", "gh api repos/{owner}/{repo}/issues/{n}/dependencies/blocked_by --method POST/DELETE -F issue_id={dbId}"],
+    commands: [
+      "gh issue edit {n} --repo {owner}/{repo} --parent {parent}|--remove-parent",
+      "gh api repos/{owner}/{repo}/issues/{parent}/sub_issues --method POST/DELETE -F sub_issue_id={dbId}",
+      "gh api repos/{owner}/{repo}/issues/{n}/dependencies/blocked_by --method POST -F issue_id={dbId}",
+      "gh api repos/{owner}/{repo}/issues/{n}/dependencies/blocked_by/{dbId} --method DELETE",
+    ],
   },
   deck_issue_patch: {
     category: "external-github-write",
