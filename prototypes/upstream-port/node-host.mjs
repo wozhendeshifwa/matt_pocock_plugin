@@ -5,12 +5,7 @@ import { fileURLToPath } from "node:url";
 import originalHost from "../../vendor/mattskills-1.8.0-rc.7/lib/index.js";
 import { createPlatform } from "../../vendor/mattskills-1.8.0-rc.7/lib/platform/index.js";
 import { resolveExecutable } from "./executables.mjs";
-
-const readMethods = new Set([
-  "cwd", "snapshot", "refresh", "selection", "registry", "probe", "chain",
-  "issueDetail", "issueComments", "issuesPage", "mapTickets", "listLabels",
-  "skillDoc", "logGetSwitch", "logBatch", "namingPlan", "focus",
-]);
+import { classifyEndpoint } from "./rpc-endpoints.mjs";
 
 function isReadCommand(argv) {
   const program = path.basename(argv[0]).replace(/\.exe$/i, "").toLowerCase();
@@ -168,7 +163,9 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
   let sequence = 0;
   return {
     async call(method, payload = {}) {
-      if (!readMethods.has(method)) throw new Error("Host action has not been adapted: " + method);
+      const kind = classifyEndpoint(method, payload);
+      if (kind === "unknown") throw new Error("Unknown upstream endpoint: " + method);
+      if (kind === "write") throw new Error("Host action is a write and is not enabled in this ticket: " + method);
       if (method === "cwd") return { ok: true, value: { ok: true, cwd: workspaceRoot, workspaceRoot } };
       const request = new Request("https://mattskills-adapter.invalid/api/dsws", {
         method: "POST", headers: { "Content-Type": "application/json" },
