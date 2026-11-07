@@ -56,16 +56,24 @@ assert.equal(disposed,1);
 assert.equal(mounts[1].props.sessionId,'C:/b');
 await assert.rejects(mounts[0].services.connection.rpc.call('/api','dsws',{method:'snapshot'}));
 
+// Switching back to the first project restores that project's board.
+active={threadId:'project-a-4',projectRoot:'C:/a',cwd:'C:/a'};
+await poll();
+assert.equal(disposed,2);
+assert.equal(mounts[2].props.sessionId,'C:/a');
+const backResult=await mounts[2].services.connection.rpc.call('/api','dsws',{method:'snapshot'});
+assert.deepEqual(backResult,{ok:true,value:{}});
+
 // A projectless task chat (state_5 cwd outside every project root) must fail
 // closed: unmount, never fall back to the previous project.
 active={threadId:'project-p',projectRoot:null,cwd:'C:/task'};
 await poll();
-assert.equal(disposed,2);
-assert.equal(mounts.length,2,'projectless chat must not mount a board');
+assert.equal(disposed,3);
+assert.equal(mounts.length,3,'projectless chat must not mount a board');
 assert.match(w.document.getElementById('root').textContent,/不属于 Codex 项目/);
 
 active=null;
 await poll();
 assert.match(w.document.getElementById('root').textContent,/项目未关联/);
 dom.window.close();
-console.log('PASS same-project chat keeps the panel; project-root subdirs keep the panel; cross-project remounts; projectless and missing identity clear');
+console.log('PASS same-project chat keeps the panel; project-root subdirs keep the panel; cross-project remounts; switching back restores; projectless and missing identity clear');
