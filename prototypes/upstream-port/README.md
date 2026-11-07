@@ -47,10 +47,11 @@ node verify-host-harness.mjs    # 用真实桌面的 ui/initialize 能力集回�
 - 工具走 MCP `tools/list`；没有 skills provider；locale 只有信号，需要 bridge 拼 DSH 形状适配器。技能页保留自绘。
 - 地图详情复用原 `MapDetail`（漏斗分层 / 当前层 / 迷雾 / 动作）。GitHub 原生依赖边在快照里是「键字符串」，而原地图视图的旧比较按数字票号；`panel-payload.mjs` 在项目数据进程把纯数字键还原为数字（非数字键原样），否则被阻塞子票不显示阻塞者也会照常给动作按钮。证据：`verify-map-view.mjs`；分层与 frontier 的口径仍由上游 `computeLevels` / `groupTickets` 计算。
 - `global` 入口是否对裸 `mcp_servers` 生效尚未验证，见 #23；若只有插件安装的服务才有全局入口，首版入口形态需要重新评估。
-- 读取端点已按 `rpc-endpoints.mjs` 全量路由（30 条）；写入端点 26 条仍显式拒绝（`write and is not enabled`），由 #5/#6 落地。`deck_rpc_manifest` 返回清单。
+- 读取端点已按 `rpc-endpoints.mjs` 全量路由（30 条）；写入端点 26 条由 `write-gate.mjs` + #12 打开的写面逐条放行，其余仍显式拒绝（`still not enabled`）。`deck_rpc_manifest` 返回清单。
+- Issue 详情写操作（#12）已落地：`commentIssue`（评论）、`setLabelColors`（改色）、`bind`（工作区后端绑定，只写 `docs/agents/workspace.json`）经 `deck_upstream_write` 工具执行；`handoffResolve` 的认领 argv 同表放行。面板只在用户自己的动作（评论提交 / 改色保存 / 切换确认）后调用写工具；bridge 的读调用仍走 `deck_upstream_read`，写端点走读工具会被服务端拒绝。`write-gate.mjs` 是唯一判据：固定 argv 模板 + owner/repo、票号、标签名、6 位色值、正文长度逐项校验，git 写入 / `gh api graphql` / 任意 endpoint / 多余 flag 继续 fail closed。每次写（endpoint 与真实 argv）追加 `<项目数据目录>/write-audit.jsonl`，只记方法、分类、项目哈希、argv 哈希、确认方式与结果，不记正文与绝对路径。证据：`verify-write-gate.mjs`（12 条允许模板、21 条拒绝形状）与 `verify-issue-writes.mjs`（测试仓库 `wozhendeshifwa/codex_mattskills_plugin`：评论、改色、绑定、缺票错误、关/重开、审计、面板评论表单；写入只落在测试仓库）。
 - 版本管理读取（`gitStatus` / `gitDiff` / `gitLog`）走真实 git：上游会给每条命令加一段固定全局选项前缀（`-C <dir> --no-optional-locks --literal-pathspecs -c k=v …`），`read-command.mjs` 先剥这段前缀再判子命令（含 `for-each-ref`、`rev-list`、`reflog show`），写子命令和 `--output`/外部 diff 之类仍拒绝。输出超过字节上限时按 `truncated` 上报，不把半份的状态或补丁交给界面。
-- 写权限模型见 `../../docs/research/codex-write-authority.md` 与 `write-policy.mjs`：固定 argv 白名单、项目/数据根白名单、上游确认或 Codex 工具审批、`write-audit.jsonl` 审计；`updateInstall`/`deckExec` 明确拒绝。当前 `node-host` 仍统一拒绝写端点，具体写表面由 #12/#18/#9/#4/#7 按模型落地。
-- 9 个 `deck_*` 工具已通过 MCP `tools/list` 暴露；`deck_context`、`deck_issue_list`、`deck_issue_get`、`deck_map_snapshot` 已用真实数据调用。写工具的真实执行仍受 #5 授权边界约束。
+- 写权限模型见 `../../docs/research/codex-write-authority.md` 与 `write-policy.mjs`：固定 argv 白名单、项目/数据根白名单、上游确认或 Codex 工具审批、`write-audit.jsonl` 审计；`updateInstall`/`deckExec` 明确拒绝。除 #12 已开的 issue 写面外，git 写入（#9）、设置页（#18）、PR（#4）、接手 UI（#7）仍统一拒绝。
+- 9 个 `deck_*` 工具已通过 MCP `tools/list` 暴露；`deck_context`、`deck_issue_list`、`deck_issue_get`、`deck_map_snapshot` 已用真实数据调用。`deck_issue_patch` 的评论 / 标签 / 认领 / 标题正文 / 关重开走同一套 `write-gate.mjs` 与审计；`deck_issue_create` 的建票 argv 已放行，父子/依赖边仍因 `gh api graphql` mutation 未放行而失败（见地图 fog）。
 - locale 由 bridge 从 `hostContext.locale` / `document.documentElement.lang` / `window.openai.locale` 取信号，拼 `register/bind/getSnapshot` 服务；`verify-locale` 覆盖 en-US / zh-CN。会话读取由 `session-store.mjs` 映射 `state_5.sqlite`，bridge 通过 `useSessions` 提供当前项目会话。
 - 证据：`../../docs/research/codex-host-surfaces.md`、`codex-message-dispatch.md`、`codex-thread-identity.md`。
 
@@ -70,13 +71,15 @@ node verify-sessions.mjs
 node verify-session-project.mjs
 node verify-project-follow.mjs
 node verify-write-policy.mjs
+node verify-write-gate.mjs
+node verify-issue-writes.mjs
 node verify-version-control-read.mjs
 node verify-version-control-view.mjs
 node doctor.mjs --github
 node verify-host-harness.mjs --issue 14
 ```
 
-前两个使用本地采集的数据；`verify-sidebar` 通过实际 MCP 服务读取真实 GitHub 数据；`verify-map-view` 用一次原生 GraphQL 查询（`subIssues` + `blockedBy` + assignees）独立算出层/可接/被阻塞，再断言快照、地图统计与面板 DOM 与之一致，并验证地图级动作仍是 `send:false` 草稿；`verify-rpc-manifest` 对照 vendor 的 56 个 `harness.handle` 校验读/写分类，`verify-rpc-coverage` 走 MCP 代表性读取端点并验证写入端点被拒绝；`verify-deck-tools` 验证 9 个 `deck_*` 工具与真实数据；`verify-locale` 验证宿主语言切换；`verify-sessions` 验证 Codex 会话存储映射；`verify-session-project` 校验 state_5 优先、rollout/zstd 兜底、项目根匹配与 fail-closed；`verify-project-follow` 用两个真实 MCP 服务实例校验同项目/跨项目/项目外/未落盘四类身份；`verify-write-policy` 校验写端点/工具/argv/fs/确认/审计模型覆盖；`verify-version-control-read` 用临时仓库验证版本管理三条只读电话（脏/干净/非 git/大补丁截断/分页/只读不写 index）；`verify-version-control-view` 从面板点开版本管理标签，验证真实仓库的改动清单与提交数；`verify-host-harness` 回放真实桌面 `ui/initialize` 的能力集并验证执行/新会话草稿与面板内状态/运行标签页；`doctor --github` 是安装后的总健康检查。DOM 验证不等同于原生桌面视觉验收，最终仍需用户在 Windows Codex 侧栏实际点击验收。
+前两个使用本地采集的数据；`verify-sidebar` 通过实际 MCP 服务读取真实 GitHub 数据；`verify-map-view` 用一次原生 GraphQL 查询（`subIssues` + `blockedBy` + assignees）独立算出层/可接/被阻塞，再断言快照、地图统计与面板 DOM 与之一致，并验证地图级动作仍是 `send:false` 草稿；`verify-rpc-manifest` 对照 vendor 的 56 个 `harness.handle` 校验读/写分类，`verify-rpc-coverage` 走 MCP 代表性读取端点并验证写入端点被拒绝；`verify-deck-tools` 验证 9 个 `deck_*` 工具与真实数据；`verify-locale` 验证宿主语言切换；`verify-sessions` 验证 Codex 会话存储映射；`verify-session-project` 校验 state_5 优先、rollout/zstd 兜底、项目根匹配与 fail-closed；`verify-project-follow` 用两个真实 MCP 服务实例校验同项目/跨项目/项目外/未落盘四类身份；`verify-write-policy` 校验写端点/工具/argv/fs/确认/审计模型覆盖；`verify-write-gate` 校验新写闸的允许模板与拒绝形状；`verify-issue-writes` 在测试仓库 `wozhendeshifwa/codex_mattskills_plugin` 上跑真实评论/改色/绑定/关重开，并驱动面板评论表单与审计断言；`verify-version-control-read` 用临时仓库验证版本管理三条只读电话（脏/干净/非 git/大补丁截断/分页/只读不写 index）；`verify-version-control-view` 从面板点开版本管理标签，验证真实仓库的改动清单与提交数；`verify-host-harness` 回放真实桌面 `ui/initialize` 的能力集并验证执行/新会话草稿与面板内状态/运行标签页；`doctor --github` 是安装后的总健康检查。DOM 验证不等同于原生桌面视觉验收，最终仍需用户在 Windows Codex 侧栏实际点击验收。
 
 ## 说明
 

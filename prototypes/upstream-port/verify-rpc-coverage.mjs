@@ -50,10 +50,17 @@ async function read(method, payload = {}, timeoutMs = 60000) {
     _meta: metadata,
   }, timeoutMs);
 }
+async function write(method, payload = {}, timeoutMs = 60000) {
+  return rpc("tools/call", {
+    name: "deck_upstream_write",
+    arguments: { method, payload: { ...payload, expectedThreadId: threadId } },
+    _meta: metadata,
+  }, timeoutMs);
+}
 function adapterError(result) {
   if (!result?.isError) return null;
   const text = result.content?.[0]?.text ?? "";
-  return /not been adapted|write and is not enabled|Unknown upstream endpoint/.test(text) ? text : null;
+  return /not been adapted|still not enabled|write and is not enabled|Unknown upstream endpoint/.test(text) ? text : null;
 }
 
 try {
@@ -114,6 +121,8 @@ try {
   assert.equal(diff?.ok, true, "gitDiff must return a patch envelope: " + JSON.stringify(diff?.error));
   console.log("PASS version-control reads return real git data through MCP");
 
+  // Ticket #12 split the upstream channel in two: a write must never ride the
+  // read tool, and the write tool only runs the endpoints this ticket opened.
   for (const [method, payload] of [
     ["bind", { backendId: "github" }],
     ["commentIssue", { number: 14, body: "coverage test" }],
@@ -121,9 +130,34 @@ try {
     ["setupLayout", { layout: "multi" }],
   ]) {
     const result = await read(method, payload);
-    assert.ok(result.isError, `${method} must be blocked as a write`);
-    assert.match(result.content?.[0]?.text ?? "", /write and is not enabled/, `${method} block message`);
-    console.log(`PASS write endpoint blocked: ${method}`);
+    assert.ok(result.isError, `${method} must be refused on the read tool`);
+    assert.match(result.content?.[0]?.text ?? "", /must be routed through deck_upstream_write/, `${method} routing message`);
+    console.log(`PASS read tool refuses write endpoint: ${method}`);
+  }
+  for (const [method, payload] of [
+    ["gitStage", { paths: ["README.md"] }],
+    ["gitPush", {}],
+    ["setupLayout", { layout: "multi" }],
+    ["updateInstall", {}],
+  ]) {
+    const result = await write(method, payload);
+    assert.ok(result.isError, `${method} must stay closed until its own ticket`);
+    assert.match(result.content?.[0]?.text ?? "", /still not enabled/, `${method} closed message`);
+    console.log(`PASS write endpoint still closed: ${method}`);
+  }
+  // The endpoints this ticket opened must reach the backend. These payloads are
+  // rejected before any remote write, so exercising them here is side-effect free.
+  for (const [method, payload, pattern] of [
+    ["commentIssue", { number: 14, body: "" }, /评论内容为空|body/],
+    ["setLabelColors", { changes: "not-a-list" }, /改动清单|changes/],
+    ["bind", { backendId: "no-such-backend" }, /not registered|unknown-backend/],
+  ]) {
+    const result = await write(method, payload);
+    assert.ok(!result.isError, `${method} must reach its backend: ${result.content?.[0]?.text}`);
+    const value = result.structuredContent?.value ?? result.structuredContent;
+    assert.equal(value?.ok, false, `${method} invalid payload must report a failure`);
+    assert.match(JSON.stringify(value), pattern, `${method} failure reason`);
+    console.log(`PASS write endpoint reached and refused an invalid payload: ${method}`);
   }
 
   const unknown = await read("not-an-endpoint", {});

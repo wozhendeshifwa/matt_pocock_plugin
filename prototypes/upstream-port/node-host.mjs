@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +9,35 @@ import { resolveExecutable } from "./executables.mjs";
 import { classifyEndpoint } from "./rpc-endpoints.mjs";
 import { classifyReadCommand, createBoundedCollector } from "./read-command.mjs";
 import { createSessionStore } from "./session-store.mjs";
+import { classifyWriteCommand } from "./write-gate.mjs";
+import { DECK_TOOL_POLICY, WRITE_POLICY } from "./write-policy.mjs";
+
+// The write endpoints ticket #12 opens. Everything else in WRITE_ENDPOINTS keeps
+// returning "write and is not enabled": each remaining ticket (#9 git writes,
+// #18 settings, #7 handoff UI, #4 pull requests) turns on its own surface.
+const WRITE_SURFACE = new Set(["commentIssue", "setLabelColors", "bind", "handoffResolve"]);
+
+// Project files the workspace binding may write (write-policy: project-write).
+// Everything else under the project stays read-only for this host.
+const PROJECT_WRITE_FILES = new Set(["docs/agents/workspace.json", "docs/agents/label-colors.json"]);
+
+// write-policy §4: append-only, rotated before it grows past 5 MB.
+const AUDIT_MAX_BYTES = 5 * 1024 * 1024;
+
+/** Short, non-reversible digest used for audit fields (never raw argv/paths). */
+function digest(value) {
+  return createHash("sha256").update(String(value)).digest("hex").slice(0, 12);
+}
+
+function isInside(root, candidate) {
+  const relative = path.relative(root, candidate);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+/** The confirmation boundary each method rides on (write-policy §3). */
+function confirmationFor(method) {
+  return WRITE_POLICY[method]?.confirmation ?? DECK_TOOL_POLICY[method]?.confirmation ?? "";
+}
 
 export async function createOriginalHost({ dataRoot, workspaceRoot }) {
   dataRoot = await fs.realpath(dataRoot);
@@ -20,6 +50,27 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
   let resolveRoute;
   const routeReady = new Promise(resolve => { resolveRoute = resolve; });
   const processes = new Set();
+  const auditPath = path.join(dataRoot, "write-audit.jsonl");
+  const projectHash = digest(workspaceRoot);
+  let auditQueue = Promise.resolve();
+  // One line per write, fields from write-policy §4 only. The body/title/comment
+  // text and absolute paths never enter the audit; hashes are enough to correlate
+  // an entry with the operation without turning the file into a data leak.
+  function recordWrite(entry) {
+    const line = JSON.stringify({ ts: new Date().toISOString(), ...entry }) + "\n";
+    auditQueue = auditQueue.then(async () => {
+      try {
+        const info = await fs.stat(auditPath).catch(() => null);
+        if (info && info.size > AUDIT_MAX_BYTES) {
+          await fs.rename(auditPath, path.join(dataRoot, "write-audit." + Date.now() + ".jsonl")).catch(() => {});
+        }
+        await fs.appendFile(auditPath, line, "utf8");
+      } catch {
+        process.stderr.write("write-audit-skipped\n");
+      }
+    });
+    return auditQueue;
+  }
   const targetPath = target => typeof target === "string" ? target : target.displayPath;
   const filesystem = {
     resolve: async (name, options = {}) => {
@@ -38,17 +89,28 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
     },
     writeText: async (target, content) => {
       const destination = path.resolve(targetPath(target));
-      const relative = path.relative(dataRoot, destination);
-      if (relative.startsWith("..") || path.isAbsolute(relative)) {
-        throw new Error("This verification host writes only to its data directory.");
+      const insideData = isInside(dataRoot, destination);
+      // The workspace binding is the one project-write this ticket owns; it is
+      // gated by its exact relative path, not by "anything under the project".
+      const projectRelative = isInside(workspaceRoot, destination)
+        ? path.relative(workspaceRoot, destination).split(path.sep).join("/")
+        : null;
+      const projectFile = projectRelative !== null && PROJECT_WRITE_FILES.has(projectRelative) ? projectRelative : null;
+      if (!insideData && !projectFile) {
+        throw new Error("This host writes only to its data directory or the workspace binding files.");
       }
       await fs.mkdir(path.dirname(destination), { recursive: true });
       const parent = await fs.realpath(path.dirname(destination));
-      const parentRelative = path.relative(dataRoot, parent);
-      if (parentRelative.startsWith("..") || path.isAbsolute(parentRelative)) {
-        throw new Error("Write target resolves outside the data directory.");
+      if (!isInside(insideData ? dataRoot : workspaceRoot, parent)) {
+        throw new Error("Write target resolves outside the allowed roots.");
       }
       await fs.writeFile(destination, content, "utf8");
+      if (projectFile) {
+        await recordWrite({
+          method: "bind", category: "project-write", projectHash,
+          fsTargetHash: digest(projectFile), confirmation: "upstream-dialog", ok: true,
+        });
+      }
     },
   };
   const subprocess = {
@@ -56,7 +118,11 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
       return resolveExecutable(name, { env: process.env });
     },
     spawn(options) {
-      if (!classifyReadCommand(options.argv)) throw new Error("Command is outside read-only port verification.");
+      const read = classifyReadCommand(options.argv);
+      const write = read ? null : classifyWriteCommand(options.argv);
+      if (!read && !write) {
+        throw new Error("Command is outside the Codex port's allowlisted git/gh commands.");
+      }
       const [program, ...args] = options.argv;
       const child = spawn(program, args, {
         cwd: options.cwd ?? workspaceRoot, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
@@ -70,9 +136,26 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
         child[stream].on("data", chunk => collected[stream].push(chunk));
       }
       const done = new Promise((resolve, reject) => {
-        child.once("error", error => { processes.delete(child); reject(error); });
+        child.once("error", error => {
+          processes.delete(child);
+          if (write) {
+            void recordWrite({
+              method: write.method, category: write.category, projectHash,
+              argvHash: digest(options.argv.join("\u0000")), confirmation: confirmationFor(write.method),
+              ok: false, errorKind: "spawn",
+            });
+          }
+          reject(error);
+        });
         child.once("close", (exitCode, signal) => {
           processes.delete(child);
+          if (write) {
+            void recordWrite({
+              method: write.method, category: write.category, projectHash,
+              argvHash: digest(options.argv.join("\u0000")), confirmation: confirmationFor(write.method),
+              ok: exitCode === 0, errorKind: exitCode === 0 ? "" : "exit",
+            });
+          }
           resolve({ exitCode, signal });
         });
       });
@@ -160,8 +243,11 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
     async call(method, payload = {}) {
       const kind = classifyEndpoint(method, payload);
       if (kind === "unknown") throw new Error("Unknown upstream endpoint: " + method);
-      if (kind === "write") throw new Error("Host action is a write and is not enabled in this ticket: " + method);
+      if (kind === "write" && !WRITE_SURFACE.has(method)) {
+        throw new Error("Write endpoint is still not enabled in this ticket: " + method);
+      }
       if (method === "cwd") return { ok: true, value: { ok: true, cwd: workspaceRoot, workspaceRoot } };
+      const policy = kind === "write" ? (WRITE_POLICY[method] ?? {}) : null;
       const request = new Request("https://mattskills-adapter.invalid/api/dsws", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -169,8 +255,29 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
           payload: { method, payload: { ...payload, cwd: workspaceRoot } },
         }),
       });
-      const response = await route(request);
-      return (await response.json()).result;
+      try {
+        const response = await route(request);
+        const result = (await response.json()).result;
+        if (policy) {
+          // Endpoint-level entry: it exists even when the backend refuses below
+          // (missing repo, no permission), so a write attempt is never invisible.
+          await recordWrite({
+            method, category: policy.category ?? "external-github-write", projectHash,
+            confirmation: policy.confirmation ?? "upstream-dialog", stage: "endpoint",
+            ok: result?.ok !== false, errorKind: result?.ok === false ? String(result?.error?.kind ?? "backend") : "",
+          });
+        }
+        return result;
+      } catch (error) {
+        if (policy) {
+          await recordWrite({
+            method, category: policy.category ?? "external-github-write", projectHash,
+            confirmation: policy.confirmation ?? "upstream-dialog", stage: "endpoint",
+            ok: false, errorKind: "threw",
+          });
+        }
+        throw error;
+      }
     },
     listTools() {
       return [...deckTools.values()].map(tool => ({

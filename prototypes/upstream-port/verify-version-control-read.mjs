@@ -184,7 +184,7 @@ async function checkDirtyRepo() {
 
     await assert.rejects(
       () => host.call("gitStage", { paths: ["tracked.txt"] }),
-      /write and is not enabled/,
+      /still not enabled/,
       "write endpoints stay blocked",
     );
   });
