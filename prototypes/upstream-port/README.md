@@ -44,7 +44,7 @@ node verify-host-harness.mjs    # 用真实桌面的 ui/initialize 能力集回�
 
 - Codex 只支持 MCP Apps 的 `global` / `thread` / `file` 三种入口；port 当前使用 `thread` 入口。状态栏、运行面板已改为面板内的 `看板 / 状态 / 运行` 标签页，设置页仍归 #18；原生 tab 类型/图标/优先级不能注册。
 - 面板 shell 在 `browser-runtime.mjs`：收集上游 `sidebar.right.pane.tab`、`conversation.input.dock`、`tool.view.cordis` 三个组件，复用原 `StatusBar` / `RunPanel`，把 `session` / `useSessions` / locale 标签传进去；主看板保持挂载，切 tab 不丢状态。
-- 工具走 MCP `tools/list`；没有 skills provider；locale 只有信号，需要 bridge 拼 DSH 形状适配器。技能页保留自绘。
+- 工具走 MCP `tools/list`；Codex 没有 skills provider，port 用 `skills-service.mjs` 把 vendored `bundled-skills`（27 个）直接做成技能注册表；检查链的技能三项因此从「等待技能服务」变为已安装（6/6），面板技能页可列出 27 个、`skill.readDoc` 读到的正文与 vendor 文件逐字一致。该服务**不提供** `registerProvider`：上游 bootstrap 只有在看到这个方法时才会去扫 `~/.dsh/profiles/**`，而本票要求技能只来自 vendor、不读那些 profile 目录。locale 只有信号，需要 bridge 拼 DSH 形状适配器。
 - 地图详情复用原 `MapDetail`（漏斗分层 / 当前层 / 迷雾 / 动作）。GitHub 原生依赖边在快照里是「键字符串」，而原地图视图的旧比较按数字票号；`panel-payload.mjs` 在项目数据进程把纯数字键还原为数字（非数字键原样），否则被阻塞子票不显示阻塞者也会照常给动作按钮。证据：`verify-map-view.mjs`；分层与 frontier 的口径仍由上游 `computeLevels` / `groupTickets` 计算。
 - `global` 入口是否对裸 `mcp_servers` 生效尚未验证，见 #23；若只有插件安装的服务才有全局入口，首版入口形态需要重新评估。
 - 读取端点已按 `rpc-endpoints.mjs` 全量路由（30 条）；写入端点 26 条由 `write-gate.mjs` + #12 打开的写面逐条放行，其余仍显式拒绝（`still not enabled`）。`deck_rpc_manifest` 返回清单。
@@ -73,13 +73,14 @@ node verify-project-follow.mjs
 node verify-write-policy.mjs
 node verify-write-gate.mjs
 node verify-issue-writes.mjs
+node verify-skills-page.mjs
 node verify-version-control-read.mjs
 node verify-version-control-view.mjs
 node doctor.mjs --github
 node verify-host-harness.mjs --issue 14
 ```
 
-前两个使用本地采集的数据；`verify-sidebar` 通过实际 MCP 服务读取真实 GitHub 数据；`verify-map-view` 用一次原生 GraphQL 查询（`subIssues` + `blockedBy` + assignees）独立算出层/可接/被阻塞，再断言快照、地图统计与面板 DOM 与之一致，并验证地图级动作仍是 `send:false` 草稿；`verify-rpc-manifest` 对照 vendor 的 56 个 `harness.handle` 校验读/写分类，`verify-rpc-coverage` 走 MCP 代表性读取端点并验证写入端点被拒绝；`verify-deck-tools` 验证 9 个 `deck_*` 工具与真实数据；`verify-locale` 验证宿主语言切换；`verify-sessions` 验证 Codex 会话存储映射；`verify-session-project` 校验 state_5 优先、rollout/zstd 兜底、项目根匹配与 fail-closed；`verify-project-follow` 用两个真实 MCP 服务实例校验同项目/跨项目/项目外/未落盘四类身份；`verify-write-policy` 校验写端点/工具/argv/fs/确认/审计模型覆盖；`verify-write-gate` 校验新写闸的允许模板与拒绝形状；`verify-issue-writes` 在测试仓库 `wozhendeshifwa/codex_mattskills_plugin` 上跑真实评论/改色/绑定/关重开，并驱动面板评论表单与审计断言；`verify-version-control-read` 用临时仓库验证版本管理三条只读电话（脏/干净/非 git/大补丁截断/分页/只读不写 index）；`verify-version-control-view` 从面板点开版本管理标签，验证真实仓库的改动清单与提交数；`verify-host-harness` 回放真实桌面 `ui/initialize` 的能力集并验证执行/新会话草稿与面板内状态/运行标签页；`doctor --github` 是安装后的总健康检查。DOM 验证不等同于原生桌面视觉验收，最终仍需用户在 Windows Codex 侧栏实际点击验收。
+前两个使用本地采集的数据；`verify-sidebar` 通过实际 MCP 服务读取真实 GitHub 数据；`verify-map-view` 用一次原生 GraphQL 查询（`subIssues` + `blockedBy` + assignees）独立算出层/可接/被阻塞，再断言快照、地图统计与面板 DOM 与之一致，并验证地图级动作仍是 `send:false` 草稿；`verify-rpc-manifest` 对照 vendor 的 56 个 `harness.handle` 校验读/写分类，`verify-rpc-coverage` 走 MCP 代表性读取端点并验证写入端点被拒绝；`verify-deck-tools` 验证 9 个 `deck_*` 工具与真实数据；`verify-locale` 验证宿主语言切换；`verify-sessions` 验证 Codex 会话存储映射；`verify-session-project` 校验 state_5 优先、rollout/zstd 兜底、项目根匹配与 fail-closed；`verify-project-follow` 用两个真实 MCP 服务实例校验同项目/跨项目/项目外/未落盘四类身份；`verify-write-policy` 校验写端点/工具/argv/fs/确认/审计模型覆盖；`verify-write-gate` 校验新写闸的允许模板与拒绝形状；`verify-issue-writes` 在测试仓库 `wozhendeshifwa/codex_mattskills_plugin` 上跑真实评论/改色/绑定/关重开，并驱动面板评论表单与审计断言；`verify-skills-page` 校验检查链技能三项全绿、27 个技能全列、3 份正文与 vendor 逐字一致、面板点开技能走 `skill.readDoc`；`verify-version-control-read` 用临时仓库验证版本管理三条只读电话（脏/干净/非 git/大补丁截断/分页/只读不写 index）；`verify-version-control-view` 从面板点开版本管理标签，验证真实仓库的改动清单与提交数；`verify-host-harness` 回放真实桌面 `ui/initialize` 的能力集并验证执行/新会话草稿与面板内状态/运行标签页；`doctor --github` 是安装后的总健康检查。DOM 验证不等同于原生桌面视觉验收，最终仍需用户在 Windows Codex 侧栏实际点击验收。
 
 ## 说明
 

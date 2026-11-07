@@ -9,6 +9,7 @@ import { resolveExecutable } from "./executables.mjs";
 import { classifyEndpoint } from "./rpc-endpoints.mjs";
 import { classifyReadCommand, createBoundedCollector } from "./read-command.mjs";
 import { createSessionStore } from "./session-store.mjs";
+import { createSkillsService } from "./skills-service.mjs";
 import { classifyWriteCommand } from "./write-gate.mjs";
 import { DECK_TOOL_POLICY, WRITE_POLICY } from "./write-policy.mjs";
 
@@ -226,6 +227,12 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
     on() { return () => {}; },
   };
   services.set("platform", await createPlatform(context, { homedir: () => dataRoot }));
+  // Codex has no skills service (#8). Supplying the bundled-skills registry here
+  // lets the upstream bootstrap register its provider and makes the check chain
+  // report the 27 packaged skills instead of waiting forever.
+  services.set("skills", createSkillsService({
+    bundledDir: fileURLToPath(new URL("../../vendor/mattskills-1.8.0-rc.7/bundled-skills/", import.meta.url)),
+  }));
   originalHost.apply(context);
   const toolDeadline = Date.now() + 12000;
   while (deckTools.size < 9 && Date.now() < toolDeadline) {
