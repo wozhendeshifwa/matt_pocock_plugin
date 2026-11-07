@@ -2,6 +2,7 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { createRoot } from "react-dom/client";
 import { summarizeHostContext } from "./host-context.mjs";
+import { NAMING_DISABLED_REASON } from "./naming-capability.mjs";
 
 let plugin;
 window.__ModuleLoader__ = {
@@ -46,6 +47,9 @@ function PanelShell({ Panel, Settings, Status, Run, panelProps, labels = DEFAULT
       "data-mattskills-panel": tab.id,
       hidden: active !== tab.id,
     }, [
+      tab.id === "status"
+        ? React.createElement("div", { key: "naming-note", className: "mattskills-note", "data-mattskills-naming-note": true }, NAMING_DISABLED_REASON)
+        : null,
       // Codex has no update host package; say so where the page's update entry
       // lives instead of leaving the user with a bare "check failed" toast.
       tab.id === "settings" && panelProps.labels?.settingsNote

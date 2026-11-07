@@ -12,6 +12,7 @@ import { createSessionStore } from "./session-store.mjs";
 import { createSkillsService } from "./skills-service.mjs";
 import { classifyOpenCommand } from "./open-command.mjs";
 import { classifyWriteCommand } from "./write-gate.mjs";
+import { namingCapability } from "./naming-capability.mjs";
 import { DECK_TOOL_POLICY, ENABLED_WRITE_ENDPOINTS, WRITE_POLICY } from "./write-policy.mjs";
 
 // The write endpoints earlier tickets opened (#12 issue writes, #18 settings).
@@ -263,6 +264,8 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
   let sequence = 0;
   return {
     async call(method, payload = {}) {
+      const naming = namingCapability(method);
+      if (naming) return { ok: true, value: naming };
       const kind = classifyEndpoint(method, payload);
       if (kind === "unknown") throw new Error("Unknown upstream endpoint: " + method);
       if (kind === "write" && !WRITE_SURFACE.has(method)) {
