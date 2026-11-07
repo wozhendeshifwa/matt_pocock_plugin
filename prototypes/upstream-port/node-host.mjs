@@ -6,32 +6,8 @@ import originalHost from "../../vendor/mattskills-1.8.0-rc.7/lib/index.js";
 import { createPlatform } from "../../vendor/mattskills-1.8.0-rc.7/lib/platform/index.js";
 import { resolveExecutable } from "./executables.mjs";
 import { classifyEndpoint } from "./rpc-endpoints.mjs";
+import { classifyReadCommand, createBoundedCollector } from "./read-command.mjs";
 import { createSessionStore } from "./session-store.mjs";
-
-function isReadCommand(argv) {
-  const program = path.basename(argv[0]).replace(/\.exe$/i, "").toLowerCase();
-  const args = argv.slice(1);
-  if (program === "gh") {
-    if (args[0] === "--version") return true;
-    if (args[0] === "auth") return args[1] === "status";
-    if (["repo", "issue", "pr"].includes(args[0])) return ["view", "list"].includes(args[1]);
-    if (args[0] !== "api") return false;
-    const method = args.findIndex(arg => arg === "-X" || arg === "--method");
-    if (method !== -1 && args[method + 1] !== "GET") return false;
-    if (args[1] === "graphql") {
-      const query = args.find(arg => arg.startsWith("query="));
-      return Boolean(query) && !/\bmutation\b/i.test(query);
-    }
-    return !args.some(arg => ["-f", "-F", "--field", "--raw-field", "--input"].includes(arg));
-  }
-  if (program !== "git") return false;
-  if (args[0] === "-C") args.splice(0, 2);
-  if (["--version", "rev-parse", "status", "log", "show", "diff", "ls-files", "check-ref-format"].includes(args[0])) return true;
-  if (args[0] === "remote") return ["get-url", "-v"].includes(args[1]);
-  if (args[0] === "config") return args.some(arg => ["--get", "--get-all", "--get-regexp", "--list"].includes(arg));
-  if (args[0] === "worktree") return args[1] === "list";
-  return false;
-}
 
 export async function createOriginalHost({ dataRoot, workspaceRoot }) {
   dataRoot = await fs.realpath(dataRoot);
@@ -80,19 +56,18 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
       return resolveExecutable(name, { env: process.env });
     },
     spawn(options) {
-      if (!isReadCommand(options.argv)) throw new Error("Command is outside read-only port verification.");
+      if (!classifyReadCommand(options.argv)) throw new Error("Command is outside read-only port verification.");
       const [program, ...args] = options.argv;
       const child = spawn(program, args, {
         cwd: options.cwd ?? workspaceRoot, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
       });
       processes.add(child);
-      const buffers = { stdout: "", stderr: "" };
+      const collected = {
+        stdout: createBoundedCollector(options.stdio?.stdout?.maxBytes),
+        stderr: createBoundedCollector(options.stdio?.stderr?.maxBytes),
+      };
       for (const stream of ["stdout", "stderr"]) {
-        child[stream].setEncoding("utf8");
-        child[stream].on("data", chunk => {
-          const limit = options.stdio?.[stream]?.maxBytes ?? 4 * 1024 * 1024;
-          buffers[stream] = (buffers[stream] + chunk).slice(-limit);
-        });
+        child[stream].on("data", chunk => collected[stream].push(chunk));
       }
       const done = new Promise((resolve, reject) => {
         child.once("error", error => { processes.delete(child); reject(error); });
@@ -102,10 +77,7 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
         });
       });
       return {
-        done, terminate: () => child.kill(),
-        collected: Object.fromEntries(["stdout", "stderr"].map(stream => [
-          stream, { readFrom: offset => ({ text: buffers[stream].slice(offset) }) },
-        ])),
+        done, terminate: () => child.kill(), collected,
       };
     },
   };
