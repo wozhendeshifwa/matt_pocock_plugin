@@ -147,7 +147,10 @@ async function handle(request) {
           throw new Error("Endpoint is not a write and must use deck_upstream_read: " + method);
         }
         if (payload?.expectedThreadId !== project.threadId) throw new Error("聊天已切换，请等待项目重新加载。");
-        const result = await projectHosts.call(cwd, method, payload);
+        const scopedPayload = ["namingPlan", "cancelNewSessionWatcher"].includes(method)
+          ? { ...payload, sessionId: project.threadId }
+          : payload;
+        const result = await projectHosts.call(cwd, method, scopedPayload);
         return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
       } catch (error) {
         return { isError: true, content: [{ type: "text", text: error.message }] };

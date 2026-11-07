@@ -15,6 +15,7 @@ export const ENABLED_WRITE_ENDPOINTS = Object.freeze([
   "setLabelColors",
   "bind",
   "handoffResolve",
+  "cancelNewSessionWatcher",
   "logSetSwitch",
   "logClear",
   "openFolder",
@@ -127,7 +128,7 @@ export const WRITE_POLICY = Object.freeze({
     confirmation: CONFIRMATION.none,
     destructive: false,
     commands: [],
-    fsTargets: ["<data-root>/.dsh-mattskillsdeck-cache/naming-guardian.json"],
+    fsTargets: ["<data-root>/manual-naming.json (cancel current manual suggestion only)"],
     audit: true,
   },
   gitStage: {

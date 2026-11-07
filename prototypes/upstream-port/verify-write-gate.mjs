@@ -58,7 +58,7 @@ const cases = [
   {
     name: "handoff claim (add self only)",
     argv: ["gh", "issue", "edit", "7", "--repo", repo, "--add-assignee", "@me"],
-    method: "handoffResolve",
+    method: "deck_issue_patch",
   },
   {
     name: "create issue via REST",
@@ -112,5 +112,5 @@ for (const [name, argv] of denied) {
 for (const method of writeGateMethods()) {
   assert.ok(policyFor(method), `gate method ${method} has no policy (write-policy or deck tool policy)`);
 }
-assert.deepEqual(writeGateMethods().sort(), ["commentIssue", "deck_issue_create", "deck_issue_patch", "handoffResolve", "setLabelColors"]);
+assert.deepEqual(writeGateMethods().sort(), ["commentIssue", "deck_issue_create", "deck_issue_patch", "setLabelColors"]);
 console.log(`PASS write gate: ${cases.length} allowed templates, ${denied.length} refused shapes, ${writeGateMethods().length} policy methods`);

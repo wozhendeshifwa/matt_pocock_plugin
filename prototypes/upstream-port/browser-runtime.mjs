@@ -2,7 +2,8 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { createRoot } from "react-dom/client";
 import { summarizeHostContext } from "./host-context.mjs";
-import { NAMING_DISABLED_REASON } from "./naming-capability.mjs";
+import { namingDisabledText } from "./naming-capability.mjs";
+import { ManualNaming } from "./manual-naming-view.mjs";
 
 let plugin;
 window.__ModuleLoader__ = {
@@ -22,7 +23,11 @@ window.__ModuleLoader__ = {
 // settings.plugins.tab / settings.section slots would have carried.
 const DEFAULT_LABELS = { board: "看板", settings: "设置", status: "状态", run: "运行" };
 
-function PanelShell({ Panel, Settings, Status, Run, panelProps, labels = DEFAULT_LABELS }) {
+function PanelShell({ Panel, Settings, Status, Run, panelProps, locale, connection, labels = DEFAULT_LABELS }) {
+  const language = React.useSyncExternalStore(
+    listener => locale?.subscribe?.(listener) ?? (() => {}),
+    () => locale?.getSnapshot?.().active ?? "zh",
+  );
   const tabs = [{ id: "board", label: labels.board, component: Panel }];
   if (Settings) tabs.push({ id: "settings", label: labels.settings ?? DEFAULT_LABELS.settings, component: Settings });
   if (Status) tabs.push({ id: "status", label: labels.status, component: Status });
@@ -48,7 +53,10 @@ function PanelShell({ Panel, Settings, Status, Run, panelProps, labels = DEFAULT
       hidden: active !== tab.id,
     }, [
       tab.id === "status"
-        ? React.createElement("div", { key: "naming-note", className: "mattskills-note", "data-mattskills-naming-note": true }, NAMING_DISABLED_REASON)
+        ? React.createElement("div", { key: "naming-note", className: "mattskills-note", "data-mattskills-naming-note": true }, namingDisabledText(language))
+        : null,
+      tab.id === "status" && connection
+        ? React.createElement(ManualNaming, { key: "manual-naming", connection, language })
         : null,
       // Codex has no update host package; say so where the page's update entry
       // lives instead of leaving the user with a bare "check failed" toast.
@@ -110,6 +118,8 @@ window.MattSkillsCodex = {
       Status,
       Run,
       panelProps,
+      locale: hostServices.locale,
+      connection: hostServices.connection,
       labels: panelProps.labels ?? DEFAULT_LABELS,
     }));
     return () => {

@@ -138,8 +138,7 @@ function classifyIssueWrite(args) {
     index += 1;
   }
   if (pairs.length === 0) return null;
-  const onlyAssignSelf = pairs.every(pair => pair.flag === "--add-assignee" && pair.value === "@me");
-  return allowed(onlyAssignSelf ? "handoffResolve" : "deck_issue_patch", "external-github-write");
+  return allowed("deck_issue_patch", "external-github-write");
 }
 
 /** Classify `gh label edit <name> --repo <slug> --color <hex>`. */
@@ -169,5 +168,5 @@ export function classifyWriteCommand(argv) {
 
 /** Policy methods this gate can produce (used by doctor/verifies). */
 export function writeGateMethods() {
-  return ["commentIssue", "deck_issue_create", "deck_issue_patch", "handoffResolve", "setLabelColors"];
+  return ["commentIssue", "deck_issue_create", "deck_issue_patch", "setLabelColors"];
 }
