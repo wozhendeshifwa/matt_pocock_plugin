@@ -53,9 +53,75 @@
     }
   }
 
+  function normalizeLocale(value) {
+    const raw = String(value ?? "").trim().toLowerCase();
+    if (!raw) return null;
+    if (raw === "zh" || raw.startsWith("zh-") || raw.startsWith("zh_")) return "zh";
+    if (raw === "en" || raw.startsWith("en-") || raw.startsWith("en_")) return "en";
+    return null;
+  }
+
+  function detectLocale(...values) {
+    for (const value of values) {
+      const locale = normalizeLocale(value);
+      if (locale) return locale;
+    }
+    return null;
+  }
+
+  function createLocaleService(initial) {
+    let active = normalizeLocale(initial) ?? "zh";
+    const tables = new Map();
+    const listeners = new Set();
+    return {
+      register(namespace, dicts) {
+        tables.set(namespace, dicts || {});
+        return () => tables.delete(namespace);
+      },
+      bind(namespace) {
+        return (key, params) => {
+          const dicts = tables.get(namespace) ?? {};
+          const dict = dicts[active] ?? dicts.zh ?? {};
+          let text = dict[key] !== undefined ? dict[key] : key;
+          if (params) text = String(text).replace(/\{(\w+)\}/g, (match, name) => name in params ? String(params[name]) : match);
+          return text;
+        };
+      },
+      getSnapshot() { return { active }; },
+      setActive(next) {
+        const locale = normalizeLocale(next);
+        if (!locale || locale === active) return false;
+        active = locale;
+        for (const listener of listeners) { try { listener(locale); } catch {} }
+        return true;
+      },
+      subscribe(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+  }
+
   const initialOpenAi = window.openai;
+  const localeService = createLocaleService(detectLocale(initialOpenAi?.locale, document.documentElement.lang));
+  function applyLocale(context = {}) {
+    const globals = context.globals ?? {};
+    const next = detectLocale(
+      context.locale,
+      context.hostContext?.locale,
+      globals.locale,
+      window.openai?.locale,
+      document.documentElement.lang,
+    );
+    if (!next) return;
+    document.documentElement.lang = next === "zh" ? "zh-CN" : "en";
+    localeService.setActive(next);
+    if (window.MattSkillsCodex) window.MattSkillsCodex.hostLocale = next;
+  }
+
   if (initialOpenAi) applyTheme({ theme: initialOpenAi.theme, styles: { variables: initialOpenAi.visualizationStyleVariables } });
   else applyTheme();
+  applyLocale({ locale: initialOpenAi?.locale, globals: { locale: initialOpenAi?.locale } });
 
   const pending = new Map();
   let sequence = 0;
@@ -87,6 +153,7 @@
     if (event.data?.method === "ui/notifications/host-context-changed") {
       const context = event.data.params?.hostContext ?? event.data.params ?? {};
       applyTheme(context);
+      applyLocale(context);
       void reportHostContext("ui/notifications/host-context-changed", context);
       return;
     }
@@ -102,6 +169,7 @@
   window.addEventListener("openai:set_globals", event => {
     const globals = event.detail?.globals ?? {};
     applyTheme({ globals, styles: { variables: globals.visualizationStyleVariables } });
+    applyLocale({ globals });
     void reportHostContext("openai:set_globals", globals);
   });
   colorScheme?.addEventListener?.("change", () => {
@@ -114,8 +182,10 @@
     });
     const hostContext = initialization.hostContext ?? initialization.context ?? {};
     applyTheme(hostContext);
+    applyLocale(hostContext);
     window.MattSkillsCodex.hostInitialization = initialization;
     window.MattSkillsCodex.hostTheme = root.dataset.theme ?? null;
+    window.MattSkillsCodex.hostLocale = localeService.getSnapshot().active;
     window.MattSkillsCodex.refreshHostTheme = applyTheme;
     send({ method: "ui/notifications/initialized", params: {} });
     void reportHostContext("ui/initialize", {
@@ -176,8 +246,16 @@
         current = project;
         const mountedProject = project;
         const session = sessionOf(project);
+        const useSessions = selector => {
+          const active = current ? sessionOf(current) : null;
+          const snapshot = active
+            ? { current: active.id, byId: { [active.id]: active }, items: [active] }
+            : { current: "", byId: {}, items: [] };
+          return typeof selector === "function" ? selector(snapshot) : snapshot;
+        };
         dispose = window.MattSkillsCodex.mount(document.getElementById("root"), {
           sessions,
+          locale: localeService,
           codexActions: { async prefill(target, text) {
             if (!current || current.cwd !== mountedProject.cwd) throw new Error("项目已切换，旧面板已失效。");
             const active = await readProject();
@@ -198,7 +276,7 @@
             if (reply.isError) throw new Error(reply.content?.[0]?.text ?? "项目数据读取失败。");
             return reply.structuredContent ?? JSON.parse(reply.content[0].text);
           } } },
-        }, { sessionId: session.id });
+        }, { sessionId: session.id, useSessions });
       } catch (error) { clearPanel("项目未关联：" + error.message); }
       finally { checking = false; }
     }
