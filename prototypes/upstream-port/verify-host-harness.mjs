@@ -193,6 +193,16 @@ try {
     await until(() => messages.some(message => message._meta?.["openai/message"]?.target === target),
       `${label} prefill`);
   }
+  for (const id of ["board", "status", "run"]) {
+    assert.ok(window.document.querySelector(`[data-mattskills-tab="${id}"]`), `Panel tab ${id} must render`);
+  }
+  for (const id of ["status", "run"]) {
+    window.document.querySelector(`[data-mattskills-tab="${id}"]`).click();
+    await until(() => {
+      const panel = window.document.querySelector(`[data-mattskills-panel="${id}"]`);
+      return panel && !panel.hidden && panel.textContent.trim().length > 0;
+    }, `${id} tab content`);
+  }
   for (const message of messages) {
     assert.equal(message._meta?.["openai/message"]?.send, false, "Prefill must not send");
   }
@@ -200,6 +210,7 @@ try {
   console.log("PASS replayed real desktop capabilities include experimental.openai/message");
   console.log("PASS panel -> real MCP server -> real GitHub list/detail");
   console.log("PASS 执行 / 新会话 produce send:false composer drafts for active/new targets");
+  console.log("PASS panel-internal status/run tabs render with real session data");
   console.log("NOTE native pane placement and visual acceptance still require the desktop user");
 } finally {
   if (dom) dom.window.close();
