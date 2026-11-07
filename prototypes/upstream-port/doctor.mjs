@@ -113,9 +113,19 @@ async function smokeTest({ github = false, serverName = defaultServerName } = {}
     add("MCP tools capability", Boolean(initialized?.capabilities?.tools), "tools advertised", "Fix sidebar-server.mjs");
     const listed = await rpc.request("tools/list", {});
     const names = new Set((listed.tools ?? []).map(tool => tool.name));
-    for (const name of ["open_deck_sidebar_probe", "deck_current_project", "deck_upstream_read", "deck_host_context_probe"]) {
+    for (const name of ["open_deck_sidebar_probe", "deck_current_project", "deck_upstream_read", "deck_host_context_probe", "deck_rpc_manifest"]) {
       add(`MCP tool ${name}`, names.has(name), names.has(name) ? "listed" : "missing", "Fix sidebar-server.mjs");
     }
+    const manifestResponse = await rpc.request("tools/call", {
+      name: "deck_rpc_manifest",
+      arguments: {},
+      _meta: {},
+    });
+    const manifest = manifestResponse?.structuredContent ?? JSON.parse(manifestResponse?.content?.[0]?.text ?? "{}");
+    add("RPC endpoint manifest",
+      manifest.read?.length === 30 && manifest.write?.length === 26 && manifest.upstream?.length === 56,
+      `read=${manifest.read?.length ?? "?"} write=${manifest.write?.length ?? "?"} upstream=${manifest.upstream?.length ?? "?"}`,
+      "Run node verify-rpc-manifest.mjs and update rpc-endpoints.mjs");
     const resource = await rpc.request("resources/read", { uri: "ui://deck-sidebar/board.html" });
     const html = resource?.contents?.[0]?.text ?? "";
     add("MCP resource board.html", html.includes("MattSkillsDeck") && html.length > 1000,

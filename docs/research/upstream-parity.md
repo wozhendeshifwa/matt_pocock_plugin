@@ -71,3 +71,9 @@
 - `prototypes/upstream-port/doctor.mjs`：安装、配置、构建、MCP 握手、资源、thread 身份、真实 GitHub 读取的总健康检查；GitHub API 网络不可用时 `gh auth` 显示 WARN，不误报未登录。
 - `prototypes/upstream-port/verify-host-harness.mjs`：回放真实桌面 `ui/initialize` 的 `hostCapabilities` 键集，验证 `openai/message` 能力、真实 GitHub 列表/详情、`执行`/`新会话` 的 `send:false` 草稿；原生面板位置与视觉验收仍归用户。
 - 安装后的 `codex mcp get deck-sidebar-probe` 显示 command / args / cwd / env / startup_timeout_sec；`serverInfo.name` 与配置键对齐为 `deck-sidebar-probe`。
+
+### 2026-11-07 RPC 读取覆盖
+
+- `prototypes/upstream-port/rpc-endpoints.mjs` 把 vendor `lib/index.js` 的 56 个 `harness.handle` 注册分成 30 条读端点与 26 条写端点。`skill.readDoc` 命名修正；`detect`、`gitStatus`、`gitDiff`、`gitLog`、`gitWriteCheck`、`gateStats`、`bindings`、`handoffLatest`、`awaitCreatedIssue`、`updateStatus/Check/Changelog` 等读取路径纳入。
+- `node-host.mjs` 不再维护 `readMethods` 白名单：读端点全部路由，写端点显式返回 `Host action is a write and is not enabled in this ticket`，未知端点显式报 `Unknown upstream endpoint`。`setupLayout` 按是否带 `layout` 分为读/写。
+- `sidebar-server.mjs` 新增 `deck_rpc_manifest`；`verify-rpc-manifest.mjs` 对照 vendor 注册表校验清单，`verify-rpc-coverage.mjs` 走 MCP 代表性读取端点并验证写端点/未知端点被拒绝；`doctor.mjs` 增加 manifest 检查，当前 `doctor` 29/29（未跑 GitHub 时）。
