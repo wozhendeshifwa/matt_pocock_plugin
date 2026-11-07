@@ -1,4 +1,5 @@
 import { createOriginalHost } from "./node-host.mjs";
+import { normalizePanelPayload } from "./panel-payload.mjs";
 
 const host = await createOriginalHost({ dataRoot: process.cwd(), workspaceRoot: process.argv[2] });
 process.on("message", async ({ id, method, payload }) => {
@@ -11,7 +12,7 @@ process.on("message", async ({ id, method, payload }) => {
       process.send({ id, result: await host.callTool(payload.name, payload.arguments, payload.context) });
       return;
     }
-    process.send({ id, result: await host.call(method, payload) });
+    process.send({ id, result: normalizePanelPayload(method, await host.call(method, payload)) });
   } catch (error) {
     process.send({ id, error: error.message });
   }
