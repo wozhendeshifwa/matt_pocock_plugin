@@ -92,3 +92,10 @@
 - 复用原 `StatusBar` / `RunPanel`，把 `session` / `useSessions` / locale 标签传入；`sidebarRightTabs` 仍是明确注释的空桩，不注册原生 tab 元数据。
 - `theme.css` 增加面板 shell 的标签栏与面板容器样式；`verify-build.mjs` 与 `verify-host-harness.mjs` 均断言三个标签页可渲染、状态/运行内容非空且无 jsdom 错误。
 - 设置页 (`settings.plugins.tab`) 仍无宿主槽位，归 #18 的面板内设置标签页。
+
+### 2026-11-07 写操作授权模型
+
+- `docs/research/codex-write-authority.md` 给出完整的“上游写操作 -> 适配入口 -> argv/fs -> 分类 -> 确认 -> 审计”表；覆盖 26 条写 RPC、条件读写的 `setupLayout`、9 个 `deck_*` 工具。
+- `prototypes/upstream-port/write-policy.mjs` 把同一份模型落成数据：`project-write` / `external-github-write` / `git-write` / `local-state-write` / `read-only-export` / `host-side-effect` / `unsupported`；固定 argv 模板、项目/数据根白名单、确认来源与审计标记。
+- 规则：不开放任意 shell；`gh` 只允许当前仓库的固定 endpoint；git 禁止 `+`/force push；fs 只写 `docs/agents/{workspace,label-colors}.json` 与 port 数据根；UI 写沿用上游对话框，MCP 写工具依赖 Codex 工具审批；`write-audit.jsonl` 只记散列不记原文；`updateInstall`/`deckExec` 明确拒绝；Markdown 后端写入待范围决定。
+- `verify-write-policy.mjs` 校验 26 条写端点 + setupLayout + 9 个 deck 工具全覆盖、无未知分类、破坏性动作有确认、命令无 shell 元字符；当前 `node-host` 仍统一拒绝写端点，具体写表面由 #12/#18/#9/#4/#7 按模型落地。
