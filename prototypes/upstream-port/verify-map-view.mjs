@@ -145,6 +145,7 @@ try {
   const repositoryName = requestedRepo ?? snapshot.repository?.name ?? (snapshot.repo ? snapshot.repo.owner + "/" + snapshot.repo.name : null);
   assert.ok(repositoryName, "snapshot must name the repository");
   const [owner, name] = repositoryName.split("/");
+  const repositoryUrl = snapshot.repository?.url ?? "https://github.com/" + repositoryName;
   const map = requestedMap
     ? snapshot.maps.find(candidate => String(candidate.key ?? candidate.number) === requestedMap)
     : snapshot.maps.find(candidate => (candidate.labels ?? []).some(label => (label.name ?? label) === "wayfinder:map")) ?? snapshot.maps[0];
@@ -306,6 +307,19 @@ try {
   console.log("PASS blocked children render as blocked (fog + open blocker names, actions suppressed); claims and closed states render");
   assert.deepEqual(errors, [], "The panel renders without host or script errors");
 
+  // --- Single-ticket action reuses the upstream prompt --------------------
+  const actionable = expected.frontierSet[0];
+  assert.ok(actionable, "The map needs at least one takeable child for a single-ticket action check");
+  const actionButton = nodeOf(actionable.number).querySelector(".acts button");
+  assert.ok(actionButton, "#" + actionable.number + " is takeable and must offer its row action");
+  actionButton.click();
+  await until(() => drafted.length === 1, "single-ticket draft");
+  assert.equal(drafted[0]._meta?.["openai/message"]?.target, "active", "Row actions prefill the current chat");
+  assert.equal(drafted[0]._meta?.["openai/message"]?.send, false, "Row actions only prefill the current chat");
+  assert.ok(drafted[0].content[0].text.startsWith("/wayfinder"), "Row action uses the upstream wayfinder prompt: " + drafted[0].content[0].text.slice(0, 60));
+  assert.ok(drafted[0].content[0].text.includes(repositoryUrl + "/issues/" + actionable.number), "Row action prompt names ticket #" + actionable.number);
+  console.log("PASS a single takeable child keeps its original row action and send:false draft");
+
   // --- Map actions reuse the upstream prompt and the draft boundary --------
   const sticky = window.document.querySelector(".dsws-stickybar");
   assert.ok(sticky, "Map detail must render its action bar");
@@ -313,18 +327,17 @@ try {
   const primary = [...sticky.querySelectorAll("button")].find(button => (button.textContent ?? "").trim() === primaryLabel);
   assert.ok(primary, "Map action bar must offer " + primaryLabel);
   primary.click();
-  await until(() => drafted.length === 1, "map action draft");
+  await until(() => drafted.length === 2, "map action draft");
   const newSession = [...sticky.querySelectorAll("button")].find(button => (button.textContent ?? "").trim() === "新会话");
   assert.ok(newSession, "Map action bar must offer a new-session action");
   newSession.click();
-  await until(() => drafted.length === 2, "map new-session draft");
-  const targets = drafted.map(draft => draft._meta?.["openai/message"]?.target);
-  assert.deepEqual(targets, ["active", "new"], "The two map actions keep the upstream active/new split");
-  for (const draft of drafted) assert.equal(draft._meta?.["openai/message"]?.send, false, "Map actions only create a draft");
-  assert.equal(drafted[0].content[0].text, drafted[1].content[0].text, "The same upstream prompt feeds both targets");
-  const repositoryUrl = snapshot.repository?.url ?? "https://github.com/" + repositoryName;
+  await until(() => drafted.length === 3, "map new-session draft");
+  const mapDrafts = drafted.slice(1);
+  assert.deepEqual(mapDrafts.map(draft => draft._meta?.["openai/message"]?.target), ["active", "new"], "The two map actions keep the upstream active/new split");
+  for (const draft of mapDrafts) assert.equal(draft._meta?.["openai/message"]?.send, false, "Map actions only create a draft");
+  assert.equal(mapDrafts[0].content[0].text, mapDrafts[1].content[0].text, "The same upstream prompt feeds both targets");
   const mapUrl = map.url ?? repositoryUrl + "/issues/" + map.number;
-  assert.ok(drafted[0].content[0].text.startsWith("/wayfinder " + mapUrl), "Map action prompt starts from the map URL: " + drafted[0].content[0].text.slice(0, 80));
+  assert.ok(mapDrafts[0].content[0].text.startsWith("/wayfinder " + mapUrl), "Map action prompt starts from the map URL: " + mapDrafts[0].content[0].text.slice(0, 80));
   console.log("PASS map-level execute/new-session reuse the original prompt and the send:false draft boundary");
 
   // --- Board frontier filter ----------------------------------------------
