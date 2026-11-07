@@ -15,12 +15,15 @@ window.__ModuleLoader__ = {
   },
 };
 
-// Codex has no host slot for the DSH status bar or run panel. They live in the
-// same panel as board tabs instead; the original components are unchanged.
-const DEFAULT_LABELS = { board: "看板", status: "状态", run: "运行" };
+// Codex has no host slot for the DSH status bar, run panel, or settings page.
+// They live in the same panel as board tabs instead; the original components
+// are unchanged, and the settings page is the same SettingsPage the host's
+// settings.plugins.tab / settings.section slots would have carried.
+const DEFAULT_LABELS = { board: "看板", settings: "设置", status: "状态", run: "运行" };
 
-function PanelShell({ Panel, Status, Run, panelProps, labels = DEFAULT_LABELS }) {
+function PanelShell({ Panel, Settings, Status, Run, panelProps, labels = DEFAULT_LABELS }) {
   const tabs = [{ id: "board", label: labels.board, component: Panel }];
+  if (Settings) tabs.push({ id: "settings", label: labels.settings ?? DEFAULT_LABELS.settings, component: Settings });
   if (Status) tabs.push({ id: "status", label: labels.status, component: Status });
   if (Run) tabs.push({ id: "run", label: labels.run, component: Run });
   const [active, setActive] = React.useState("board");
@@ -42,7 +45,18 @@ function PanelShell({ Panel, Status, Run, panelProps, labels = DEFAULT_LABELS })
       className: "mattskills-tabpanel",
       "data-mattskills-panel": tab.id,
       hidden: active !== tab.id,
-    }, React.createElement(tab.component, panelProps)))
+    }, [
+      // Codex has no update host package; say so where the page's update entry
+      // lives instead of leaving the user with a bare "check failed" toast.
+      tab.id === "settings" && panelProps.labels?.settingsNote
+        ? React.createElement("div", {
+            key: "settings-note",
+            className: "mattskills-note",
+            "data-mattskills-settings-note": "update",
+          }, panelProps.labels.settingsNote)
+        : null,
+      React.createElement(tab.component, { key: "panel", ...panelProps }),
+    ]))
   );
 }
 
@@ -80,11 +94,15 @@ window.MattSkillsCodex = {
     plugin.apply(context);
     const Panel = slots.get("sidebar.right.pane.tab");
     if (!Panel) throw new Error("Original sidebar did not register");
+    // Codex has no settings.plugins.tab / settings.section host slot (#8), so the
+    // page upstream registered for it becomes one more in-panel tab.
+    const Settings = slots.get("settings.plugins.tab") ?? slots.get("settings.section") ?? null;
     const Status = slots.get("conversation.input.dock") ?? null;
     const Run = slots.get("tool.view.cordis") ?? null;
     const root = createRoot(element);
     root.render(React.createElement(PanelShell, {
       Panel,
+      Settings,
       Status,
       Run,
       panelProps,

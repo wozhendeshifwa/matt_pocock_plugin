@@ -10,13 +10,14 @@ import { classifyEndpoint } from "./rpc-endpoints.mjs";
 import { classifyReadCommand, createBoundedCollector } from "./read-command.mjs";
 import { createSessionStore } from "./session-store.mjs";
 import { createSkillsService } from "./skills-service.mjs";
+import { classifyOpenCommand } from "./open-command.mjs";
 import { classifyWriteCommand } from "./write-gate.mjs";
-import { DECK_TOOL_POLICY, WRITE_POLICY } from "./write-policy.mjs";
+import { DECK_TOOL_POLICY, ENABLED_WRITE_ENDPOINTS, WRITE_POLICY } from "./write-policy.mjs";
 
-// The write endpoints ticket #12 opens. Everything else in WRITE_ENDPOINTS keeps
-// returning "write and is not enabled": each remaining ticket (#9 git writes,
-// #18 settings, #7 handoff UI, #4 pull requests) turns on its own surface.
-const WRITE_SURFACE = new Set(["commentIssue", "setLabelColors", "bind", "handoffResolve"]);
+// The write endpoints earlier tickets opened (#12 issue writes, #18 settings).
+// Everything else in WRITE_ENDPOINTS keeps returning "write and is not enabled":
+// each remaining ticket (#9 git writes, #7 handoff UI) turns on its own surface.
+const WRITE_SURFACE = new Set(ENABLED_WRITE_ENDPOINTS);
 
 // Project files the workspace binding may write (write-policy: project-write).
 // Everything else under the project stays read-only for this host.
@@ -88,6 +89,15 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
         isDirectory: entry.isDirectory(), isFile: entry.isFile(),
       }));
     },
+    unlink: async target => {
+      const destination = path.resolve(targetPath(target));
+      // logClear is the only caller: it removes day log files under the data
+      // root. Nothing in the project tree is deletable from this host.
+      if (!isInside(dataRoot, destination)) {
+        throw new Error("This host only removes log files inside its data directory.");
+      }
+      await fs.unlink(destination);
+    },
     writeText: async (target, content) => {
       const destination = path.resolve(targetPath(target));
       const insideData = isInside(dataRoot, destination);
@@ -121,12 +131,17 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
     spawn(options) {
       const read = classifyReadCommand(options.argv);
       const write = read ? null : classifyWriteCommand(options.argv);
-      if (!read && !write) {
-        throw new Error("Command is outside the Codex port's allowlisted git/gh commands.");
+      // #18: the settings page may reveal a log directory. Codex has no folder
+      // host service, so the vendored platform recipe's `cmd /c start` shape is
+      // the only other program allowed, and only for a root this port owns.
+      const opened = read || write ? null : classifyOpenCommand(options.argv, [workspaceRoot, dataRoot]);
+      if (!read && !write && !opened) {
+        throw new Error("Command is outside the Codex port's allowlisted git/gh/open commands.");
       }
       const [program, ...args] = options.argv;
       const child = spawn(program, args, {
-        cwd: options.cwd ?? workspaceRoot, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
+        cwd: options.cwd ?? workspaceRoot, windowsHide: true,
+        stdio: ["ignore", opened ? "ignore" : "pipe", opened ? "ignore" : "pipe"],
       });
       processes.add(child);
       const collected = {
@@ -134,7 +149,7 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
         stderr: createBoundedCollector(options.stdio?.stderr?.maxBytes),
       };
       for (const stream of ["stdout", "stderr"]) {
-        child[stream].on("data", chunk => collected[stream].push(chunk));
+        if (child[stream]) child[stream].on("data", chunk => collected[stream].push(chunk));
       }
       const done = new Promise((resolve, reject) => {
         child.once("error", error => {
@@ -255,11 +270,17 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
       }
       if (method === "cwd") return { ok: true, value: { ok: true, cwd: workspaceRoot, workspaceRoot } };
       const policy = kind === "write" ? (WRITE_POLICY[method] ?? {}) : null;
+      // Every upstream call is scoped to this project's root. The two open
+      // endpoints are the exception: their `cwd`/`path` is the thing to open, and
+      // the spawn gate (open-command.mjs) already limits them to the owned roots.
+      const scoped = (method === "openFolder" || method === "openPath")
+        ? { ...payload }
+        : { ...payload, cwd: workspaceRoot };
       const request = new Request("https://mattskills-adapter.invalid/api/dsws", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "client-request", rpcId: "codex-" + ++sequence,
-          payload: { method, payload: { ...payload, cwd: workspaceRoot } },
+          payload: { method, payload: scoped },
         }),
       });
       try {

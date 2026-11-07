@@ -94,3 +94,14 @@ html {
 .mattskills-tabpanel[hidden] {
   display: none;
 }
+
+.mattskills-note {
+  margin: 8px 10px 0;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11.5px;
+  line-height: 1.5;
+}

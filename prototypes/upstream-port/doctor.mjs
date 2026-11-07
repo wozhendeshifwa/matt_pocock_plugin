@@ -126,7 +126,7 @@ async function smokeTest({ github = false, serverName = defaultServerName } = {}
     });
     const manifest = manifestResponse?.structuredContent ?? JSON.parse(manifestResponse?.content?.[0]?.text ?? "{}");
     add("RPC endpoint manifest",
-      manifest.read?.length === 30 && manifest.write?.length === 26 && manifest.upstream?.length === 56,
+      manifest.read?.length === 31 && manifest.write?.length === 25 && manifest.upstream?.length === 56,
       `read=${manifest.read?.length ?? "?"} write=${manifest.write?.length ?? "?"} upstream=${manifest.upstream?.length ?? "?"}`,
       "Run node verify-rpc-manifest.mjs and update rpc-endpoints.mjs");
     const resource = await rpc.request("resources/read", { uri: "ui://deck-sidebar/board.html" });
