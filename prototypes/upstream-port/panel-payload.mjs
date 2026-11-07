@@ -14,7 +14,11 @@ const PANEL_METHODS = new Set(["snapshot", "refresh", "mapTickets"]);
 const NUMERIC_KEY = /^\d+$/;
 
 function normalizeBlockerRef(ref) {
-  return (typeof ref === "string" && NUMERIC_KEY.test(ref)) ? Number(ref) : ref;
+  if (typeof ref !== "string" || !NUMERIC_KEY.test(ref)) return ref;
+  const number = Number(ref);
+  // Only canonical decimal keys are ticket numbers. Zero-padded keys ('00' is a
+  // markdown-backend map key) must stay strings; '00' -> 0 would change identity.
+  return String(number) === ref ? number : ref;
 }
 
 function normalizeTicket(ticket) {
