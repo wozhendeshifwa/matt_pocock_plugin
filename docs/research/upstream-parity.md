@@ -93,6 +93,14 @@
 - `theme.css` 增加面板 shell 的标签栏与面板容器样式；`verify-build.mjs` 与 `verify-host-harness.mjs` 均断言三个标签页可渲染、状态/运行内容非空且无 jsdom 错误。
 - 设置页 (`settings.plugins.tab`) 仍无宿主槽位，归 #18 的面板内设置标签页。
 
+### 2026-11-07 地图分层与阻塞关系
+
+- `verify-map-view.mjs` 打开真实 wayfinder map，用一次原生 GraphQL 查询（`subIssues(first:100)` 的 `number/state/assignees/blockedBy`）独立算出层、当前层、可接与被阻塞集合，再断言快照行（state/claimedBy/level/blockedBy）、地图 `stats`（总数/各层 membership/frontier/claimed/blocked）与面板 DOM（层框、层号、open 计数、闸门、当前层、迷雾、动作抑制）与原生依赖图一致。样本：地图 #3，20 张子票、6 层。
+- 阻塞关系的来源是 GitHub 原生依赖边（`blockedBy(first:50)` / dependencies API），不是正文里的 `Blocked by:` 行；校验同时断言本图子票正文没有该行，证明显示的是原生边。
+- 诊断发现：快照把阻塞边压成键字符串，而上游地图详情的旧比较是 `x.number === b`（数字票号），字符串永远对不上 —— 被阻塞子票因此不显示「被阻塞」、不进迷雾、也不抑制动作按钮。`panel-payload.mjs` 在项目数据进程（`project-worker.mjs`）把纯数字键还原为数字；非数字键原样保留，effort 感知的新代码用 `refKeyOf`，两种形状都认。上游文件未改。
+- 地图级动作（执行 / 新会话）沿用原提示词与 `send:false` 草稿边界；两个目标拿到同一份提示词。可接筛选等于原生 frontier（地图容器本身按上游口径也算可接）。
+- 仍未覆盖：原生桌面下的真实窄栏视觉（宽度、换行、点击目标）归 #15；地图的按需子票（`wf.mapTickets`）在 GitHub 后端按上游口径回 `unsupported`，面板退回快照行，不伪造 0 张。
+
 ### 2026-11-07 写操作授权模型
 
 - `docs/research/codex-write-authority.md` 给出完整的“上游写操作 -> 适配入口 -> argv/fs -> 分类 -> 确认 -> 审计”表；覆盖 26 条写 RPC、条件读写的 `setupLayout`、9 个 `deck_*` 工具。
