@@ -13,6 +13,7 @@
 - 真实远程HTTPS smoke通过：未认证请求401，SDK initialize/list/call/resources正常；工具为`open_remote_compat_probe`与`remote_compat_identity`，资源类型为`text/html;profile=mcp-app`。
 - smoke使用普通SDK客户端，没有宿主元数据，实际返回`hasThreadId=false`、`hasCwd=false`。这只说明普通客户端没有发送身份，不能推出Codex宿主远程身份支持或不支持。
 - 最小兼容布局插件与独立marketplace已在隔离CODEX_HOME安装通过，随后通过Codex官方CLI安装到真实用户配置。插件ID为`deck-remote-compat-probe@deck-remote-probe-43`，版本0.1.0。
+  可重建的脱敏插件/marketplace模板、环境变量认证声明及安装和验证步骤现见[复现说明](../../prototypes/remote-compat-probe/REPRODUCE.md)。该补充保留相同ID/版本与远程接口，不声称与历史含固定Bearer配置的已安装包字节相同；不修改或重部署历史受验服务。
 - 修改前已备份用户配置至主工作区`.scratch/remote-probe-secrets/before-install/config.toml`；安装后原有model_providers块逐一核对保留。未删除或切换原有provider、DeepSeek回退与deck插件。
 - 测试密钥仅用于探针，存放于本机忽略目录及Render环境配置；未加入源码提交、本文或issue。不上传密钥和本地认证配置。
 
