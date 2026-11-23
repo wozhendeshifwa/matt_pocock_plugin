@@ -3,11 +3,17 @@ import { loadPairing, createRuntimeControl } from './lifecycle.mjs';
 import { createExecutor, startCompanion } from './companion.mjs';
 import { createStdioAdapter } from './stdio.mjs';
 import { Journal } from './journal.mjs';
+import path from 'node:path';
+import { verifyFrozenAdapter } from './freeze-adapter.mjs';
 
 // Config selection is a local CLI action, never an MCP argument. All tokens
 // remain local; the cloud gets neither this file nor the adapter's environment.
 export async function launchPairing(file, { onState = () => {} } = {}) {
   const config = await loadPairing(file, { decrypt: true });
+  if (!config.baseline) throw new Error('Select a locally pinned frozen adapter baseline before connecting');
+  const verified = await verifyFrozenAdapter({ directory: config.baseline.directory, expectedManifestSha256: config.baseline.manifestSha256 });
+  const normalize = value => process.platform === 'win32' ? path.resolve(value).toLowerCase() : path.resolve(value);
+  if (normalize(verified.adapterPath) !== normalize(config.adapterPath)) throw new Error('Adapter is not the locally pinned baseline');
   let journal, adapter, companion, control, stopping;
   let stopRequested = false;
   async function cleanup() {

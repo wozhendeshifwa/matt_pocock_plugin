@@ -101,6 +101,7 @@ function validateConfig(config) {
   if (!UUID.test(config.pairingId ?? '') || config.writeEnabled !== false || typeof config.revoked !== 'boolean') throw new Error('Invalid local pairing policy');
   bridgeUrl(config.relayOrigin);
   absolute(config.adapterPath, 'Adapter'); absolute(config.journalPath, 'Journal');
+  if (config.baseline !== undefined && (!config.baseline || !path.isAbsolute(config.baseline.directory ?? '') || !/^[a-f0-9]{64}$/.test(config.baseline.manifestSha256 ?? ''))) throw new Error('Invalid pinned baseline');
   if (typeof config.secretDPAPI !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(config.secretDPAPI) || config.secretDPAPI.length > 16384) throw new Error('Invalid encrypted credential');
   return config;
 }
@@ -108,7 +109,7 @@ function publicConfig(config) {
   const { secretDPAPI, deviceToken, ...visible } = config;
   return visible;
 }
-export async function createPairing({ file, relayOrigin, adapterPath, journalPath, deviceToken }) {
+export async function createPairing({ file, relayOrigin, adapterPath, journalPath, deviceToken, baseline }) {
   const target = absolute(file, 'Pairing file');
   const adapter = await realpath(absolute(adapterPath, 'Adapter'));
   if (!(await stat(adapter)).isFile()) throw new Error('Adapter must be an existing file');
@@ -120,7 +121,9 @@ export async function createPairing({ file, relayOrigin, adapterPath, journalPat
   if (await exists(target) || await exists(sidecar(target, '.revoked'))) throw new Error('Pairing file already exists; select a new local file');
   const pairingId = randomUUID();
   const config = { protocolVersion: VERSION, pairingId, relayOrigin: origin, adapterPath: adapter, journalPath: journal,
+    ...(baseline ? { baseline } : {}),
     secretDPAPI: await protectDeviceToken(deviceToken, pairingId), writeEnabled: false, revoked: false, createdAt: new Date().toISOString() };
+  validateConfig(config);
   await mkdir(path.dirname(target), { recursive: true });
   await mkdir(path.dirname(journal), { recursive: true });
   await writeFile(target, JSON.stringify(config, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
@@ -270,7 +273,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     else if (command === 'stop') result = await requestStop(file);
     else if (command === 'revoke') result = await revokePairing(file);
     else if (command === 'pair') result = await createPairing({ file, relayOrigin: process.env.DECK_RELAY_ORIGIN,
-      adapterPath: process.env.DECK_LOCAL_ADAPTER, journalPath: process.env.DECK_LOCAL_JOURNAL, deviceToken: process.env.DECK_DEVICE_TOKEN });
+      adapterPath: process.env.DECK_LOCAL_ADAPTER, journalPath: process.env.DECK_LOCAL_JOURNAL, deviceToken: process.env.DECK_DEVICE_TOKEN,
+      ...(process.env.DECK_FROZEN_DIRECTORY ? { baseline: { directory: process.env.DECK_FROZEN_DIRECTORY, manifestSha256: process.env.DECK_FROZEN_MANIFEST_SHA256 } } : {}) });
     else if (command === 'autostart-plan') result = await planAutostart(file);
     else if (command === 'autostart-install') result = await installAutostart(file, { dryRun: !args.includes('--apply') });
     else if (command === 'autostart-remove') result = await removeAutostart(file, { dryRun: !args.includes('--apply') });

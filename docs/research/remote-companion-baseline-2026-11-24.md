@@ -4,11 +4,13 @@
 
 ## 当前候选与可追溯性
 
-主工作区 HEAD 为 `701029b1efcdac8d4faedffe5955293efecc36a8`。该提交与当前实际源文件、构建产物不是同一个版本：port 有 **15 个已跟踪文件变更、23 个未跟踪文件**，vendor 没有变更。完整相对路径、文件大小与 SHA-256 存在[候选清单 JSON](remote-companion-baseline-2026-11-24.json)。清单捕获于 `2026-11-23T17:49:42.5015163Z`，包含 port 95 份、vendor 322 份，共 417 份源码/静态产物，合计 7,990,160 字节；清单文件本身 SHA-256 为 `1f1845af581a0b620e0f39a023c4e96bbfe813cdc6be77756b83aee3ac7ef8cc`。
+主工作区 HEAD 为 `701029b1efcdac8d4faedffe5955293efecc36a8`。该提交与当前实际源文件、构建产物不是同一个版本：port 有 **15 个已跟踪文件变更、23 个未跟踪文件**，vendor 没有变更。完整相对路径、文件大小与 SHA-256 存在[候选清单 JSON](remote-companion-baseline-2026-11-24.json)。最终清单捕获于 `2026-11-23T17:55:30.8374394Z`，包含 port 95 份、vendor 355 份，共 **450 份**源码/静态产物，合计 8,006,916 字节；清单文件本身 SHA-256 为 `5390342ff96c94f3d3884853e2631d92f3a56cd0c1cc9aa37a96b83aee4dacef`。
 
-清单排除 `node_modules`、`.scratch`、`.git`、`.env`、`*.secret` 及用户 home/认证文件。没有调用真实 `createSnapshotCacheIdentity()`，没有读取 Git/gh 凭据内容。验证后重新比对全部 417 份文件，未发现捕获期间源文件漂移。
+首份阶段清单在 `2026-11-23T17:49:42.5015163Z` 仅按源码扩展名筛选 417 份（SHA-256 `1f1845af581a0b620e0f39a023c4e96bbfe813cdc6be77756b83aee3ac7ef8cc`）。冻结前已补入原封 vendor 的许可证、VERSION、27 份 agent YAML 元数据、两个技能 shell 模板及 `cordis.patch.yml` 共 33 份，避免把不完整的 vendor 替代为全部功能候选。JSON 保留前一清单摘要与补充原因；未改变上游文件。
 
-正式组件分支的检查点是 `06f4ed9e956bdfa50512342de6e29bb50149588a`（原探针证据加脱敏复现模板补丁）；它不包含主工作区这些业务 WIP。连接层在该分支使用旧提交的 adapter 做局部测试，不能据此声称当前实际版本的全部业务已经保留。
+清单排除 `node_modules`、`.scratch`、`.git`、`.env`、`*.secret` 及用户 home/认证文件。没有调用真实 `createSnapshotCacheIdentity()`，没有读取 Git/gh 凭据内容。首轮验证后重新比对全部 417 份文件，未发现捕获期间源文件漂移；最终冻结还会校验全部 450 份原始文件的哈希并拒绝额外路径。
+
+本轮正式组件分支起点是 `06f4ed9e956bdfa50512342de6e29bb50149588a`（原探针证据加脱敏复现模板补丁）；它不包含主工作区这些业务 WIP。连接层此前在该分支使用旧提交的 adapter 做局部测试，不能据此声称当前实际版本的全部业务已经保留；后续冻结候选的独立版本与修正见下节。
 
 | 关键产物 | 当前 SHA-256 |
 | --- | --- |
@@ -98,10 +100,34 @@ setLabelColors, updateInstall
 
 所以实际后端选择文件改变时，指纹可能不变；缓存水合仍可能采用旧后端快照，直到另一项身份变化或 TTL 使其失效。前述 stub identity 测试通过不能否认这个风险。本次只读核实，没有打开任一真实 choices/gh 文件，没有修源码，也没有把旧 P2 不经核实判成已解决。
 
-## 最小可冻结候选与下一步
+## 已冻结的隔离候选
 
-当前最小可追溯候选是“`701029b` 加 JSON 清单所列当前 adapter 源文件/静态 dist”，而不是一个已发布提交。可在独立目录复制运行/构建必需文件及原封 vendor、按上述哈希逐项读回，再记录完整候选版本；测量、预览、在线测试和配置工具不因位于同目录就自动进入运行包。冻结前重新检查漂移；本报告和哈希清单本身不等于已经复制或冻结了组件。
+在保留主工作区原始 WIP 的前提下，已用 `prototypes/remote-companion/freeze-adapter.mjs` 把最终 450 项输入冻结到本 worktree 忽略目录 `.scratch/frozen-adapter-20261124-choices-v1`。它保留 `prototypes/upstream-port` 与 vendor 相对布局；不复制 `node_modules`、运行数据、Git/gh 配置或会话库。清单中的开发/测量/验证脚本原封保留作来源记录，冻结器不会执行它们，也不会自动安装 vendor 的 npm prepare 脚本。
 
-应先在隔离候选中解决并验证真实 dataRoot 指纹落点，或清楚暂停该缓存能力并呈现其影响供用户决定；不能默默部署旧 adapter 来绕过当前体验要求。无需回头重复采访已确认的云端入口/本机完整业务方向。
+冻结器硬锁输入清单摘要；拒绝输入哈希/大小漂移、缺失或额外文件、重复/越界/链接路径、修正锚点漂移、已存在输出目录和本 worktree `.scratch` 外的输出。已验证的输入字节保留在内存后再复制，并逐文件读回 SHA-256，避免混入中途变化的版本。输出 `frozen-adapter.json` 保存原始/最终文件摘要、`choices-data-root-v1` 修正版本及 `userAccepted: false`。
 
-此后还需把选定候选与正式组件配对、协议版本、凭据撤销和未知写入记录绑定，复用既有本机闸；逐项完成 GitHub 与本机业务、主题/技能/草稿和项目切换矩阵。主工作区 WIP 的接受情况、实际 Windows 启停/更新、Render 配额/日志与冷启动、真实 Codex 全链路及用户最终确认仍未由本报告验收。不得将局部 7 项检查或探针关闭票数换算成产品完成度。
+只有生成副本中的两个文件采用精确锚点修正，主工作区原文件没有改变：
+
+| 文件 | 修正后的行为 | 最终 SHA-256 |
+| --- | --- | --- |
+| `project-worker.mjs` | 显式传入 `{ dataRoot: process.cwd() }` | `6bb5ff3e945edeafd80c014a5b341b991373c573138a5505b8d4ee7dc0137b68` |
+| `snapshot-cache-identity.mjs` | choices 路径使用已解析的本机 dataRoot；缺失/非绝对 dataRoot 时，在读取配置或执行 Git 前返回 null。GitHub 配置仍保持原本机归属 | `fb0dbc3fdb60c9e2e40ffd36a35e8e634954c752517c12e3b65d15c59f72a454` |
+
+因此这份候选是“当前原始 WIP + 两项可追溯 overlay 修正”，不是原包、旧提交或已被用户接受的完整发布。实际候选 manifest 的 SHA-256 为 `9409bb077951e53821417dc4420923925c993c0910408fa9aaa7bc89cea2fc47`；入口为该候选内的 `prototypes/upstream-port/sidebar-server.mjs`。只读 `verifyFrozenAdapter({ directory, expectedManifestSha256 })` 已用此固定摘要校验 manifest 与全部 450 文件；候选后续被改动时会拒绝通过。
+
+重建时从主工作区根运行，选择全新输出，不覆盖已有候选：
+
+```powershell
+$candidateOutput = Join-Path (Get-Location) ('.scratch/wayfinder-render-44/.scratch/frozen-adapter-' + [Guid]::NewGuid().ToString('N'))
+node .scratch/wayfinder-render-44/prototypes/remote-companion/freeze-adapter.mjs (Get-Location).Path $candidateOutput
+```
+
+如果源文件在原清单后已经变化，重建会拒绝；应先重新盘点并审查新的输入清单，不能跳过摘要校验。命令只冻结候选，不启动组件、配对、自启或业务写入。
+
+## 修正验证与未完成边界
+
+`node --test prototypes/remote-companion/freeze-test.mjs` 在正式 worktree 中 **4/4 通过**：原封静态文件/许可证保留、只改两项 overlay、拒绝覆盖/漂移/额外路径/篡改 manifest/错锚点/越界输出，以及冻结后篡改检测。意义测试在隔离假项目、假 Git 配置、假 gh 目录和仅对子进程生效的假 home 中执行真实 identity 调用；没有读取真实认证文件或改变宿主 HOME。
+
+相同断言先在原函数上实际失败（dataRoot 下 choices 变化未改变指纹），再在冻结副本上通过：正确 dataRoot 变化会使指纹变化，错误 home 下同名 choices 变化不会代替它，未传 dataRoot 则返回 null。测试结束也验证原始函数文件哈希不变；临时测试目录在确认解析路径位于专用测试根后清理。
+
+仍需把此明确候选与正式组件配对、协议版本、凭据撤销和未知写入记录绑定，复用既有本机闸；逐项完成 GitHub 与本机业务、主题/技能/草稿和项目切换矩阵。当前主工作区的目录风险仍原样保留，本次只修生成候选。WIP 的最终接受情况、实际 Windows 启停/更新、Render 配额/日志与冷启动、真实 Codex 全链路及用户最终确认仍未由本报告验收。不得将局部检查或探针关闭票数换算成产品完成度。

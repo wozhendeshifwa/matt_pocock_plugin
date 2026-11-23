@@ -12,6 +12,7 @@
 | `relayOrigin` | 本机录入的 HTTPS origin；不接受路径、query、用户密码或远程明文 HTTP |
 | `adapterPath` | 本机明确选定、存在的适配器文件，保存解析后的绝对路径；云端不能选择程序、命令或工作区 |
 | `journalPath` | 本机 SQLite 执行记录路径；业务状态留本机 |
+| `baseline` | 冻结目录与本机固定的 manifest SHA-256；启动前逐文件复查，拒绝漂移或另一适配器 |
 | `secretDPAPI` | Windows DPAPI `CurrentUser` 加密的 device token，明文不写配置/插件、不打印 |
 | `writeEnabled` | 必须为 `false`；人为改为 `true` 也会拒绝启动 |
 | `revoked` | 本机撤销状态，另有不可因恢复配置备份而消失的 `.revoked` 标记 |
@@ -39,6 +40,8 @@ $pairingFile = 'C:\your-private-directory\deck-companion\pairing.json'
 $env:DECK_RELAY_ORIGIN = 'https://your-verified-relay.onrender.com'
 $env:DECK_LOCAL_ADAPTER = 'C:\your-verified-checkout\prototypes\upstream-port\sidebar-server.mjs'
 $env:DECK_LOCAL_JOURNAL = 'C:\your-private-directory\deck-companion\journal.sqlite'
+$env:DECK_FROZEN_DIRECTORY = 'C:\your-verified-frozen-directory'
+$env:DECK_FROZEN_MANIFEST_SHA256 = '<从本机冻结结果记录的64位SHA-256，不从远程请求接受>'
 $deviceSecret = Read-Host 'Relay device token' -AsSecureString
 $env:DECK_DEVICE_TOKEN = [System.Net.NetworkCredential]::new('', $deviceSecret).Password
 try {
@@ -52,6 +55,8 @@ try {
 token 只在进程环境、匿名 stdin 和内存中经过；PowerShell helper 使用固定脚本，不把明文拼入命令参数。输出只有脱敏配置，不输出明文或密文。创建使用独占写入，已有配对文件或撤销标记都会拒绝；重配对选择新的本机文件，不覆盖旧文件、不删除撤销标记来恢复权限。
 
 ## 启动、状态和停止
+
+启动前必须有 `baseline` 固定记录。启动器先校验冻结清单与每个文件的哈希，再取得本机实例所有权；不能通过编辑远程请求选择另一适配器。重建冻结目录和记录摘要的方法见 `freeze-adapter.mjs` 及基线报告。
 
 ```powershell
 node prototypes/remote-companion/launch.mjs --pairing $pairingFile

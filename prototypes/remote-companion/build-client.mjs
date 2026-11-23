@@ -21,7 +21,7 @@ export async function buildClient(output, relayOrigin) {
   await writeJson(path.join(plugin, '.codex-plugin', 'plugin.json'), {
     name: 'deck-remote-companion', version: '0.1.0',
     description: 'Deck remote connection candidate. Local companion required; remote writes pending acceptance.',
-    mcpServers: './.mcp.json', interface: { displayName: 'Deck Remote Companion', shortDescription: 'Render and local Deck connection' },
+    mcpServers: './.mcp.json', interface: { displayName: 'Deck Remote Companion', shortDescription: 'Deck remote connection' },
   });
   await writeJson(path.join(plugin, '.mcp.json'), { mcpServers: { 'deck-remote-companion': {
     url: origin + '/mcp', bearer_token_env_var: 'DECK_COMPANION_CALLER_TOKEN',

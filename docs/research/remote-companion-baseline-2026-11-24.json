@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-11-23T17:49:42.5015163Z",
+  "capturedAt": "2026-11-23T17:55:30.8374394Z",
   "commit": "701029b1efcdac8d4faedffe5955293efecc36a8",
   "sourceCandidateOnly": true,
   "excludes": [
@@ -51,7 +51,7 @@
     "?? prototypes/upstream-port/visual-prototype.css",
     "?? prototypes/upstream-port/visual-prototype.mjs"
   ],
-  "fileCount": 417,
+  "fileCount": 450,
   "files": [
     {
       "path": "prototypes/upstream-port/browser-runtime.mjs",
@@ -529,6 +529,11 @@
       "sha256": "1ecc58dc75af03d6517962b4db4216667b9bd2e0bc9765a8f829dca0d9a5d1bb"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/ask-matt/agents/openai.yaml",
+      "bytes": 142,
+      "sha256": "d30cfa5b0e84e2ca10b8d263b9dfcc13c3aa089ae6bc26096bc549fc037d274e"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/ask-matt/PHASE-BOUNDARIES.md",
       "bytes": 4304,
       "sha256": "4e2a891beb182df8c2eb2a7dfbff20ba43ae008d29c77ac41b005181018f7ccd"
@@ -544,6 +549,11 @@
       "sha256": "1a7e7c461f0c5d229b1f024df7ba4122b10eb299444f9be97cf560fec2a0e0ca"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/code-review/agents/openai.yaml",
+      "bytes": 103,
+      "sha256": "3f72329747a916ac8ab2b4004490c79e1be6774a8a83e5b258d6ddc7e866abfe"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/code-review/SKILL.md",
       "bytes": 6676,
       "sha256": "3abbdfe52540f9242e16589fae2cc423b3d98994c37683944462b29bab89495c"
@@ -552,6 +562,11 @@
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/code-review/SKILL.zh.md",
       "bytes": 6985,
       "sha256": "95e740657aa0bf822a15c2876b06783b2327befc6d14a33107cbeb51130ebb61"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/codebase-design/agents/openai.yaml",
+      "bytes": 105,
+      "sha256": "967df5c80a2a00e8fea9ce0e7914fb57114c93d16baa3b7743347a4dfeed61fc"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/codebase-design/DEEPENING.md",
@@ -574,6 +589,16 @@
       "sha256": "46ce74e042d59c5df6c5ab6c59fb80c8f9ca0119332c412565a7e23eacf191dd"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/diagnosing-bugs/agents/openai.yaml",
+      "bytes": 106,
+      "sha256": "167ab1659754b8c53706ecca7502ccc7fb219ff14f0c36bfb1db05ae31a8ac58"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/diagnosing-bugs/scripts/hitl-loop.template.sh",
+      "bytes": 1360,
+      "sha256": "063ef14e7212113c7778258172e7c76e963926963e448934048f505d6e576e8f"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/diagnosing-bugs/SKILL.md",
       "bytes": 8668,
       "sha256": "d96335b1fdb635ba948d46d082c9fbb3ebc135aafe11fe6460d422ca97181bcf"
@@ -587,6 +612,11 @@
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/domain-modeling/ADR-FORMAT.md",
       "bytes": 2780,
       "sha256": "b7021c31a1c2485b07356a8110fd1fd1ae4facbab3e210983789f425f867d95b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/domain-modeling/agents/openai.yaml",
+      "bytes": 104,
+      "sha256": "ce496c77c77a090877bff10f198c9770fb52e23088351350ea0826380f948ff8"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/domain-modeling/GLOSSARY-FORMAT.md",
@@ -604,6 +634,11 @@
       "sha256": "4e1e6ffefab4cf256f9bb246ec53368b8f7245e06e8c4d4f2203709ec2cb34cc"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grill-me/agents/openai.yaml",
+      "bytes": 142,
+      "sha256": "c03a1eee1161bb70ca360b3d17705638b93bc8eec41319732725dc05a53196a5"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grill-me/SKILL.md",
       "bytes": 164,
       "sha256": "19e660207b447acf6ee0d600471c02e549c7aca8fb3ab38fdc2c7056aa442fc8"
@@ -612,6 +647,11 @@
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grill-me/SKILL.zh.md",
       "bytes": 172,
       "sha256": "d8638f541a4f4c22ef1b0b9b857be06656dfb0d20bbed3c0faabe3f3933cf4a1"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grill-with-docs/agents/openai.yaml",
+      "bytes": 150,
+      "sha256": "81e6af95559517a292767439da8f46a468b4d88a6773a3316d511a428eb16ff3"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grill-with-docs/SKILL.md",
@@ -624,6 +664,11 @@
       "sha256": "8c699f476136e6b09e5fccfee6536ca98adaef9aeab393e228bf0121ca09cac5"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grilling/agents/openai.yaml",
+      "bytes": 116,
+      "sha256": "ad75163922ff8263acdd25ebc37420e8fcf1fccb93483fd5742e9bd26f5c45f6"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grilling/SKILL.md",
       "bytes": 2015,
       "sha256": "d806733216b16e51adad834e724bfec5540a436d06395bfc75b843cda9f7404b"
@@ -632,6 +677,11 @@
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grilling/SKILL.zh.md",
       "bytes": 1972,
       "sha256": "ef2289b5b6e8652e556f02855e60d3e5b91f885f9c4f3f169078f3959ca6e335"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/handoff/agents/openai.yaml",
+      "bytes": 146,
+      "sha256": "deb645c801764579994bd23d1954aa991ef1d0d55bf30043d47ada631fcff5f4"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/handoff/SKILL.md",
@@ -644,6 +694,11 @@
       "sha256": "38463789bc5674e8652735bfeb659b7b039c7b5be958798d6cb575e2437201f2"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/implement-spec/agents/openai.yaml",
+      "bytes": 173,
+      "sha256": "143db4aaaee1dfee7db6da5dab41501fb3852be498fb719dd52f1e21f29a383f"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/implement-spec/SKILL.md",
       "bytes": 2820,
       "sha256": "5bdaaf884b02b24db432241bcc32250bfee6149c45c743a2a1fef6b416837cfa"
@@ -654,6 +709,11 @@
       "sha256": "3b86fb149b5f10c9f4a2abe5b0a96d432aefd28ac339704c8c565b69aa11203c"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/implement/agents/openai.yaml",
+      "bytes": 144,
+      "sha256": "8494f83602c58f8ab33d047d0516cdb90b8c29e6d564de0cef810daaca378bcb"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/implement/SKILL.md",
       "bytes": 448,
       "sha256": "30cd7bc1ebfb3891e85a1eed3b3b81aea0fa4ad4553a784de7f8e421b2d223e0"
@@ -662,6 +722,11 @@
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/implement/SKILL.zh.md",
       "bytes": 424,
       "sha256": "0f936ab45d6ded0b91c324b1555d15ad2dba82b2dc9d123f3aa40dfccf75b5c5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/improve-codebase-architecture/agents/openai.yaml",
+      "bytes": 171,
+      "sha256": "6b69701fc3f4f31ec626c1ae5c090dc5c640fab147a63be81b575c2f9c5231fa"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/improve-codebase-architecture/HTML-REPORT.md",
@@ -679,6 +744,16 @@
       "sha256": "be88ca13d68328b4c9872e4ae50996749991dae230652313b7f30d7e3ef5db13"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/LICENSE",
+      "bytes": 1089,
+      "sha256": "4981c5f6a90eb3a969dacabb9350f5a75695ff3910b39b6534952908dfdc5ff7"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/pr/agents/openai.yaml",
+      "bytes": 96,
+      "sha256": "33b71355c3ec06963d9a276baff9e9bf89a1ac69a5b9489a368c95021a8d6cc4"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/pr/CREDITS.md",
       "bytes": 607,
       "sha256": "f5b7f7ead794f672324eb6a2cdc6986840e452abf15d72938084b645074bd149"
@@ -692,6 +767,11 @@
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/pr/SKILL.zh.md",
       "bytes": 4049,
       "sha256": "44df06e9bdb2d632765b631abdee5dd1df3cefe29e88f4c2af51c9580388e373"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/prototype/agents/openai.yaml",
+      "bytes": 103,
+      "sha256": "cc1ce1ceaba1442c431dc76abb84b271ad72ecb94dcefee53130df742dc11787"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/prototype/LOGIC.md",
@@ -719,6 +799,11 @@
       "sha256": "1e7ac8f092fcf731c0acbb6b69784b43dfd4b5ef4e8b71cd2c2f23b4e5827db6"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/research/agents/openai.yaml",
+      "bytes": 97,
+      "sha256": "73840328dfa6b689d81ee645d8aaf8570a0cc44d64a32b119ea6091d2828d412"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/research/SKILL.md",
       "bytes": 806,
       "sha256": "524b404b1ca373a8b00f63a64667ec4b0a61c3c9cf4e8f246e639be859bb6979"
@@ -729,6 +814,11 @@
       "sha256": "acb644dfc4950c91a034b54e2d710c6a2434d9e5da2831c84c42d9d8a6f79da6"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/retro/agents/openai.yaml",
+      "bytes": 151,
+      "sha256": "61afaa61443da49b3ff8fcc9d04735362bfec03e213791226134a3a21a9c6fd3"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/retro/SKILL.md",
       "bytes": 4413,
       "sha256": "42110f533f169026d037cf141b9f6c2752c6d914903be4758c38a68349e83e78"
@@ -737,6 +827,11 @@
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/retro/SKILL.zh.md",
       "bytes": 4325,
       "sha256": "6f1f5bb2132b2c741c2e0c48a57d2bcaaaee1667dd8fd0b4feacbcdbac5cecbd"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/setup-matt-pocock-skills/agents/openai.yaml",
+      "bytes": 157,
+      "sha256": "53d0bf3786862a1cb5013ca78f12013b166d0819823dae0d3f9eb13eee2acdf2"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/setup-matt-pocock-skills/domain.md",
@@ -774,6 +869,11 @@
       "sha256": "493d08d7a8007d3604cdf64d45717045034a5037c9e9917bae1ad9340fad75b8"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/tdd/agents/openai.yaml",
+      "bytes": 90,
+      "sha256": "f8e2afc1fbcd6a6e1178c30f290ca9f2286c949a0b74b8b68fd14f198b78ebac"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/tdd/mocking.md",
       "bytes": 1540,
       "sha256": "73a10b6a26b56197c738a764c1e4205af98c74553f4a713795997f6bc35b917d"
@@ -792,6 +892,11 @@
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/tdd/tests.md",
       "bytes": 2291,
       "sha256": "0b401f98bd3684d2fea6440d6946afcf8f5f68ac6a65599dd7a2b90dd9f02eb5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/teach/agents/openai.yaml",
+      "bytes": 144,
+      "sha256": "80e96a4d492ad8538e609672361e8543b69e7b22ce83be0efc2e5532472ede69"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/teach/GLOSSARY-FORMAT.md",
@@ -824,6 +929,11 @@
       "sha256": "890fecf378dc8f1f5e87c22b019a0df2e998a4c4df71c08a342a4bbb892a259f"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-questionnaire/agents/openai.yaml",
+      "bytes": 171,
+      "sha256": "0b5ed84d805809777a15371c946a70f98321e3c6400fce5fcd74df71d40e860b"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-questionnaire/SKILL.md",
       "bytes": 2958,
       "sha256": "77825120815c21400f82e2794faf342d1d1a4ab1493be3fe061857885d26b768"
@@ -834,6 +944,11 @@
       "sha256": "6ea7367c51d6f9a544028103773bd710e556cc2513573d97ad92e9d7a8a19a7f"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-spec/agents/openai.yaml",
+      "bytes": 140,
+      "sha256": "55037139831219743dda1f716fe69eab3366e922529f69cc988fea3b1d34c74a"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-spec/SKILL.md",
       "bytes": 3118,
       "sha256": "c73a2250beac0479e384f5466e834bb54ce6e30b7f8705e9999ba840d9d59b36"
@@ -842,6 +957,11 @@
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-spec/SKILL.zh.md",
       "bytes": 2790,
       "sha256": "2d862500b1df5a039b5da501c2f7fdeccb85e8ad5eb8b1824742d115aef292fa"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-tickets/agents/openai.yaml",
+      "bytes": 151,
+      "sha256": "e396b8caaf6cdd95c94cf707a7ca2fa5c3a04b37ae5d4301b5b360a7ff7a34cb"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-tickets/SKILL.md",
@@ -859,6 +979,11 @@
       "sha256": "9160800ad5483816f5bcd7f5aa62cfb6dbb16e6343d0754b9bb739815145fa15"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/triage/agents/openai.yaml",
+      "bytes": 140,
+      "sha256": "d930356b9f23b89361f5b8f4fef87c911b35531b15a9005956c944a1058973ae"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/triage/OUT-OF-SCOPE.md",
       "bytes": 4772,
       "sha256": "a48a2c63f0520eaa08cd68705030a77428e7ba6647834c7a644ad9cda396e4ae"
@@ -874,6 +999,16 @@
       "sha256": "9a205a4efd075ead9a62648066efb3dd8a3c02f33f77760325073de19e50def6"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/VERSION",
+      "bytes": 7,
+      "sha256": "de330ffe0c07a9f297ed7df1ab160eccc9634461998dbd02e8dabb55c165297c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wait-what/agents/openai.yaml",
+      "bytes": 163,
+      "sha256": "e0d9beddf0093b3cf05de2722699affab5d240e5950469e208d59c1f0ed91bef"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wait-what/SKILL.md",
       "bytes": 403,
       "sha256": "95393f96e730b20dabc6b425515cb6292d34bd9a91859a03c2c821e24d321112"
@@ -882,6 +1017,11 @@
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wait-what/SKILL.zh.md",
       "bytes": 389,
       "sha256": "be60cc6670e5099f9fd0e1e8f34361ffbec8e6db29390963b571bb9afd617c56"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wayfinder/agents/openai.yaml",
+      "bytes": 149,
+      "sha256": "3e698cdff8e84d0e900d8dec535060e9e6d16d923b313eefd881e958d164e37a"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wayfinder/SKILL.md",
@@ -894,6 +1034,11 @@
       "sha256": "66674ebce6df014ae64513689984c46695f9ee06dabfa49d496ce58b2aa33762"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wizard/agents/openai.yaml",
+      "bytes": 99,
+      "sha256": "b9a0f4a716a64ada207aa4b38ce53981729cde053d87a39f2d51ad2dd30d3249"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wizard/SKILL.md",
       "bytes": 4167,
       "sha256": "dbefb750eae07d9f8b05ab1084f6acfdda2752df2a6b577c46a505e2bc790164"
@@ -902,6 +1047,16 @@
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wizard/SKILL.zh.md",
       "bytes": 4331,
       "sha256": "6754e6ef0e8a5c129af0322f0d5cbfcc5122d6c0cb2a059ed31410533c8bda1d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wizard/template.sh",
+      "bytes": 8771,
+      "sha256": "174f41adf9227dd2e4336219baaee068636c10e6e8280fcbc509dd08c27380c3"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/writing-for-agents/agents/openai.yaml",
+      "bytes": 105,
+      "sha256": "486c388ed1babac6ea25001147b41d3ff6c8892b0128ae1b0bef8feea6363428"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/writing-for-agents/SKILL-MECHANICS.md",
@@ -922,6 +1077,11 @@
       "path": "vendor/mattskills-1.8.0-rc.7/CHANGELOG.md",
       "bytes": 855,
       "sha256": "75aef29fcc5a34279a98ec096ec71451498e9a87d2163ca4ce5e6dc93e612f8d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/cordis.patch.yml",
+      "bytes": 905,
+      "sha256": "b2119d63f8f4d4eeb0ca82b4ed0c136ea593efe5bf4c9471a56e8d11c47e0f86"
     },
     {
       "path": "vendor/mattskills-1.8.0-rc.7/lib/bootstrap.js",
@@ -1744,6 +1904,11 @@
       "sha256": "b7aced93241555d3b991a2e54b54e6975d787126264cc38eb2cf9feee12fcf07"
     },
     {
+      "path": "vendor/mattskills-1.8.0-rc.7/LICENSE",
+      "bytes": 1066,
+      "sha256": "6fd337885a44a1115c19138359271d245ae668c0bf6f3367f378594b485ccbe7"
+    },
+    {
       "path": "vendor/mattskills-1.8.0-rc.7/package.json",
       "bytes": 1638,
       "sha256": "b7be2d0ac13005fc80d5d61592d5cf373470a7231b70ff57f908d69ee27f3005"
@@ -2138,5 +2303,7 @@
       "bytes": 4454,
       "sha256": "0e485d9a3c4cb713b201846314f762f6417b802df42c68be3997d0bf2dbd43c0"
     }
-  ]
+  ],
+  "previousManifestSha256": "1f1845af581a0b620e0f39a023c4e96bbfe813cdc6be77756b83aee3ac7ef8cc",
+  "supplementReason": "Include 33 original vendor license/version, agent metadata and skill scripts; source files unchanged."
 }
