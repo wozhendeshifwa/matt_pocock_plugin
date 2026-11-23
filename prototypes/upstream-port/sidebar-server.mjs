@@ -12,11 +12,12 @@ import { createDeckToolsForHost } from "../../vendor/mattskills-1.8.0-rc.7/lib/p
 // The service owns no project. Each sidebar instance resolves its project per
 // request from the host-provided thread identity, so the data root is keyed by
 // this adapter checkout rather than by a startup workspace path.
+export async function createSidebarServer({ resolveProject = resolveSessionProject, dataDirectory, changeDirectory = true } = {}) {
 const adapterRoot = await realpath(fileURLToPath(new URL("../../", import.meta.url)));
 const key = createHash("sha256").update(adapterRoot.toLowerCase()).digest("hex").slice(0, 16);
-const dataRoot = fileURLToPath(new URL("../../.scratch/upstream-sidebar/" + key + "/", import.meta.url));
+const dataRoot = dataDirectory ? dataDirectory.replace(/[\\/]*$/, "/") : fileURLToPath(new URL("../../.scratch/upstream-sidebar/" + key + "/", import.meta.url));
 await mkdir(dataRoot, { recursive: true });
-process.chdir(dataRoot);
+if (changeDirectory) process.chdir(dataRoot);
 const hostContextPath = dataRoot + "host-context-captures.json";
 let hostContextWrite = Promise.resolve();
 const uri = "ui://deck-sidebar/board.html";
@@ -98,7 +99,7 @@ async function handle(request) {
     case "tools/call": {
       if (request.params.name === "deck_current_project") {
         try {
-          const project = await resolveSessionProject(request.params._meta);
+          const project = await resolveProject(request.params._meta);
           return { content: [{ type: "text", text: JSON.stringify(project) }], structuredContent: project };
         } catch (error) {
           return { isError: true, content: [{ type: "text", text: error.message }] };
@@ -108,7 +109,7 @@ async function handle(request) {
       const deckTool = deckToolDefinitions.find(tool => tool.name === request.params.name);
       if (deckTool) {
         try {
-          const project = await resolveSessionProject(request.params._meta);
+          const project = await resolveProject(request.params._meta);
           const cwd = projectKey(project);
           const result = await projectHosts.call(cwd, "__deck_tool_call__", {
             name: deckTool.name,
@@ -133,7 +134,7 @@ async function handle(request) {
       const upstreamTool = request.params.name;
       if (upstreamTool !== "deck_upstream_read" && upstreamTool !== "deck_upstream_write") throw new Error("Unknown tool");
       try {
-        const project = await resolveSessionProject(request.params._meta);
+        const project = await resolveProject(request.params._meta);
         const cwd = projectKey(project);
         const { method, payload } = request.params.arguments ?? {};
         // The two tools exist so the host can tell reads from writes. A write
@@ -159,6 +160,12 @@ async function handle(request) {
     default: throw new Error("Unsupported request");
   }
 }
+return { handle, dispose: () => projectHosts.dispose() };
+}
+
+// Importing the core for an HTTP transport must not start the stdio loop.
+if (process.argv[1] && await realpath(process.argv[1]) === await realpath(fileURLToPath(import.meta.url))) {
+const server = await createSidebarServer();
 const pending = new Set();
 for await (const line of createInterface({ input: process.stdin })) {
   let request;
@@ -166,7 +173,7 @@ for await (const line of createInterface({ input: process.stdin })) {
   if (request.id === undefined) continue;
   const work = (async () => {
     let response;
-    try { response = { result: await handle(request) }; }
+    try { response = { result: await server.handle(request) }; }
     catch (error) { response = { error: { code: -32603, message: error.message } }; }
     process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: request.id, ...response }) + "\n");
   })();
@@ -174,5 +181,6 @@ for await (const line of createInterface({ input: process.stdin })) {
   work.finally(() => pending.delete(work));
 }
 await Promise.allSettled(pending);
-await projectHosts.dispose();
+await server.dispose();
 process.exit(0);
+}

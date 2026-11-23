@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: mattskills-mcp
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./deploy/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeployTrigger: off
+    envVars:
+      - key: MCP_ACCESS_TOKEN
+        generateValue: true
+      - key: GH_TOKEN
+        sync: false
+      - key: DECK_REPOSITORIES
+        value: wozhendeshifwa/matt_pocock_plugin
+      - key: DECK_GITHUB_WRITES
+        value: "false"
