@@ -146,6 +146,41 @@ test('probe UI does not claim an operating-system/default theme as a host signal
   assert.equal(ui.summary().hostContextChangeCount, 0, 'non-parent messages cannot create host evidence');
 });
 
+test('probe UI accepts trusted parent context notifications without jsonrpc and rejects other windows', async t => {
+  const ui = await probeUi(t, { hostContext: { theme: 'light' } });
+  const notification = { method: 'ui/notifications/host-context-changed', params: { hostContext: { theme: 'dark', extra: 'private-context' } } };
+  ui.deliver(notification, null);
+  assert.equal(ui.summary().theme, 'light');
+  assert.equal(ui.summary().hostContextChangeCount, 0);
+  ui.deliver(notification);
+  assert.equal(ui.summary().theme, 'dark');
+  assert.equal(ui.window.document.documentElement.style.colorScheme, 'dark');
+  assert.equal(ui.summary().hostContextChangeCount, 1);
+  assert.equal(ui.summary().generation, 1);
+  assert.equal(ui.summary().lastSignalChannel, 'ui/notifications/host-context-changed');
+  assert.deepEqual(ui.summary().signalChannelCounts, { 'ui/notifications/host-context-changed': 1, 'openai:set_globals': 0 });
+  assert.equal(ui.element('host').textContent.includes('private-context'), false);
+});
+
+test('probe UI follows openai:set_globals theme signals without exposing arbitrary globals', async t => {
+  const ui = await probeUi(t, { hostContext: { theme: 'light' } });
+  for (const [field, theme] of [['theme', 'dark'], ['visualizationTheme', 'light']]) {
+    ui.window.dispatchEvent(new ui.window.CustomEvent('openai:set_globals', { detail: { globals: {
+      [field]: theme, privateValue: 'private-global-value',
+      visualizationStyleVariables: { '--background': '#112233', '--unlisted': 'private-style' },
+    } } }));
+    assert.equal(ui.summary().theme, theme);
+    assert.equal(ui.window.document.documentElement.style.colorScheme, theme);
+    assert.equal(ui.summary().themeSource, 'openai:set_globals');
+    assert.equal(ui.summary().lastSignalChannel, 'openai:set_globals');
+    assert.equal(ui.window.document.documentElement.style.getPropertyValue('--background'), 'rgb(17, 34, 51)');
+    assert.equal(ui.window.document.documentElement.style.getPropertyValue('--unlisted'), '');
+    assert.equal(ui.element('host').textContent.includes('private-'), false);
+  }
+  assert.equal(ui.summary().generation, 2);
+  assert.deepEqual(ui.summary().signalChannelCounts, { 'ui/notifications/host-context-changed': 0, 'openai:set_globals': 2 });
+});
+
 test('probe UI discards identity responses and errors from before a host-context change', async t => {
   const ui = await probeUi(t);
   const oldResult = ui.element('identity').onclick();

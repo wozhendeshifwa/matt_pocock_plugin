@@ -30,6 +30,8 @@ let identitySequence = 0;
 let messageCapability = false;
 const hostSummary = {
   hostContextChangeCount: 0,
+  signalChannelCounts: { 'ui/notifications/host-context-changed': 0, 'openai:set_globals': 0 },
+  lastSignalChannel: null,
   generation: 0,
   lastContextSource: null,
   theme: null,
@@ -64,7 +66,8 @@ function safeColor(value) {
   return swatch.style.color || null;
 }
 function applyHostContext(context = {}, source) {
-  const theme = ['dark', 'light'].includes(context?.theme) ? context.theme : null;
+  const theme = [context?.theme, context?.colorScheme, context?.globals?.theme, context?.globals?.visualizationTheme]
+    .find(value => value === 'dark' || value === 'light') ?? null;
   const variables = context?.styles?.variables ?? context?.styles?.cssVariables ??
     context?.styleVariables ?? context?.themeVariables ??
     context?.globals?.visualizationStyleVariables ?? context?.globals?.themeVariables ??
@@ -94,20 +97,30 @@ function applyHostContext(context = {}, source) {
   renderHost();
 }
 window.addEventListener('message', event => {
-  if (event.source !== parent || event.data?.jsonrpc !== '2.0') return;
+  if (event.source !== parent) return;
   const msg = event.data;
-  if (msg.method === 'ui/notifications/host-context-changed') {
+  if (msg?.method === 'ui/notifications/host-context-changed') {
     generation++;
     hostSummary.hostContextChangeCount++;
+    hostSummary.signalChannelCounts['ui/notifications/host-context-changed']++;
+    hostSummary.lastSignalChannel = 'ui/notifications/host-context-changed';
     applyHostContext(msg.params?.hostContext ?? msg.params, 'host-context-changed');
     out.textContent = '宿主 context 已变化；请重新检查聊天身份。';
     return;
   }
+  if (msg?.jsonrpc !== '2.0') return;
   const item = pending.get(msg.id);
   if (!item) return;
   pending.delete(msg.id);
   clearTimeout(item.timer);
   msg.error ? item.reject(new Error(msg.error.message)) : item.resolve(msg.result);
+});
+window.addEventListener('openai:set_globals', event => {
+  generation++;
+  hostSummary.signalChannelCounts['openai:set_globals']++;
+  hostSummary.lastSignalChannel = 'openai:set_globals';
+  applyHostContext({ globals: event.detail?.globals ?? {} }, 'openai:set_globals');
+  out.textContent = '宿主 globals 已变化；请重新检查聊天身份。';
 });
 document.getElementById('identity').onclick = async () => {
   const atGeneration = generation;
@@ -166,7 +179,10 @@ renderHost();
     messageCapability = Boolean(extension);
     hostSummary.messageCapability = messageCapability;
     hostSummary.draftCapability = Boolean(extension?.draft);
-    if (atGeneration === generation) applyHostContext(init.hostContext ?? {}, 'initialize');
+    if (atGeneration === generation) {
+      hostSummary.lastSignalChannel = 'ui/initialize';
+      applyHostContext(init.hostContext ?? {}, 'initialize');
+    }
     else renderHost();
     parent.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/initialized', params: {} }, '*');
     status.textContent = messageCapability ? '握手完成；这不是全功能验收。' : '握手完成；宿主未声明 openai/message 草稿接口。';
