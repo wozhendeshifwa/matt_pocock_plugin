@@ -1,14 +1,181 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="color-scheme" content="light dark"><title>远程兼容性探针</title>
-<style>body{font:14px system-ui;padding:16px}button{margin:6px;padding:8px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
-<h2>远程插件兼容性探针</h2><p id="status">等待宿主握手…</p>
-<button id="identity" disabled>检查当前聊天身份</button><button id="draft" disabled>生成测试草稿（不发送）</button><pre id="output"></pre>
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
+<title>远程兼容性探针</title>
+<style>
+  body { font: 14px system-ui; padding: 16px; background-color: var(--background, Canvas); color: var(--foreground, CanvasText); }
+  button { margin: 6px; padding: 8px; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--border, GrayText); padding: 8px; }
+</style>
+<h2>远程插件兼容性探针</h2>
+<p id="status">等待宿主握手…</p>
+<p>主题字段仅报告宿主信号；未收到信号时，页面默认颜色不能作为主题同步证据。</p>
+<pre id="host"></pre>
+<button id="identity" disabled>检查当前聊天身份</button>
+<button id="draft" disabled>当前聊天测试草稿（不发送）</button>
+<button id="new-draft" disabled>新聊天测试草稿（不发送）</button>
+<p>草稿操作只请求预填。请检查实际输入框、可编辑性、所属项目及未发送状态。身份响应丢弃仅保护本探针，不验证业务桥接。</p>
+<pre id="output"></pre>
 <script>
-const out = document.getElementById('output'); const status = document.getElementById('status');
-let sequence = 0; const pending = new Map();
-function rpc(method, params) { return new Promise((resolve,reject) => { const id=++sequence; const timer=setTimeout(()=>{pending.delete(id);reject(new Error('宿主请求超时：'+method));},60000);pending.set(id,{resolve,reject,timer});parent.postMessage({jsonrpc:'2.0',id,method,params},'*'); }); }
-function theme(context={}) { if(['dark','light'].includes(context.theme)) document.documentElement.style.colorScheme=context.theme; }
-window.addEventListener('message',event=>{if(event.source!==parent)return;const msg=event.data;if(msg?.method==='ui/notifications/host-context-changed'){theme(msg.params?.hostContext??msg.params);return;}if(msg?.jsonrpc!=='2.0')return;const item=pending.get(msg.id);if(!item)return;pending.delete(msg.id);clearTimeout(item.timer);msg.error?item.reject(new Error(msg.error.message)):item.resolve(msg.result);});
-document.getElementById('identity').onclick=async()=>{try{const reply=await rpc('tools/call',{name:'remote_compat_identity',arguments:{}});out.textContent=JSON.stringify(reply,null,2);}catch(e){out.textContent=e.message;}};
-document.getElementById('draft').onclick=async()=>{try{await rpc('ui/message',{role:'user',content:[{type:'text',text:'远程插件兼容性测试草稿：请勿发送。'}],_meta:{'openai/message':{target:'active',send:false}}});status.textContent='宿主已响应；请人工确认草稿可编辑且未发送。';}catch(e){status.textContent=e.message;}};
-(async()=>{try{const init=await rpc('ui/initialize',{appInfo:{name:'deck-remote-compat-probe',version:'0.1.0'},appCapabilities:{},protocolVersion:'2026-01-26'});theme(init.hostContext??{});out.textContent=JSON.stringify({hostContextKeys:Object.keys(init.hostContext??{}),capabilityKeys:Object.keys(init.hostCapabilities??{})},null,2);parent.postMessage({jsonrpc:'2.0',method:'ui/notifications/initialized',params:{}},'*');status.textContent='握手完成；这不是全功能验收。';document.querySelectorAll('button').forEach(b=>b.disabled=false);}catch(e){status.textContent=e.message;}})();
-</script></html>
+const out = document.getElementById('output');
+const status = document.getElementById('status');
+const hostOutput = document.getElementById('host');
+const colorVariables = ['--background', '--foreground', '--border'];
+const pending = new Map();
+const appliedVariables = new Set();
+let sequence = 0;
+let generation = 0;
+let identitySequence = 0;
+let messageCapability = false;
+const hostSummary = {
+  hostContextChangeCount: 0,
+  generation: 0,
+  lastContextSource: null,
+  theme: null,
+  themeSource: null,
+  lastSignalHasTheme: false,
+  styleVariablePresence: {},
+  appliedStyleVariables: [],
+  messageCapability: false,
+  draftCapability: false,
+  staleIdentityResponsesDiscarded: 0,
+};
+function renderHost() {
+  hostSummary.generation = generation;
+  hostSummary.appliedStyleVariables = [...appliedVariables];
+  hostOutput.textContent = JSON.stringify(hostSummary, null, 2);
+}
+function rpc(method, params) {
+  return new Promise((resolve, reject) => {
+    const id = ++sequence;
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error('宿主请求超时：' + method));
+    }, 60000);
+    pending.set(id, { resolve, reject, timer });
+    parent.postMessage({ jsonrpc: '2.0', id, method, params }, '*');
+  });
+}
+function safeColor(value) {
+  if (typeof value !== 'string' || value.length > 128 || /[;{}]|(?:url|var|env)\s*\(/i.test(value)) return null;
+  const swatch = document.createElement('span');
+  swatch.style.color = value;
+  return swatch.style.color || null;
+}
+function applyHostContext(context = {}, source) {
+  const theme = ['dark', 'light'].includes(context?.theme) ? context.theme : null;
+  const variables = context?.styles?.variables ?? context?.styles?.cssVariables ??
+    context?.styleVariables ?? context?.themeVariables ??
+    context?.globals?.visualizationStyleVariables ?? context?.globals?.themeVariables ??
+    context?.globals?.styles?.variables;
+  const hasVariables = variables && typeof variables === 'object' && !Array.isArray(variables);
+  hostSummary.lastContextSource = source;
+  hostSummary.lastSignalHasTheme = Boolean(theme);
+  hostSummary.styleVariablePresence = Object.fromEntries(colorVariables.map(name =>
+    [name, Boolean(hasVariables && Object.hasOwn(variables, name))]));
+  if (theme) {
+    document.documentElement.style.colorScheme = theme;
+    hostSummary.theme = theme;
+    hostSummary.themeSource = source;
+  }
+  if (hasVariables || theme) {
+    for (const name of colorVariables) {
+      const value = hasVariables ? safeColor(variables[name]) : null;
+      if (value) {
+        document.documentElement.style.setProperty(name, value);
+        appliedVariables.add(name);
+      } else {
+        document.documentElement.style.removeProperty(name);
+        appliedVariables.delete(name);
+      }
+    }
+  }
+  renderHost();
+}
+window.addEventListener('message', event => {
+  if (event.source !== parent || event.data?.jsonrpc !== '2.0') return;
+  const msg = event.data;
+  if (msg.method === 'ui/notifications/host-context-changed') {
+    generation++;
+    hostSummary.hostContextChangeCount++;
+    applyHostContext(msg.params?.hostContext ?? msg.params, 'host-context-changed');
+    out.textContent = '宿主 context 已变化；请重新检查聊天身份。';
+    return;
+  }
+  const item = pending.get(msg.id);
+  if (!item) return;
+  pending.delete(msg.id);
+  clearTimeout(item.timer);
+  msg.error ? item.reject(new Error(msg.error.message)) : item.resolve(msg.result);
+});
+document.getElementById('identity').onclick = async () => {
+  const atGeneration = generation;
+  const atSequence = ++identitySequence;
+  const isStale = () => {
+    if (atGeneration === generation && atSequence === identitySequence) return false;
+    hostSummary.staleIdentityResponsesDiscarded++;
+    renderHost();
+    return true;
+  };
+  out.textContent = '正在检查当前聊天身份…';
+  try {
+    const reply = await rpc('tools/call', { name: 'remote_compat_identity', arguments: {} });
+    if (isStale()) return;
+    if (reply?.isError) throw new Error('身份工具返回错误；本次不作为身份支持证据。');
+    const data = reply?.structuredContent;
+    if (!data || data.probe !== true) throw new Error('身份工具未返回探针结构；本次不作为身份支持证据。');
+    out.textContent = JSON.stringify({
+      probe: true,
+      keys: Array.isArray(data.keys) ? data.keys.filter(key => typeof key === 'string').slice(0, 40) : [],
+      hasThreadId: data.hasThreadId === true,
+      threadFingerprint: /^[a-f0-9]{16}$/.test(data.threadFingerprint) ? data.threadFingerprint : null,
+      hasCwd: data.hasCwd === true,
+    }, null, 2);
+  } catch (error) {
+    if (!isStale()) out.textContent = error.message;
+  }
+};
+async function draft(target) {
+  if (!messageCapability) {
+    status.textContent = '宿主未声明 openai/message 草稿接口。';
+    return;
+  }
+  try {
+    await rpc('ui/message', {
+      role: 'user',
+      content: [{ type: 'text', text: '远程插件兼容性测试草稿（' + (target === 'new' ? '新聊天' : '当前聊天') + '）：请勿发送。' }],
+      _meta: { 'openai/message': { target, send: false } },
+    });
+    status.textContent = '宿主已响应' + (target === 'new' ? '新聊天' : '当前聊天') + '草稿请求；请人工确认落点、可编辑且未发送。';
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+document.getElementById('draft').onclick = () => draft('active');
+document.getElementById('new-draft').onclick = () => draft('new');
+renderHost();
+(async () => {
+  const atGeneration = generation;
+  try {
+    const init = await rpc('ui/initialize', {
+      appInfo: { name: 'deck-remote-compat-probe', version: '0.1.0' },
+      appCapabilities: {}, protocolVersion: '2026-01-26',
+    });
+    const extension = init.hostCapabilities?.experimental?.['openai/message'];
+    messageCapability = Boolean(extension);
+    hostSummary.messageCapability = messageCapability;
+    hostSummary.draftCapability = Boolean(extension?.draft);
+    if (atGeneration === generation) applyHostContext(init.hostContext ?? {}, 'initialize');
+    else renderHost();
+    parent.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/initialized', params: {} }, '*');
+    status.textContent = messageCapability ? '握手完成；这不是全功能验收。' : '握手完成；宿主未声明 openai/message 草稿接口。';
+    document.getElementById('identity').disabled = false;
+    document.getElementById('draft').disabled = !messageCapability;
+    document.getElementById('new-draft').disabled = !messageCapability;
+  } catch (error) {
+    status.textContent = error.message;
+  }
+})();
+</script>
+</html>
