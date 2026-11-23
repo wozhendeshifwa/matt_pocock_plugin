@@ -1,0 +1,2142 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-11-23T17:49:42.5015163Z",
+  "commit": "701029b1efcdac8d4faedffe5955293efecc36a8",
+  "sourceCandidateOnly": true,
+  "excludes": [
+    "node_modules",
+    ".scratch",
+    ".git",
+    ".env",
+    "*.secret",
+    "user home and authentication files"
+  ],
+  "status": [
+    " M prototypes/upstream-port/build.mjs",
+    " M prototypes/upstream-port/dist/client.js",
+    " M prototypes/upstream-port/dist/manifest.json",
+    " M prototypes/upstream-port/project-worker.mjs",
+    " M prototypes/upstream-port/rpc-endpoints.mjs",
+    " M prototypes/upstream-port/sidebar-bridge.js",
+    " M prototypes/upstream-port/theme.css",
+    " M prototypes/upstream-port/upstream-host.mjs",
+    " M prototypes/upstream-port/verify-build.mjs",
+    " M prototypes/upstream-port/verify-handoff-view.mjs",
+    " M prototypes/upstream-port/verify-map-view.mjs",
+    " M prototypes/upstream-port/verify-project-switch.mjs",
+    " M prototypes/upstream-port/verify-rpc-manifest.mjs",
+    " M prototypes/upstream-port/verify-skills-page.mjs",
+    " M prototypes/upstream-port/verify-version-control-view.mjs",
+    "?? prototypes/upstream-port/VISUAL-PROTOTYPE.md",
+    "?? prototypes/upstream-port/measure-performance.mjs",
+    "?? prototypes/upstream-port/measure-project-poll.mjs",
+    "?? prototypes/upstream-port/measure-project-resources.mjs",
+    "?? prototypes/upstream-port/measure-read-path.mjs",
+    "?? prototypes/upstream-port/measure-startup-cache.mjs",
+    "?? prototypes/upstream-port/prepare-git-acceptance.mjs",
+    "?? prototypes/upstream-port/preview-visual.mjs",
+    "?? prototypes/upstream-port/project-snapshot-cache.mjs",
+    "?? prototypes/upstream-port/run-online-git-acceptance.mjs",
+    "?? prototypes/upstream-port/skill-prefix-client.mjs",
+    "?? prototypes/upstream-port/snapshot-cache-identity.mjs",
+    "?? prototypes/upstream-port/update-tool-timeout.mjs",
+    "?? prototypes/upstream-port/verify-cache-hydration.mjs",
+    "?? prototypes/upstream-port/verify-online-git-network.mjs",
+    "?? prototypes/upstream-port/verify-preflight-concurrency.mjs",
+    "?? prototypes/upstream-port/verify-project-snapshot-cache.mjs",
+    "?? prototypes/upstream-port/verify-skill-prefix.mjs",
+    "?? prototypes/upstream-port/verify-snapshot-concurrency.mjs",
+    "?? prototypes/upstream-port/verify-tool-timeout.mjs",
+    "?? prototypes/upstream-port/visual-map-prototype.mjs",
+    "?? prototypes/upstream-port/visual-prototype.css",
+    "?? prototypes/upstream-port/visual-prototype.mjs"
+  ],
+  "fileCount": 417,
+  "files": [
+    {
+      "path": "prototypes/upstream-port/browser-runtime.mjs",
+      "bytes": 5542,
+      "sha256": "c0bd98bbab0bee18784ec20748ea0f60b40d718eafa6a20416208f646131f60c"
+    },
+    {
+      "path": "prototypes/upstream-port/build.mjs",
+      "bytes": 5503,
+      "sha256": "39d9ac94559939ab3a31414abddffc31be7cfd960b720641d261bfda4b86a6ac"
+    },
+    {
+      "path": "prototypes/upstream-port/comment-pagination-client.mjs",
+      "bytes": 557,
+      "sha256": "ebcfcf398c938fb8533da5524f8752321670a6353cbf88f6430f0e6ff9015d01"
+    },
+    {
+      "path": "prototypes/upstream-port/comment-pagination-hook.mjs",
+      "bytes": 1280,
+      "sha256": "ce60d51d2a5f3589053c3cb2d25cecdef98f0b083babccde6e10592367e12fc4"
+    },
+    {
+      "path": "prototypes/upstream-port/disabled-naming-guardian.mjs",
+      "bytes": 1025,
+      "sha256": "068e0f3f9aee125a3811e74ac4bdc08b921555172e386e85071e82ccfee9f370"
+    },
+    {
+      "path": "prototypes/upstream-port/dist/client.js",
+      "bytes": 2497023,
+      "sha256": "f6ddc3460a3a7dabfa2798ef354fed0287a97473e2f059ac92ae92a1895f2c66"
+    },
+    {
+      "path": "prototypes/upstream-port/dist/manifest.json",
+      "bytes": 367,
+      "sha256": "408ed6944cc3b7f69b860aee0e4b106843a037c4a9cf5c3484dca39189ce936c"
+    },
+    {
+      "path": "prototypes/upstream-port/doctor.mjs",
+      "bytes": 8487,
+      "sha256": "5f810ff1fd3ec680af7d1a3af61fe04f812fe443ab5e10eba1d2dd4d97fb61a4"
+    },
+    {
+      "path": "prototypes/upstream-port/executables.mjs",
+      "bytes": 1826,
+      "sha256": "3bfe298da91017ef1e46f589be58be1dedd2f97fe3875f99994ff900c9e15b57"
+    },
+    {
+      "path": "prototypes/upstream-port/git-write-gate.mjs",
+      "bytes": 4289,
+      "sha256": "4fcc4f088482abeff40285a80fba64e4aa8ff74ab901c3413f07c07b348ee92a"
+    },
+    {
+      "path": "prototypes/upstream-port/github-comment-pagination.mjs",
+      "bytes": 4172,
+      "sha256": "f829a8284c7485fd8b2e869abc6c2b80dd3f9fe831b597584b80b79adf8714bd"
+    },
+    {
+      "path": "prototypes/upstream-port/graph-write-gate.mjs",
+      "bytes": 2717,
+      "sha256": "cffc5546db5acdb27a33dd86319f5127e414eda4bbac08273025b467f6f6fda7"
+    },
+    {
+      "path": "prototypes/upstream-port/host-context.mjs",
+      "bytes": 2578,
+      "sha256": "8232272835df745c811d68b788847d737fea0dd3e1159030fd90b14f4b8191e0"
+    },
+    {
+      "path": "prototypes/upstream-port/install.mjs",
+      "bytes": 17185,
+      "sha256": "8b3fd66991f81f35c5a852d1c5d9a6db74cf4121b6eef79574950c58dbea9c23"
+    },
+    {
+      "path": "prototypes/upstream-port/install.ps1",
+      "bytes": 296,
+      "sha256": "b641a8bdef7df26b887964b850a0d5dd52eb5b8f0a3cd30ff4d0a8a3d71fe3a4"
+    },
+    {
+      "path": "prototypes/upstream-port/manual-naming-view.mjs",
+      "bytes": 2757,
+      "sha256": "12dbe86dce741fce3086931fc36cf75c2445b18d2456b94771cd7c43783da560"
+    },
+    {
+      "path": "prototypes/upstream-port/manual-naming.mjs",
+      "bytes": 2958,
+      "sha256": "85041188a727295335bae83d638337765a9fa8e56520dfac0c88c54bf9134518"
+    },
+    {
+      "path": "prototypes/upstream-port/measure-performance.mjs",
+      "bytes": 16111,
+      "sha256": "19b4f40e3adf0b247b3faea9b69f363c3ac34129e6e8725fc18cd4157d9a354b"
+    },
+    {
+      "path": "prototypes/upstream-port/measure-project-poll.mjs",
+      "bytes": 2564,
+      "sha256": "797335e5abf05ab881e39bd4511f9dd912001e32c71587191b590a6572d87071"
+    },
+    {
+      "path": "prototypes/upstream-port/measure-project-resources.mjs",
+      "bytes": 1908,
+      "sha256": "b51394b07963e695aa7f9ad06bbe73d258aee6eb6fe1321b1b1c40fe73ceee20"
+    },
+    {
+      "path": "prototypes/upstream-port/measure-read-path.mjs",
+      "bytes": 2872,
+      "sha256": "877eff5ac636873bee7a819840e77cfcf43079391b7c58f7fd4c726d4bb1efc7"
+    },
+    {
+      "path": "prototypes/upstream-port/measure-startup-cache.mjs",
+      "bytes": 1492,
+      "sha256": "2b35c309361529d5cf355a89b482b84f67e24735bffdbbdf69ae8db28f0e5807"
+    },
+    {
+      "path": "prototypes/upstream-port/naming-capability.mjs",
+      "bytes": 1182,
+      "sha256": "18c8ab65aaab17839fab779fe3073a03ad36d17448148a835614634a587a808d"
+    },
+    {
+      "path": "prototypes/upstream-port/node-host.mjs",
+      "bytes": 22954,
+      "sha256": "e0b0932cab497a5addc7060cbdfd2209bf461b11c60d0bd8cc96167458d37523"
+    },
+    {
+      "path": "prototypes/upstream-port/open-command.mjs",
+      "bytes": 2663,
+      "sha256": "a4450ee76b8a0b0021249d1606eaeb75426055c84fb4517144e1dd6126c8b5b3"
+    },
+    {
+      "path": "prototypes/upstream-port/package-lock.json",
+      "bytes": 27797,
+      "sha256": "d08425f3eb24c4febaae44f432ecdcb76745ee79dca0058638f873b0f04a700d"
+    },
+    {
+      "path": "prototypes/upstream-port/package.json",
+      "bytes": 332,
+      "sha256": "7f3b385772758e7d42373fe42f178d9adda4151463da3eb109676061a9aa81d4"
+    },
+    {
+      "path": "prototypes/upstream-port/panel-payload.mjs",
+      "bytes": 2268,
+      "sha256": "96056efbbb11a5260ed8cacb199964fc32de2c35e1945970d5a00fe65ad74914"
+    },
+    {
+      "path": "prototypes/upstream-port/prepare-git-acceptance.mjs",
+      "bytes": 2436,
+      "sha256": "47fa65c7ee4fa64173506184ded4c3f1af35dcc5811b6a0511fcd10c844836f4"
+    },
+    {
+      "path": "prototypes/upstream-port/preview-visual.mjs",
+      "bytes": 4605,
+      "sha256": "1aa1f075a2e3228c1e26219cc41835fb8bccf047435d9aafd2d83bc603ce3b4c"
+    },
+    {
+      "path": "prototypes/upstream-port/project-hosts.mjs",
+      "bytes": 2203,
+      "sha256": "b6dbb430db98b2c0795bf4c438b2253a3f7459709cf4a2c1e26b832e78a351c8"
+    },
+    {
+      "path": "prototypes/upstream-port/project-snapshot-cache.mjs",
+      "bytes": 4595,
+      "sha256": "658904d1e46d451ef9385863da56369feefe9fe6572320d574ad4b8647d6dfd9"
+    },
+    {
+      "path": "prototypes/upstream-port/project-worker.mjs",
+      "bytes": 2229,
+      "sha256": "357bf6bd2b6c7c0c608493d6a78587c95b3bf41a3fa3a4478700a145b52747d5"
+    },
+    {
+      "path": "prototypes/upstream-port/read-command.mjs",
+      "bytes": 6602,
+      "sha256": "64f88c71490a4ada639d25cf412a26da84cb715a28c533eb13ac3702a6ae176f"
+    },
+    {
+      "path": "prototypes/upstream-port/README.md",
+      "bytes": 14393,
+      "sha256": "ceab472753687b9637d834bcf8cbf2cec7253dd30110fe5f3d456aa92c6f1369"
+    },
+    {
+      "path": "prototypes/upstream-port/rpc-endpoints.mjs",
+      "bytes": 2219,
+      "sha256": "5d02cc8844acddc9661da9ddd5a3028d81c6214163e3a7ae0ba427112d6ddf18"
+    },
+    {
+      "path": "prototypes/upstream-port/run-online-git-acceptance.mjs",
+      "bytes": 3055,
+      "sha256": "61555476633d1180c64ada9f87dbebb2aa0a13534ed0a2a44dd3fcc3fe9435bc"
+    },
+    {
+      "path": "prototypes/upstream-port/session-project.mjs",
+      "bytes": 12265,
+      "sha256": "fcfe67e00fb43047454eacd61cc06be448968223890d6ff3c166923889488d8a"
+    },
+    {
+      "path": "prototypes/upstream-port/session-store.mjs",
+      "bytes": 2253,
+      "sha256": "e37322165bee4157aace14110d1530e65ffa962a712fbc41f87c3ce537fc5509"
+    },
+    {
+      "path": "prototypes/upstream-port/sidebar-bridge.js",
+      "bytes": 15421,
+      "sha256": "02375c7c33f3560b399e5e9567533848c48b32765646eb9c6b2afc9e98999425"
+    },
+    {
+      "path": "prototypes/upstream-port/sidebar-server.mjs",
+      "bytes": 12278,
+      "sha256": "05cca89a58269503d555d5a275dee561b66fda6956663d88659eae66a6c38a29"
+    },
+    {
+      "path": "prototypes/upstream-port/skill-prefix-client.mjs",
+      "bytes": 2131,
+      "sha256": "86942f8807ae57fbfa5b49afbcd987259d4d64f716971e5a376e38dbd2b847a8"
+    },
+    {
+      "path": "prototypes/upstream-port/skills-service.mjs",
+      "bytes": 3968,
+      "sha256": "19ba10c194c17541004f1f7981f915f07df849a1fb29d0c86e96fc71d9a44739"
+    },
+    {
+      "path": "prototypes/upstream-port/snapshot-cache-identity.mjs",
+      "bytes": 2282,
+      "sha256": "d816fdcedbe86880dcdbdaaf2d26663304eb8ee71e4f788ea2e4606a17d10d46"
+    },
+    {
+      "path": "prototypes/upstream-port/test-codex-home.mjs",
+      "bytes": 2435,
+      "sha256": "537e99cc89a395d40082cee94282f5bb32598f13039daad45675c5e2b0f5999d"
+    },
+    {
+      "path": "prototypes/upstream-port/theme.css",
+      "bytes": 4996,
+      "sha256": "a6dfbb66dde5147ac783b174c54e4d7df030520a4c39f8e8ebea8f353ba3509f"
+    },
+    {
+      "path": "prototypes/upstream-port/update-tool-timeout.mjs",
+      "bytes": 3382,
+      "sha256": "611a0ced5c8030ff5bf1b58c55c097b9e54db576e88ea6820da1a177cd16fff7"
+    },
+    {
+      "path": "prototypes/upstream-port/upstream-host.mjs",
+      "bytes": 3097,
+      "sha256": "997c1dafe769e10dbcd0eb2fb11aa007878d2d3ce10a646c61975c3101117c59"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-build.mjs",
+      "bytes": 4772,
+      "sha256": "3c004c828b86e79194a89fec40e4544f0b0d30532ee78d45a87b7309f8483801"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-cache-hydration.mjs",
+      "bytes": 3404,
+      "sha256": "44913a2731e3e0a1c45d3ac3a5f3ba9e89da7b693802611fa450eb97a6888167"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-checks-page.mjs",
+      "bytes": 5327,
+      "sha256": "6be1e3900ee50fff955aa4315021ce7bc3f51b1a9247ebfdcbd14faeed3ed0b4"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-checks-ui.mjs",
+      "bytes": 8002,
+      "sha256": "6674cca366d292f940e9ce15d462a950e6ae0b5058edde5ed4aa7fd1226da798"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-comment-pagination.mjs",
+      "bytes": 9586,
+      "sha256": "1f84a2b198571a285c63361cd9882a3f0a9acc587ca45aa395d385590ed0d678"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-deck-tools.mjs",
+      "bytes": 3873,
+      "sha256": "a3f725455bbee526dbaf19cf551c714e0935122181a6fdf0d1574c48ec44f265"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-git-write-ui.mjs",
+      "bytes": 4253,
+      "sha256": "bb3f59599e9859cc8a4281ffd2ac06b840baa2e20c186a8068890040d7c8cd99"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-graph-write-gate.mjs",
+      "bytes": 2323,
+      "sha256": "123d508651ef7596c2a1626547783ecf776c4b932868a1a8f33bea5639736e92"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-graph-writes.mjs",
+      "bytes": 8061,
+      "sha256": "e1b2d02184272dfc6d6be9f47404a51d9b553d2e085ea6327bcdc83a913ae24a"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-handoff-naming.mjs",
+      "bytes": 5836,
+      "sha256": "1c0e22910ea9655db38be916e6b3729c71a6effc0720e875063ddc5bac141c50"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-handoff-view.mjs",
+      "bytes": 5305,
+      "sha256": "5894302b0a2005f7888d2f77692eae29b26b680c04ada63e46d9b243c55d8424"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-host-context.mjs",
+      "bytes": 1659,
+      "sha256": "a7f1edb0514a563643b640e2cbb08d7edd4deebcb29381f77c54a31b0ccbd1df"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-host-harness.mjs",
+      "bytes": 10274,
+      "sha256": "8930944a879b59c6630ac591c724c4c6621cd15605e237a40d1afd3a2890f12a"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-issue-writes.mjs",
+      "bytes": 16097,
+      "sha256": "03b7547265e02af9fca7895de3848c21e49adbbcfc87139d8911cbdfb90812b3"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-locale.mjs",
+      "bytes": 4977,
+      "sha256": "1afb625fbf08633ed7a569bd8bf710a06afca986ab04cf8aaeb224c0931d9042"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-manual-naming-mcp.mjs",
+      "bytes": 4643,
+      "sha256": "b7499404119f6e30ad846944cedd64d5189bb677e9571925355bd01cb396fa77"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-map-view.mjs",
+      "bytes": 23301,
+      "sha256": "e9dbb468afc5db786a92ca7d309236dd155893a10ef4a9b4bb07ad358da006a0"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-online-git-network.mjs",
+      "bytes": 3699,
+      "sha256": "4cb86cb778cb9070554eb924c354fa00f6905300fbf905a996582fed13f07687"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-original-client.mjs",
+      "bytes": 5752,
+      "sha256": "083512a37657580056fa7f408c9ca077cc4f2c739e9c6299a3681626bbad82c2"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-pr-page.mjs",
+      "bytes": 19179,
+      "sha256": "cacb40408755965ffce17ae7ea4b141d8e63082284e6b74771021c6418e82b50"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-preflight-concurrency.mjs",
+      "bytes": 2129,
+      "sha256": "5e8e055197212c838f10a089b62e7d888d6b5ec68f55885152dfd9b496aa38ac"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-project-follow.mjs",
+      "bytes": 5935,
+      "sha256": "97e062f6946ec069a075b58f05f752c3f1fc1bf52b1bda9e1a9ded4e061273eb"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-project-snapshot-cache.mjs",
+      "bytes": 4596,
+      "sha256": "d0303d2a05ac20fe62aa69c2f9422844e47ee28d5422d1b23f8be7b99560ab68"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-project-switch.mjs",
+      "bytes": 4224,
+      "sha256": "d4a63605c3f0e2c2a08f3a638e1fd5985188439863c31408c5e22d1d1f2176ab"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-publish-flow.mjs",
+      "bytes": 4084,
+      "sha256": "10cbf73d3263e2f5c8d5da237badda08b2ee2fae72f54be9184acd21483c62e7"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-rpc-coverage.mjs",
+      "bytes": 8149,
+      "sha256": "1255a5c5f2056f8e09f7ec74e51a1e337d79825fb2e637c314a15d34563f740d"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-rpc-manifest.mjs",
+      "bytes": 1972,
+      "sha256": "a152d04c5200054107d3c7389740a65843a7fa8663742d9f886e03a414cb33e8"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-session-project.mjs",
+      "bytes": 9202,
+      "sha256": "c951364640ca1a050eb0058092ca14e83a70c9f0623847f25336c17a82974bfd"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-sessions.mjs",
+      "bytes": 1584,
+      "sha256": "01a6a856651f91411ca59e4a69e1d0959fd5557d31f55b5603494ea12852021d"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-settings-page.mjs",
+      "bytes": 11025,
+      "sha256": "b2a31c3a3852ddefe94d37c39f0ac2dab1f0a1e9c485eea6b81b925cba589796"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-sidebar.mjs",
+      "bytes": 8288,
+      "sha256": "1c80647d0d4731c77e69fa8fa9919cd38c9b99348f5332b7a6de96c89d0c975b"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-skill-prefix.mjs",
+      "bytes": 4153,
+      "sha256": "d5c7de944822ca2efe74eccf0528cd530e7067d10c6427caba7b6375aee89bdc"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-skills-page.mjs",
+      "bytes": 8817,
+      "sha256": "1d08afaf67121fef22ec4b0637a2ad23d133f61aca03bb3a57518bbb35958622"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-snapshot-concurrency.mjs",
+      "bytes": 2002,
+      "sha256": "a71270e988ac79bc0a33a9aafde73ba25662c8e0804291289e9ed0b4cd296bd6"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-tool-timeout.mjs",
+      "bytes": 1806,
+      "sha256": "5d8d0b67b1f6847cd1a866befa0eb73e2e6c2c6a338c10616fbedf6080776fa0"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-unassociated-sidebar.mjs",
+      "bytes": 1137,
+      "sha256": "67f164ed6c68822d3ca7586b4a15c314c2df1f8c00bb3f75ce9c282d62e4a2f1"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-version-control-read.mjs",
+      "bytes": 11606,
+      "sha256": "3f341d0132faac98eb52e201fcdefe0867128b1b7af83b0d312ad756e3eae563"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-version-control-view.mjs",
+      "bytes": 10462,
+      "sha256": "afd68d2ab39685d23e6854c83008a901c5b425f58254c189f6a0c7fd358e987b"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-version-control-write.mjs",
+      "bytes": 7624,
+      "sha256": "85402c0eabbcb250e086c11eece101665ce60a6078044e841495dabbd5968e0b"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-write-gate.mjs",
+      "bytes": 5742,
+      "sha256": "eb39c8b85958acd3981ce86bdaa91f03ea44af2b62d9eaa6d2ff4524598696db"
+    },
+    {
+      "path": "prototypes/upstream-port/verify-write-policy.mjs",
+      "bytes": 3464,
+      "sha256": "a1cf5142fe3b97af191a35880b9fb4e5d271f7f78149a89e997a4d60c3de1a69"
+    },
+    {
+      "path": "prototypes/upstream-port/visual-map-prototype.mjs",
+      "bytes": 3185,
+      "sha256": "c7a7a33dcc95eb581010684656927286087a8e4ff9ef3e16f5512d18f2f590ca"
+    },
+    {
+      "path": "prototypes/upstream-port/visual-prototype.css",
+      "bytes": 13228,
+      "sha256": "0410777595f5c8cc750bdd36b7e18163f76d085fdc1cd32d24e511ceb56faa3e"
+    },
+    {
+      "path": "prototypes/upstream-port/VISUAL-PROTOTYPE.md",
+      "bytes": 4191,
+      "sha256": "4b7a22d45d5a036815c56519dc1226bb6d3e486de19799c64db0f0addda0a9b8"
+    },
+    {
+      "path": "prototypes/upstream-port/visual-prototype.mjs",
+      "bytes": 8906,
+      "sha256": "eeaf98b0701df9b46ba1a3a5a47ea8a4553bb01f7519361611978de405f7d968"
+    },
+    {
+      "path": "prototypes/upstream-port/write-gate.mjs",
+      "bytes": 7751,
+      "sha256": "0456388feeedaa052b66e67540a9d77d1d8ffc7858abb14d49779af7e167cf2d"
+    },
+    {
+      "path": "prototypes/upstream-port/write-policy.mjs",
+      "bytes": 11504,
+      "sha256": "1ecc58dc75af03d6517962b4db4216667b9bd2e0bc9765a8f829dca0d9a5d1bb"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/ask-matt/PHASE-BOUNDARIES.md",
+      "bytes": 4304,
+      "sha256": "4e2a891beb182df8c2eb2a7dfbff20ba43ae008d29c77ac41b005181018f7ccd"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/ask-matt/SKILL.md",
+      "bytes": 12547,
+      "sha256": "566d87f866b667083b049cb47af54c9643e4080d6c8823a984c94383b1023ccb"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/ask-matt/SKILL.zh.md",
+      "bytes": 12850,
+      "sha256": "1a7e7c461f0c5d229b1f024df7ba4122b10eb299444f9be97cf560fec2a0e0ca"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/code-review/SKILL.md",
+      "bytes": 6676,
+      "sha256": "3abbdfe52540f9242e16589fae2cc423b3d98994c37683944462b29bab89495c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/code-review/SKILL.zh.md",
+      "bytes": 6985,
+      "sha256": "95e740657aa0bf822a15c2876b06783b2327befc6d14a33107cbeb51130ebb61"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/codebase-design/DEEPENING.md",
+      "bytes": 2590,
+      "sha256": "a67260cb384580b60430486edeb47a6e656ea5f8a42b7196b24461459031f00c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/codebase-design/DESIGN-IT-TWICE.md",
+      "bytes": 2709,
+      "sha256": "b6d23731a6feea1293cc97e08f983e9fdf48b99275d5d306c93738f06bcdce92"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/codebase-design/SKILL.md",
+      "bytes": 6560,
+      "sha256": "362b0bec828219d9f4b08ca7c466164e67253bdd817359258e60d2e9c5692a8f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/codebase-design/SKILL.zh.md",
+      "bytes": 6348,
+      "sha256": "46ce74e042d59c5df6c5ab6c59fb80c8f9ca0119332c412565a7e23eacf191dd"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/diagnosing-bugs/SKILL.md",
+      "bytes": 8668,
+      "sha256": "d96335b1fdb635ba948d46d082c9fbb3ebc135aafe11fe6460d422ca97181bcf"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/diagnosing-bugs/SKILL.zh.md",
+      "bytes": 9189,
+      "sha256": "bfbf53b8b4a5487c956baabb14b7987669e0a24611d9f22595530ea9c8ad3734"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/domain-modeling/ADR-FORMAT.md",
+      "bytes": 2780,
+      "sha256": "b7021c31a1c2485b07356a8110fd1fd1ae4facbab3e210983789f425f867d95b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/domain-modeling/GLOSSARY-FORMAT.md",
+      "bytes": 2360,
+      "sha256": "61fa9f6f9231070461dd4f7d4cfad377c33013c1e5668e1e6c0a8e4500944b3b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/domain-modeling/SKILL.md",
+      "bytes": 3420,
+      "sha256": "b62d997256cc073e123d4303da8e9db00db0e28de9739660ca3e55ab76e09cdb"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/domain-modeling/SKILL.zh.md",
+      "bytes": 3296,
+      "sha256": "4e1e6ffefab4cf256f9bb246ec53368b8f7245e06e8c4d4f2203709ec2cb34cc"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grill-me/SKILL.md",
+      "bytes": 164,
+      "sha256": "19e660207b447acf6ee0d600471c02e549c7aca8fb3ab38fdc2c7056aa442fc8"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grill-me/SKILL.zh.md",
+      "bytes": 172,
+      "sha256": "d8638f541a4f4c22ef1b0b9b857be06656dfb0d20bbed3c0faabe3f3933cf4a1"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grill-with-docs/SKILL.md",
+      "bytes": 254,
+      "sha256": "abc0fa7948db18b5fb0e1cc1c522ac5ff47d874e2da1e5df60619d79be11f38b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grill-with-docs/SKILL.zh.md",
+      "bytes": 271,
+      "sha256": "8c699f476136e6b09e5fccfee6536ca98adaef9aeab393e228bf0121ca09cac5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grilling/SKILL.md",
+      "bytes": 2015,
+      "sha256": "d806733216b16e51adad834e724bfec5540a436d06395bfc75b843cda9f7404b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/grilling/SKILL.zh.md",
+      "bytes": 1972,
+      "sha256": "ef2289b5b6e8652e556f02855e60d3e5b91f885f9c4f3f169078f3959ca6e335"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/handoff/SKILL.md",
+      "bytes": 910,
+      "sha256": "96f8045f01f569daa3737150d918b7201ccd090905fb10cefedd326e4001f551"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/handoff/SKILL.zh.md",
+      "bytes": 841,
+      "sha256": "38463789bc5674e8652735bfeb659b7b039c7b5be958798d6cb575e2437201f2"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/implement-spec/SKILL.md",
+      "bytes": 2820,
+      "sha256": "5bdaaf884b02b24db432241bcc32250bfee6149c45c743a2a1fef6b416837cfa"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/implement-spec/SKILL.zh.md",
+      "bytes": 2695,
+      "sha256": "3b86fb149b5f10c9f4a2abe5b0a96d432aefd28ac339704c8c565b69aa11203c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/implement/SKILL.md",
+      "bytes": 448,
+      "sha256": "30cd7bc1ebfb3891e85a1eed3b3b81aea0fa4ad4553a784de7f8e421b2d223e0"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/implement/SKILL.zh.md",
+      "bytes": 424,
+      "sha256": "0f936ab45d6ded0b91c324b1555d15ad2dba82b2dc9d123f3aa40dfccf75b5c5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/improve-codebase-architecture/HTML-REPORT.md",
+      "bytes": 6764,
+      "sha256": "870acb4262373ae536af7d1f4a9b56d33e7e7faa632bd425c09edb4f897fb828"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/improve-codebase-architecture/SKILL.md",
+      "bytes": 6071,
+      "sha256": "f053ff6d7a70f10bd0104e368f7e664b23ea6378898e305bf027e8864757822f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/improve-codebase-architecture/SKILL.zh.md",
+      "bytes": 5910,
+      "sha256": "be88ca13d68328b4c9872e4ae50996749991dae230652313b7f30d7e3ef5db13"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/pr/CREDITS.md",
+      "bytes": 607,
+      "sha256": "f5b7f7ead794f672324eb6a2cdc6986840e452abf15d72938084b645074bd149"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/pr/SKILL.md",
+      "bytes": 4339,
+      "sha256": "57658baca2e50e9cf98fdb6b74a51f2afd34b71019d516f7c5d45a51a28354b0"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/pr/SKILL.zh.md",
+      "bytes": 4049,
+      "sha256": "44df06e9bdb2d632765b631abdee5dd1df3cefe29e88f4c2af51c9580388e373"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/prototype/LOGIC.md",
+      "bytes": 6103,
+      "sha256": "8d7e31de7ce73b8e62f207e3f3ecbd90a7a54fdc728f8965f5f0739976f9959a"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/prototype/SKILL.md",
+      "bytes": 2957,
+      "sha256": "f74ae01f4fc454d3a4ef21271920f1706e626271e715dda0559e489f45c792c3"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/prototype/SKILL.zh.md",
+      "bytes": 2960,
+      "sha256": "de605fd6e553700bc5742605b6851b68dab67c2b792585959b2cc72a4bcac8c1"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/prototype/UI.md",
+      "bytes": 7025,
+      "sha256": "5ea83263ba72174c9055d58045f053d6577c0db6802c1e15bd1468dd16f78a0b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/README.md",
+      "bytes": 730,
+      "sha256": "1e7ac8f092fcf731c0acbb6b69784b43dfd4b5ef4e8b71cd2c2f23b4e5827db6"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/research/SKILL.md",
+      "bytes": 806,
+      "sha256": "524b404b1ca373a8b00f63a64667ec4b0a61c3c9cf4e8f246e639be859bb6979"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/research/SKILL.zh.md",
+      "bytes": 844,
+      "sha256": "acb644dfc4950c91a034b54e2d710c6a2434d9e5da2831c84c42d9d8a6f79da6"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/retro/SKILL.md",
+      "bytes": 4413,
+      "sha256": "42110f533f169026d037cf141b9f6c2752c6d914903be4758c38a68349e83e78"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/retro/SKILL.zh.md",
+      "bytes": 4325,
+      "sha256": "6f1f5bb2132b2c741c2e0c48a57d2bcaaaee1667dd8fd0b4feacbcdbac5cecbd"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/setup-matt-pocock-skills/domain.md",
+      "bytes": 2093,
+      "sha256": "20ee347cfcb4bd2266a8b747c11ca6c3dec85ff4cc38319de88cc3cadc12c80b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/setup-matt-pocock-skills/issue-tracker-github.md",
+      "bytes": 3776,
+      "sha256": "0809582ea8cf5f91fd72ae2b59aa62a07c1236ad194ef7dd40d9e2f01c3e753b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/setup-matt-pocock-skills/issue-tracker-gitlab.md",
+      "bytes": 3855,
+      "sha256": "6fe462c8dbffdf90e66d2ee62f6fa74666d777d0933c244e2a22a295848cb3ab"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/setup-matt-pocock-skills/issue-tracker-local.md",
+      "bytes": 1840,
+      "sha256": "a604b658f0730eae3107671b09323ed8382bd546e82dc3bedc265bccbeb35021"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/setup-matt-pocock-skills/SKILL.md",
+      "bytes": 6963,
+      "sha256": "32c466b3403b5e535d2fd85a353b4c14cbac512cdff9fec0650dec79899d48cd"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/setup-matt-pocock-skills/SKILL.zh.md",
+      "bytes": 7080,
+      "sha256": "5b008a704878373332ad844f65c0051072df10c957e3d0abb21fb263d427cc5e"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/setup-matt-pocock-skills/triage-labels.md",
+      "bytes": 1060,
+      "sha256": "493d08d7a8007d3604cdf64d45717045034a5037c9e9917bae1ad9340fad75b8"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/tdd/mocking.md",
+      "bytes": 1540,
+      "sha256": "73a10b6a26b56197c738a764c1e4205af98c74553f4a713795997f6bc35b917d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/tdd/SKILL.md",
+      "bytes": 3588,
+      "sha256": "4628e71926527715c2e1336b518126b7df037c2b177d15eec51c856eae5c048b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/tdd/SKILL.zh.md",
+      "bytes": 3548,
+      "sha256": "591e7136af8f6ce9e5a107c4874cea8847117c4fc67f67ae95d4eaadc837ff52"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/tdd/tests.md",
+      "bytes": 2291,
+      "sha256": "0b401f98bd3684d2fea6440d6946afcf8f5f68ac6a65599dd7a2b90dd9f02eb5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/teach/GLOSSARY-FORMAT.md",
+      "bytes": 2157,
+      "sha256": "22f851b265a3bec5a333937cc7ff1250136c9b6512787ae2eb51a2a14e35c341"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/teach/LEARNING-RECORD-FORMAT.md",
+      "bytes": 2793,
+      "sha256": "d49c754ea416a075534d0ba1428a0beba1327ae527c2d1af0333908d08e25d05"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/teach/MISSION-FORMAT.md",
+      "bytes": 1571,
+      "sha256": "44ea82d5f57a626086bde99c70cd229cdef67998e8502c1cbcd50504f57f989a"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/teach/RESOURCES-FORMAT.md",
+      "bytes": 1956,
+      "sha256": "377e70f83d41fdc2623037410600194655a2f7df41000925c24cc437da074ab5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/teach/SKILL.md",
+      "bytes": 9646,
+      "sha256": "3377485cbb1d62782122c1cc8cab4ceb37d5457c0543889784f3d7d9ca359e04"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/teach/SKILL.zh.md",
+      "bytes": 8356,
+      "sha256": "890fecf378dc8f1f5e87c22b019a0df2e998a4c4df71c08a342a4bbb892a259f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-questionnaire/SKILL.md",
+      "bytes": 2958,
+      "sha256": "77825120815c21400f82e2794faf342d1d1a4ab1493be3fe061857885d26b768"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-questionnaire/SKILL.zh.md",
+      "bytes": 3019,
+      "sha256": "6ea7367c51d6f9a544028103773bd710e556cc2513573d97ad92e9d7a8a19a7f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-spec/SKILL.md",
+      "bytes": 3118,
+      "sha256": "c73a2250beac0479e384f5466e834bb54ce6e30b7f8705e9999ba840d9d59b36"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-spec/SKILL.zh.md",
+      "bytes": 2790,
+      "sha256": "2d862500b1df5a039b5da501c2f7fdeccb85e8ad5eb8b1824742d115aef292fa"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-tickets/SKILL.md",
+      "bytes": 5776,
+      "sha256": "8082bc6ef165027c5df3215763055f4a9668878bf27f25f582db78a14c3ed3c1"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/to-tickets/SKILL.zh.md",
+      "bytes": 5685,
+      "sha256": "c1f7eb64c1e6817bf8913fc015a2a90c2bd3cd1738ec8259b492beb1857733bb"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/triage/AGENT-BRIEF.md",
+      "bytes": 8149,
+      "sha256": "9160800ad5483816f5bcd7f5aa62cfb6dbb16e6343d0754b9bb739815145fa15"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/triage/OUT-OF-SCOPE.md",
+      "bytes": 4772,
+      "sha256": "a48a2c63f0520eaa08cd68705030a77428e7ba6647834c7a644ad9cda396e4ae"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/triage/SKILL.md",
+      "bytes": 6670,
+      "sha256": "797f4371a4cea1b564ecfdc7a603089acf3c023454e47ccb0b3307c62de279f8"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/triage/SKILL.zh.md",
+      "bytes": 6875,
+      "sha256": "9a205a4efd075ead9a62648066efb3dd8a3c02f33f77760325073de19e50def6"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wait-what/SKILL.md",
+      "bytes": 403,
+      "sha256": "95393f96e730b20dabc6b425515cb6292d34bd9a91859a03c2c821e24d321112"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wait-what/SKILL.zh.md",
+      "bytes": 389,
+      "sha256": "be60cc6670e5099f9fd0e1e8f34361ffbec8e6db29390963b571bb9afd617c56"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wayfinder/SKILL.md",
+      "bytes": 12036,
+      "sha256": "3362fa360948f8526e88ebe8184f5402f9b5f4d9dced2ba0ed2721f64ae3de5a"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wayfinder/SKILL.zh.md",
+      "bytes": 12723,
+      "sha256": "66674ebce6df014ae64513689984c46695f9ee06dabfa49d496ce58b2aa33762"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wizard/SKILL.md",
+      "bytes": 4167,
+      "sha256": "dbefb750eae07d9f8b05ab1084f6acfdda2752df2a6b577c46a505e2bc790164"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/wizard/SKILL.zh.md",
+      "bytes": 4331,
+      "sha256": "6754e6ef0e8a5c129af0322f0d5cbfcc5122d6c0cb2a059ed31410533c8bda1d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/writing-for-agents/SKILL-MECHANICS.md",
+      "bytes": 2651,
+      "sha256": "86f112c08d785cc224c13dcda75c0724b74bd62622cc61d4b7ab3dbbaf37f6fc"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/writing-for-agents/SKILL.md",
+      "bytes": 10967,
+      "sha256": "1c0c4ebf2d221917591144f0ced4fe46dae13301cb3d6d93fc88ecf0dda6aed2"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/bundled-skills/writing-for-agents/SKILL.zh.md",
+      "bytes": 11481,
+      "sha256": "d3cd7e3465fe519d49cb62a2bc8beb776f765b3eb656c76f4218d92f2e789c49"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/CHANGELOG.md",
+      "bytes": 855,
+      "sha256": "75aef29fcc5a34279a98ec096ec71451498e9a87d2163ca4ce5e6dc93e612f8d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/bootstrap.js",
+      "bytes": 13100,
+      "sha256": "c99c683d16358a3a4bc3e2f530439d2492bf4412be73164b22dcbd1e5511f851"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/choiceStore.js",
+      "bytes": 19768,
+      "sha256": "ccfc93b76972293dc6c22c3c4b56875d8b004cf234d438e4e60dddc12b57776a"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/client.js",
+      "bytes": 2265331,
+      "sha256": "f78b6b17073453b4327d7d6e9cb1e55db8aa6d6a9e9b384d53bc24d79f1570ce"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/commentThreads.js",
+      "bytes": 22828,
+      "sha256": "164fc473f4e58fed8009fa4321b7d584954eb3a4cb1c59b4f1d919190c588072"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/detectChain.js",
+      "bytes": 31964,
+      "sha256": "31666cede8b402479a572be427d63fa6089280030987d1260fac7b0cc214d43d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/dispatchMeta.js",
+      "bytes": 1429,
+      "sha256": "4bb9afa2dfae7f0dee9fd66acbeade3ba1989c7b3b24969849c0bcda73d83c40"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/fsAbsence.js",
+      "bytes": 1175,
+      "sha256": "ec38dd293a2b40653a13859a3b732b02bbd4417282196c4069cbfd0ab7dec1e5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/gitCredentialExec.js",
+      "bytes": 16942,
+      "sha256": "22b8664f50a553914bf2920377100f2cdbf0fef1afeb576a265b81195ad0e8b9"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/handoffClaim.js",
+      "bytes": 11093,
+      "sha256": "c3e014a1537188e50f8399f32be6108dd98e65951383c92dea287e72d7dad95b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/index.js",
+      "bytes": 57757,
+      "sha256": "8f928b13a2772e17b6f9540197cd52e4fb0cc3b720e2dd806bb80c940215f2c2"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/issueDetail.js",
+      "bytes": 11993,
+      "sha256": "0e04610d0c1a187569964c5ea48c424ece82d38474f1036b0b6ecce7cdf624c7"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/issueList.js",
+      "bytes": 24928,
+      "sha256": "29b6fcfd6be612059843025263b1d7efb61c025cd84756be7d028e8ecc85a75b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/issuePage.js",
+      "bytes": 8983,
+      "sha256": "41fce52cb75a32aa821bb179b5489fed07b58931df2c57d9f8b84a109eb8921d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/logFromPackage.js",
+      "bytes": 1352,
+      "sha256": "f1c04612cf0b131f0f7b6e410f204b1db5c45a67ce376737a3c74a16bd1e6ec3"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/logPhones.js",
+      "bytes": 7639,
+      "sha256": "31e17fd64948c7c9fb3dc288d7d2dd43077d9647314558c559730d6a19e706b8"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/logPkg/config.js",
+      "bytes": 11538,
+      "sha256": "b52a4a616f30a5b9b918fa2b2901693ada61af606ea473bfed4b6657dae5fd7b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/logPkg/host.js",
+      "bytes": 2288,
+      "sha256": "708afc19e29d1d5e1c0cfda6c1f651259f306be97b40e3a782fb9bc1e640ebd2"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/logPkg/phones.js",
+      "bytes": 9645,
+      "sha256": "a1edbd141feae23bb9a667cf94c0c765b773b2fa9fa054dc4d7035460d351fe9"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/logPkg/store.js",
+      "bytes": 13965,
+      "sha256": "c66e74f242afb0fc246c259ce6f6f7ac756aa18a48174110a1a4307e86931b67"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/logStore.js",
+      "bytes": 14933,
+      "sha256": "74f97058bf324c405d970ff5a8c0daed81d397ef8da76154b0e193d04a2793de"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/mapBody.js",
+      "bytes": 4931,
+      "sha256": "2cb3b519702a266b7663f753729b2b39bb607ee755a2c9d46e3da664b15e0521"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/mapTickets.js",
+      "bytes": 7648,
+      "sha256": "28bf41b9a1b84e5a1b90806c2adc26c5380984d9eabad9009655195308d3e615"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/namingGuardian.js",
+      "bytes": 27378,
+      "sha256": "ff53e6e6d57d39aed39dd1189deff9dd14d55a920c46c7e722f11fa3981cba6f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/pickerShell.js",
+      "bytes": 7978,
+      "sha256": "6a1956fa7ac3474a7d8b86bfa865502dae1e830c739f47a5441027b04547a3fe"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/darwin/index.js",
+      "bytes": 2967,
+      "sha256": "da572e317f8262fd0b88ee160f8e03012cb5912e404b0880079c0b71d0422a8b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/deckExec.js",
+      "bytes": 4683,
+      "sha256": "abc709f0a5d7202d3fe78be8ecf9c0b21842d7a48c73530ba742e8ec65cdf66a"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/deckQuotaSync.js",
+      "bytes": 6639,
+      "sha256": "771aa02448087c3eaf9b0edb1641cd56fd0b037b6ff9ba0cf3df671cb9e48110"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/deckSandbox.js",
+      "bytes": 2798,
+      "sha256": "0f917a7b9ea26978b8116136d6406da1b8412c582b55b823d9b4ef1b873d0e0c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/deckToolsAssembly.js",
+      "bytes": 8173,
+      "sha256": "d3c53254c388d5715f7421e46592e02e3e84bc90f24ea97a57c461fa8b4436c0"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/deckToolsRow.js",
+      "bytes": 17333,
+      "sha256": "f9fe27dc4508ccd8bf9bc9d5ee659fc88741e98b73d1b0986cbe955e351f3cad"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/index.js",
+      "bytes": 11258,
+      "sha256": "2fc49f34f54b8d7e9484968a68cb83eabf2f653cd179df9eb1490af991d982c4"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/issueIndexWindow.js",
+      "bytes": 6407,
+      "sha256": "ce9ce0c666fe92a2467afc100fc7e4475bb0c43fdb1bfef7c34cc49765ae58f2"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/linux/index.js",
+      "bytes": 3175,
+      "sha256": "496a69d70f87df3221800a7b7c05a2d28ddc4c2c4b08bc5d80de20a7d6b52265"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/namingSummary.js",
+      "bytes": 14152,
+      "sha256": "90ac63d3353c3f70d335b4c849fa6ccaa3510964d2f3938f9950a805d7247e27"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/README.md",
+      "bytes": 3172,
+      "sha256": "b6649bd20e2812c34430ab7f7a76ec48400c0fefc4918fb358b854a416391cb5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/refreshAssembly.js",
+      "bytes": 1817,
+      "sha256": "137a4755dc86234b45c50fadbfe9ffb8a06c0782207a81f1061738df14a397a5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platform/win32/index.js",
+      "bytes": 4039,
+      "sha256": "cd082b9233111f405715d08cda6cb03278912829f01ad2a6eee503a1dedfe7a4"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/platformChannel.js",
+      "bytes": 24604,
+      "sha256": "d1018ff06d9f69b0ed61bf9fb6b2498e87d09c094aa831401d2a329d122eda0b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/publishFlow.js",
+      "bytes": 19120,
+      "sha256": "d6055f5b64c3de269f4442ed4aa13fbc107da7775d7224f211396e9440913721"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/refresh/attention.js",
+      "bytes": 14005,
+      "sha256": "a1cc2fd1c35792b9a1a67fe9a2777b528d2c13582b99877313d128da5e9daf4a"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/refresh/chainBackoff.js",
+      "bytes": 10212,
+      "sha256": "c2f5706e7bf2b61aacbf4f9fefebc72bc01e48a9423565971276a11dbf218e9c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/refresh/gate.js",
+      "bytes": 20234,
+      "sha256": "23ff65acfed642fa9f72ffd0a791731fd3300976511a1517db594a6ca3f90dee"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/refresh/ledger.js",
+      "bytes": 15127,
+      "sha256": "0a85960ca3518d9133e9f8b5a7a3c6149723687931809381cc6764f2e4b0ec03"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/refresh/patch.js",
+      "bytes": 22500,
+      "sha256": "25b22146d825a9ffc9c9e7079a38be2885ca0684eadc99f059ae1dfe666c9dab"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/refresh/refreshSource.js",
+      "bytes": 2309,
+      "sha256": "670175b3a65c50f50b8a2649a95514c3cc078abb167f710fefc702952992484a"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/refresh/sessionChainReadout.js",
+      "bytes": 5576,
+      "sha256": "1bb0dfc7c84a1682fa052dac280de254cdc26e4640b9abea72ca72727873066d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/refresh/sessionTickets.js",
+      "bytes": 15087,
+      "sha256": "64567e83bd1b3e8ff10060c29f9c102bb1b00162f7b73b292ca00f2b3e3f0453"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/refresh/wiring.js",
+      "bytes": 32315,
+      "sha256": "15972989aba698c439d3581e1a430f351a621879649b5a9b01bd6f3cabdb2fe7"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/refresh/writeEvents.js",
+      "bytes": 26660,
+      "sha256": "daed89caa51d1ae1cc1daa1f169e7bad5b3bad27e8f5c8f546c44343d283f3e7"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/remotePredicates.js",
+      "bytes": 5259,
+      "sha256": "8c84a3a52264541ce0cfc014aa6556cf6d2eaaea35d353ab959440699bf0c79c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/repoKeys.js",
+      "bytes": 26180,
+      "sha256": "7b8f624d7c93998122159990afb5e8ff364f681af3e830c294138aae82496d22"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/rpcChannel.js",
+      "bytes": 12710,
+      "sha256": "874da5fee3c1bc620c9c8ae2d3f7a2c657067e5b68b6d31be82068c70e3a0a31"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/runningMarkers.js",
+      "bytes": 2598,
+      "sha256": "8dc868b2054497a513373874c509ae54d30adf63ecaae9532cdf5d9f2c6b9d4e"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/sessionLifecycle.js",
+      "bytes": 12239,
+      "sha256": "edcc97766654baedf302ac0870db069a13af0a04e1abebfb3608d0b7ac0475e9"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/sessionRefresh.js",
+      "bytes": 24256,
+      "sha256": "4c2027ba4633bd88f63f5ea6ad73c11ce2a345b9faa8c9843e2fdf93fa60b951"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/sessionSnapshot.js",
+      "bytes": 29373,
+      "sha256": "4ea45eec1d06975d094c21d5584957c3298c3cedba2879203e2da118d30a1bf9"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/skillDoc.js",
+      "bytes": 4094,
+      "sha256": "ab9bc927f180376ee055f41c2ccdfc2ba6dc5eb4590cba99301dae6ccd4fd019"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/skillProbe.js",
+      "bytes": 16791,
+      "sha256": "6b1e4bb932f5acd5e38eb97052a656485bc3851eca7516699e1d9254464a665c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/skillProbeCache.js",
+      "bytes": 2507,
+      "sha256": "1f2e47cebca61ba7aea7376475defda314dd15179f389d9f4ebfbcca999f3806"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/snapshotBuild.js",
+      "bytes": 17178,
+      "sha256": "1bab974abfc6304c946eb9a5d867af88df87ab0dd1fc790c659c714c5bf99b53"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/snapshotEnvelope.js",
+      "bytes": 4776,
+      "sha256": "141b0ba1854066a480f11f0b9814dfe4668ec2bf044fb198fb50fbe9bdf6862a"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/snapshotInflight.js",
+      "bytes": 2521,
+      "sha256": "ab26b2a6b7e023b1f87cca3b7b53fb366c692e86e3f2ca7392d3bcd4aebc2380"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/stallWatch.js",
+      "bytes": 3841,
+      "sha256": "195501b0c97b1040df5edec218b1a01e044b4c59d62321a5feaeec9e60b3e157"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/ticketGrouping.js",
+      "bytes": 3701,
+      "sha256": "f9f782ccfdca80699cc054e2922860f505bd10935e25c5dfbe3383518ccf363c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tools/deckContext.js",
+      "bytes": 10027,
+      "sha256": "2e53a2d893b297625211c546b71a3ad46cd87bf758a96c59b6814f9304a634aa"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tools/deckIssueCreate.js",
+      "bytes": 13491,
+      "sha256": "a3ca95f9e6337e6ccc1256fa5c5e321f005e84446e2a639845dd6e1a15044d11"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tools/deckIssueGet.js",
+      "bytes": 11582,
+      "sha256": "4d0d62760747fb07b92042fbd9277ed25ef8c3efed31abc2a198e948d301e611"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tools/deckIssueList.js",
+      "bytes": 9794,
+      "sha256": "ff26ba484a258bdace9af5bf7b171a6ab8590d7a597a873255693217847ccb00"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tools/deckIssuePatch.js",
+      "bytes": 17966,
+      "sha256": "8e9bd4912ddad7d57ae06d9a0856c920bf0fb9a7af034e518f74da6700264e77"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tools/deckIssueReport.js",
+      "bytes": 8960,
+      "sha256": "8bac8d3ea76ab296a4c206ec440535284e459b0ef9c5902aa466d3d95fc40f25"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tools/deckMapLink.js",
+      "bytes": 13712,
+      "sha256": "ea332d220c2d39061a0bbf07e78f79dddf4cb3dccaf20c29ea9c6fbed93df057"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tools/deckMapPlanCreate.js",
+      "bytes": 22928,
+      "sha256": "8b44137c5c0aa704ca559ca71fc93513cf0aa37b25c9e4643c03289ce05e0daa"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tools/deckMapSnapshot.js",
+      "bytes": 11724,
+      "sha256": "ec48c48a60fef6946cd2e3f6e0072efdff2ab408ef2bf6205a63749dec884e05"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/backend.js",
+      "bytes": 8528,
+      "sha256": "18875625f44d28094d803b96304a1865ca8b7201ae4513236563c893f1dc55de"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/checks.js",
+      "bytes": 2147,
+      "sha256": "06d53bc5b775a976ddecd331e77611fae9ebf2000ea38cf9256a66041313dc5a"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/client.js",
+      "bytes": 19198,
+      "sha256": "3b5c865989d628e1a5ca37a21bbc3a8beb7cb60a04080fdedbede36183cc9d18"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/comments.js",
+      "bytes": 3818,
+      "sha256": "a75557cec37263dbd44aaab39a8daddb96519da355c881e463468a3246c748f9"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/counts.js",
+      "bytes": 5165,
+      "sha256": "f9289f651bc98243ff00caea6acbe2f05d353a2f994b5ac3e4f79c1d469bc915"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/cycle-check.js",
+      "bytes": 3115,
+      "sha256": "ca8ef967081a7fa66ee6823edf61e4edc6ad447021545b13c9bb6ebe66578802"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/errors.js",
+      "bytes": 6485,
+      "sha256": "04c4f5aea0e63345837d1f260385f89e01543f77e209fcd5d54b60b7b2eadb4d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/fallback-reason.js",
+      "bytes": 2279,
+      "sha256": "385e84f325d44d20fe54e370fc8c751e79b2542ed30897887309ae1bb087f55b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/graph.js",
+      "bytes": 17447,
+      "sha256": "c85e237b6bc48956a379ed2f8494edf6419d0606c6a6e9a9c424f9117cf5da06"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/idempotency.js",
+      "bytes": 11113,
+      "sha256": "27e4ee7252f59d58d7b9583a5dccd86e512cd8d5cfb43f4f3651776453bc1310"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/index.js",
+      "bytes": 20908,
+      "sha256": "33bdd4025a0cb33679d5b55a36adc9ddc9baeac7c68bb144aee487896938e838"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/init-project.js",
+      "bytes": 13420,
+      "sha256": "e5ab70768ffdc8aee8ab9266bd5552b7fd7d1e3bc9d2bfde67de175ecb1930ad"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/issues-write.js",
+      "bytes": 19455,
+      "sha256": "1953d09a674783baf97cc6ef24db12b183dfc229d12c4989ddce743d58a8f1d6"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/issues.js",
+      "bytes": 18390,
+      "sha256": "438cb210488459637bda99ba194099411d0883a896d19a3ca98ef7a0361bfe32"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/label-colors-ops.js",
+      "bytes": 21016,
+      "sha256": "f7a61fc9f425a35e8e91e041ffa81036086db5dab665ea7877bedfef66c9e14c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/labels.js",
+      "bytes": 6951,
+      "sha256": "d29f6928c261a009a3b3beaf1d5c951f6076454672dd73e4b2ed8409ee504195"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/normalize.js",
+      "bytes": 14540,
+      "sha256": "189d3f7a035f4f861b5554c41cca9b7189a7e1522da44a4a6aab9122dcaa13bc"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/page.js",
+      "bytes": 8663,
+      "sha256": "f432908a5dae3c188882c0c43af17f811b117e8008e64282f8ba121cb99ef625"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/parent-repair.js",
+      "bytes": 1458,
+      "sha256": "59a552c51a7518a4e36c87687af90f1837b5b3e93d0d1af209e6f76f8c6c2e7e"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/preflight.js",
+      "bytes": 5365,
+      "sha256": "1f491706fe7590c6ecaf181bbf474fa9558688d766012025f28f93c48aa34220"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/pulls.js",
+      "bytes": 4154,
+      "sha256": "66460832b3a01df7daf092271c65ab18d5b0c1a9b26a9f025f84369cadab9de4"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/queries.js",
+      "bytes": 13205,
+      "sha256": "6057f448b4b6505e4e2d65820131f92c5b075ee2de4b0c082c2afb0a9492f6b4"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/repo-permissions.js",
+      "bytes": 4489,
+      "sha256": "19e227f64d6d96e162c1ae5069bbcd67dc881da782ff67498a1cd2f2f4a58b24"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/repo.js",
+      "bytes": 7885,
+      "sha256": "674c6fb83610564e261cd57c27248ca830427e57bee2df1d7c3a12811fa92c52"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/roster.js",
+      "bytes": 3000,
+      "sha256": "3a0b13383d6d354e7d69ee2149a1a18737149a0458c551ef6ee59c3e6abe7bfd"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/github/sub-issues.js",
+      "bytes": 6627,
+      "sha256": "c7c0b968c058329e3c1790919c9ac96c3682f28eae665e9028ee941cd46f0434"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/client.js",
+      "bytes": 3469,
+      "sha256": "45bcaf041a471eea5e0664000f0349bfce1aa28302e3d2d7e86f238eb0c663a0"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/comments.js",
+      "bytes": 3175,
+      "sha256": "c36d0cf6a7bce66b2ca06256b8e076898bd845628720b4b872597c7877ebf853"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/create-write.js",
+      "bytes": 6441,
+      "sha256": "dbbac6e299330a773a00d00756f679c56b5e3cb3b2fa9ed940b164051a24e75c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/errors.js",
+      "bytes": 1855,
+      "sha256": "bf5138f45ab9025baf8c64fcf7e898b373ddeaa95f7909fddc1e25d3dbb32b87"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/graph-blocking.js",
+      "bytes": 10736,
+      "sha256": "28f96d18fbd4be96e891e51fa7110ce747c5c198d8aa80cc7af330ef42202053"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/graph-membership.js",
+      "bytes": 4877,
+      "sha256": "074024d6a4ce0ac621b9cce346830761ac749540db76b47cf58a723c39269ccd"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/graph.js",
+      "bytes": 556,
+      "sha256": "908031b9149fde7e69e006f80eb132c421d0d32d677396b8187e90eb00bdd889"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/idempotency.js",
+      "bytes": 7693,
+      "sha256": "f5611db273af0485af013f52aa61b338ec88192a06b4925fdabee5e9fe824ee6"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/index.js",
+      "bytes": 15595,
+      "sha256": "4f011994d37a7cff1eb0236efabb351b0ebb49b8aafd429724203596737ca1d3"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/issues.js",
+      "bytes": 11819,
+      "sha256": "08523eb2a48fc16440d9f78aed7562fbd0f1cacfdcaa01e9fb4e15c8c329ce3e"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/labels.js",
+      "bytes": 5348,
+      "sha256": "1316a5eeb85d801a2d861631c258707b3e8ecaae6458e150e6274b4a7f33e57d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/normalize.js",
+      "bytes": 12172,
+      "sha256": "eb2a0b6410c3fcf9bf3705acc49718a22aba3a0428c0a96ae32776e491b3d2d9"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/preflight.js",
+      "bytes": 3611,
+      "sha256": "31d4e9a87f69bcb9ef4f29ffed681671d4dfbaea82e2134d423550683b53df9a"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/gitlab/queries.js",
+      "bytes": 1103,
+      "sha256": "de1e6d03b62db9a0ff8364ad066c262a1558cf11f5a9958c16173d13f7de36f8"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/comments.js",
+      "bytes": 3143,
+      "sha256": "e8a4db5481c1c942a053865c4c4b02e4e99b40913f0f5b6d1626857e5fb1fe4b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/counts.js",
+      "bytes": 6504,
+      "sha256": "aba799d858512fa6fc0ac2d942c52fda2e5384aed6c19da1c7c1f275ffd2d41f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/graph.js",
+      "bytes": 3645,
+      "sha256": "9fd40b772eae3c929b01523751e899f963993374e71b7ff93f498fbd199fc149"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/index.js",
+      "bytes": 17502,
+      "sha256": "05e7ee64ad82f1a5a6051c5eb0bf6e2c044f2a31fca4d4dac86e5ed221699570"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/issues-create.js",
+      "bytes": 17301,
+      "sha256": "6234da7aa465d2e7161ad9708bbd793f05fd5ec6cd5bcfb8aa901c6e5971de8f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/issues-locate.js",
+      "bytes": 8007,
+      "sha256": "e422f34d1bf688fb4ea73fab11c55a62301b616a71e9ed6b450659c62a04c2d8"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/issues-patch.js",
+      "bytes": 20309,
+      "sha256": "e1814132b99b0c4fd735e96ea2b11076ff7cf29ae933081e5b4575290856ee52"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/issues-read.js",
+      "bytes": 9963,
+      "sha256": "f7c5707f0ba7839823a25cdca6a9217773258fc14a8e08f7d120d0143fa24317"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/issues-status.js",
+      "bytes": 3424,
+      "sha256": "3cb0410f395d94ab4d7f20ce0447e9077a3085960b806e997b757ecade71672a"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/issues.js",
+      "bytes": 944,
+      "sha256": "755c19d903c48d4dc5a161474bed902436d666f8edaf581f10e1dd4f0210927f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/label-colors-ops.js",
+      "bytes": 13504,
+      "sha256": "991450cb10650d27c77ed20db836a112f91ffd5c931f6c9c8fa66c413ab40f71"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/label-colors-paint.js",
+      "bytes": 2172,
+      "sha256": "705fed5785b313e58b5d3c46a22e47bc7834aa56560bbddb36d19314fe7f6645"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/label-colors-palette.js",
+      "bytes": 2145,
+      "sha256": "e9720ff7d49ee5fc1bf78547b49f640339528de55b4b23be0a19812f9d2aa5a8"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/label-colors.js",
+      "bytes": 24209,
+      "sha256": "429f6015694e7831d1c2452b00856802a9f3dd216e40fdbe443202cb6dd28f73"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/normalize.js",
+      "bytes": 1740,
+      "sha256": "316ca369e6d42b587dfba0bfefea542e8a8657a5c9e86fc56a08e3f251430504"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/page.js",
+      "bytes": 6388,
+      "sha256": "135900f5a2f87b394c3e4d9cf648807a3f21fa75a75933409b7b3b15575f45ed"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/parse.js",
+      "bytes": 12145,
+      "sha256": "39815a9e5446d8a6b7357d0deb84096d0570888bd6b59d5a7328fa426a3caab7"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/path.js",
+      "bytes": 3379,
+      "sha256": "9211e140cdc9da005bb5e4ad435fdadc18bd8eb51ef06c07581c671b7607adfd"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/read.js",
+      "bytes": 4144,
+      "sha256": "b3a64b56ee9ec43d8d05dbfe44a53bf072930776b319e7ce14a6015e1e6cb665"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/write-queue.js",
+      "bytes": 4105,
+      "sha256": "83c6834f0d3c9696b8c861988d183feac65b82f26e5669677ff949d147b0d415"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/markdown/write.js",
+      "bytes": 5010,
+      "sha256": "4c27ea9855a5f9ce394435e968964c35ad6ae27c413f4d450a5fa2e5cad929c5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/backends/README.md",
+      "bytes": 5952,
+      "sha256": "9f98bf9fa2eb44b6244050e3a7c00720818e5837840a3e99c6a13967a775cea0"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/capability.js",
+      "bytes": 2848,
+      "sha256": "8f15e6ade96fced7e9cbbcc5a3da733be464c77c278e45c5a29c936facdcb169"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/contract-idempotency.js",
+      "bytes": 4716,
+      "sha256": "3b0d20ad99813ac15e49f371e4a0dd0f95b0a1ba68916e956ecd64e160b5a403"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/contract-label-colors.js",
+      "bytes": 9386,
+      "sha256": "09ba30fa16c4db8f0b56c57f952a89d83a85173f71bd55cc3fdbf686139d2daf"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/contract-page.js",
+      "bytes": 6596,
+      "sha256": "a95804a35f1b093b7dd705dc229c21519681cc8efdb8ae238dea6cdce096f56b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/contract.js",
+      "bytes": 21845,
+      "sha256": "e757a867e25eff23726d627890493e16704ccf7948c5bb6d2359492647353a37"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/detection/detectionService.js",
+      "bytes": 20486,
+      "sha256": "4121fcdcb7cbdc678f175a8e058a6cc7a255f29cac32a813b17f61d66a050922"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/detection/explicitDetector.js",
+      "bytes": 4949,
+      "sha256": "45ff006a2cbe682be3a47ef7325c3d085425947978908f48b85a1f75eee6cb76"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/detection/parseIssueTracker.js",
+      "bytes": 4167,
+      "sha256": "c6c56f5ccbdda16fa468ea4ff0eda0d027f2686715d1577bdbd628f8d02cd650"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/detection/preflightScope.js",
+      "bytes": 7526,
+      "sha256": "7b064d2c66c5399fa4ac48b753428b7544089865f6246fab82905675774756b1"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/detection/workspaceStore.js",
+      "bytes": 3565,
+      "sha256": "15bb1c1e1fe7cd4c8b66a37a0573a9c38f91443fb1b1d7edcc8254c9b5219c4d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/fixContract.js",
+      "bytes": 8403,
+      "sha256": "de618f5a2f3ffdf1dfa1723aefc7847809f7e49bd9506c55d68bc6d591a159d4"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/generic.js",
+      "bytes": 7355,
+      "sha256": "961a9e2587e2faf43599bd9711197b5d291b6e1e94bbcd7216e9d047f58e5265"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/index.js",
+      "bytes": 1164,
+      "sha256": "469e0c349902623ba321a7ca9ae2ef8d89abeb9df1b21cb986a683ffecaafe5b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/predicateCore.js",
+      "bytes": 6329,
+      "sha256": "667179ba8829609d6ba70418bacb46e4a9f996d992791d028cde45e2b8f23435"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/predicatePrimitives.js",
+      "bytes": 16529,
+      "sha256": "611316613f8f5081bfdc56c91f5ad6e21fc381197efef6bc7082235021c197e5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/preflight.js",
+      "bytes": 3821,
+      "sha256": "1be9c0a4eb011e119dd76579089393898e2a50a56787ad32b5b7436e7e74cdb0"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/registryCore.js",
+      "bytes": 11981,
+      "sha256": "3dd879662f6193e86da75a6949a8f585011a59242310d0b00fde289c79d078f9"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/registryShape.js",
+      "bytes": 5403,
+      "sha256": "b7f21327b9fd70283bbd167c378c2fdf8e3e908339cc449a2921dd28ed8aac0c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/registryViews.js",
+      "bytes": 4707,
+      "sha256": "0696d0c324e2acff6168256b1461d4640ec7d7367b366e43aeae59996c55b0b2"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/tracker/snapshot.js",
+      "bytes": 26034,
+      "sha256": "3dcdae1ef19ba447fb960c5bbac1c8ea7f1d9126e8340c075a1b52c040c49320"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/updateFromPackage.js",
+      "bytes": 9394,
+      "sha256": "2abc02568660c081bfe9ab15f5abce2070f477789226ff2e02995651b8f55c96"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/versionControl.js",
+      "bytes": 29237,
+      "sha256": "e3524fe17dc381a2dea83ecc7b850e783315c38d6d51ee818888e6293ebe38f3"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/versionControlBasis.js",
+      "bytes": 4808,
+      "sha256": "d5f51044a1df7190713a55713311486c25cfff519c4de29019ecce67aa38654c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/versionControlCheck.js",
+      "bytes": 11126,
+      "sha256": "bc5985381cf95bbf9c069b1eb0afcb27f4a67b24d2881c8f7ce3f5b4ce1d70f6"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/versionControlFiles.js",
+      "bytes": 9168,
+      "sha256": "53f3005a5e9f3a3cbf5315848a3423ecd3e96a1193054093839c14dd70284865"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/versionControlWrite.js",
+      "bytes": 17023,
+      "sha256": "4700b71302838117fcfb3b2ad32545c38e3637cca30ad04a8cdb1a10bc47fde6"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/workspaceCwd.js",
+      "bytes": 22720,
+      "sha256": "86c17d3cdd9d05308a307386760a973cfc43873d3a8dfcf47827edf44cbfc6e5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/workspaceKey.js",
+      "bytes": 14163,
+      "sha256": "71e32798cdfa68b0847e5936df97a7be2bc68ecd25256bb9627715a5e4933f78"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/lib/workspaceLabelColors.js",
+      "bytes": 17320,
+      "sha256": "b7aced93241555d3b991a2e54b54e6975d787126264cc38eb2cf9feee12fcf07"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/package.json",
+      "bytes": 1638,
+      "sha256": "b7be2d0ac13005fc80d5d61592d5cf373470a7231b70ff57f908d69ee27f3005"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/README.md",
+      "bytes": 19471,
+      "sha256": "525e643a7f0e9c4682651c1a14225411a0a05a0c5993348274b5cc8cc3a6d3db"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/scripts/fix-issue-body.mjs",
+      "bytes": 23768,
+      "sha256": "eb9e5949ccece12e537eaf4ca6ac125985d8918c718bcf21cc8ce05d95eabd8b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/scripts/wire-subissues.mjs",
+      "bytes": 53076,
+      "sha256": "ed8179b28dd6479858875e7dfbef3cfed10941b86f0335149d2dfae235d3fef0"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/deck-tools/agent-register.js",
+      "bytes": 22306,
+      "sha256": "c682c2b40fd42092ca6679ebe9e1e15048190b9c1ee79ad52cb5834488ca18fd"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/deck-tools/call-scope.js",
+      "bytes": 16257,
+      "sha256": "271d66d7b61b9acb936882b3d98b9ccf807dafa2db2134ef206d496e8fc6142d"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/deck-tools/edges.js",
+      "bytes": 16853,
+      "sha256": "0587a74ccd9a0a218bb0793bfa8fc522531dd4b4524aafc6d8e41e9123326c03"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/deck-tools/exec-cell.js",
+      "bytes": 4227,
+      "sha256": "374dfbe1538e7742bf33123e29bd3846f16f41b10880e17662e4be0ff719fff5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/deck-tools/key-lock.js",
+      "bytes": 3586,
+      "sha256": "251ea74bb0262ef323a38992d1e0bbf9c43d0880b5f6a51b9ff24c65d29796b7"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/deck-tools/plan-store.js",
+      "bytes": 3978,
+      "sha256": "1bdbaa3152c3cdb5d370900fa451231de79becc369be4024c6e745a5ec24afca"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/deck-tools/plan.js",
+      "bytes": 7589,
+      "sha256": "32102e7c8c247bd4ba80cd4de4a269ba716cb197785369e10ecb1950fb35bbf7"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/deck-tools/session-resolve.js",
+      "bytes": 4178,
+      "sha256": "1f87b2b240b67381c9fe8e1dae5ecae72fb44c5bf608dfdde3c7722a535fbdee"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/deck-tools/shell.js",
+      "bytes": 22607,
+      "sha256": "b893a5c02f17402ec2ff71b2dba15c9263f59a98125522063c61cf02148580d7"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/deck-tools/workspace-file.js",
+      "bytes": 2557,
+      "sha256": "1ba46be1dec2138055ac0a8f690ece417ba42f16ded0fbb3dbdc9d7f5130960b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/feedback-map.js",
+      "bytes": 10744,
+      "sha256": "d9c535b8d8f8e4f9aee2ba504c3381cec31fb76fb11d422996faa10c0fd953aa"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/label-color/colors.js",
+      "bytes": 1131,
+      "sha256": "40defe86102af00cc7c1738bd38a4e082c8347d5f8ae045ff4701472b474b704"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/label-color/ports.js",
+      "bytes": 169,
+      "sha256": "84847762c56135cba51b8fa46c433332c4e7832f2406e998cef041d7f95e2407"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/label-color/prompt.js",
+      "bytes": 837,
+      "sha256": "63e2c2b3425ecdfca3c8a2dd414b7ccad7e18ba657a21b0029f2f93684baf4da"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/labels.js",
+      "bytes": 2131,
+      "sha256": "38fc88725890e1d03fc2e79aaaf160db3e72ea5b742c4de4ae1860894e228250"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/matt-skills.js",
+      "bytes": 5282,
+      "sha256": "460955c0f24716d579df22c0b1a967cd06b103dfa3c1680b6021f01f07fa85df"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/naming-attribution.js",
+      "bytes": 8521,
+      "sha256": "efc142148dfd9bcef1ac71b316380d7402c52712926856bad3c55369452a0c49"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/naming-titles.js",
+      "bytes": 11072,
+      "sha256": "17a4bffb690370ff2660b5f2c237348eb9c2e6ca041a40a78927c8489f56fc50"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/naming-tracking.js",
+      "bytes": 19385,
+      "sha256": "58b29b66d6fac467d71626ec5634a8ee51a15d03cf54ad96466f8da1aa9463cb"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/parser.js",
+      "bytes": 5909,
+      "sha256": "f915da7ac9c62bc019d7c5b50c9259127732d9bec8a6c9f44c1c71ab9924a7f6"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh-workspace-key.js",
+      "bytes": 2830,
+      "sha256": "1ec09c50cabe0a848a78337c31e3bbf59727dc2fddc7fc06ea9aef9983462f79"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/attention.js",
+      "bytes": 7752,
+      "sha256": "2d6f1da8f52a0d7683451cea788ebd48bc95b89100ddfdb0b25fd63061174cc8"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/backend-quota.js",
+      "bytes": 3966,
+      "sha256": "36b87ca0fa55f1227ce52a124188ada0868a7c8cc087d9df28b0d839028588c5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/backoff.js",
+      "bytes": 2568,
+      "sha256": "c3da448944f2fa10dba5f6d72292a9227b9edfffaf8c697f1fba7d35bb033e0c"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/budget.js",
+      "bytes": 4473,
+      "sha256": "42ab99f6aa1cc260c01a915de041f4cc66b9489e5f05531773343adaf3fc91ce"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/chain-ride.js",
+      "bytes": 2975,
+      "sha256": "6b4888f842bf613350ba3988fab8328c98bba2f72027071b5f389605ffe6940f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/chain.js",
+      "bytes": 16896,
+      "sha256": "18ccc7542e27373b46b489d66eab8c7999f2bf539ac203faed64aa442089d272"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/create-write.js",
+      "bytes": 4072,
+      "sha256": "2ce17f88402356ded99dc8c3d02be90c668b25b3fc1cec9c617f9b3a36dd31ea"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/delta.js",
+      "bytes": 5070,
+      "sha256": "4e06223937fc2fbba07bf28ce914a3b90e5d9ea66ff1448f5945dab8b95b935b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/failure-window.js",
+      "bytes": 1562,
+      "sha256": "61a01050e3a098dfff5da0997d968de5d7e5099f929afafe3e47b92e618fafb3"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/idempotency.js",
+      "bytes": 4768,
+      "sha256": "1c812bf8785f793612a104ea719a2a8239be331c6be26f5825d696f221595ade"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/page-budget.js",
+      "bytes": 1522,
+      "sha256": "e2b7acd7b22f06d50a0bf371af1a1fb92a332524d1ac369fa780dc86b367e979"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/policy.js",
+      "bytes": 7414,
+      "sha256": "d1be54b576acac5e35d9913c7a358cb0a1a3f4d6b2ffe241aabb968355f8e82f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/ports.js",
+      "bytes": 157,
+      "sha256": "18d77214a335a2083346518c33b7892ce760e1a6b2c490d07726be848bc33d42"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/refusal-text.js",
+      "bytes": 2681,
+      "sha256": "2bd4f1c103420d5a4878815a6e7aa5bfd51b793eb1ff8fa30bfb98b343540bcd"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/tool-cost.js",
+      "bytes": 5125,
+      "sha256": "e5cd9de5c0c0789571010f06f675c3b8c1f55594099a3736489aaeb41a91adc7"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/refresh/write-detect.js",
+      "bytes": 17310,
+      "sha256": "d20103ab263e2e73f78b714a684842fbf2ea1cba9a184879317ac04c17d3d827"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/session-cwd.js",
+      "bytes": 1665,
+      "sha256": "43a220e56dfda70f0957389ed7b7e413861d11306c78c6471c319099802b168e"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/skill-probe-channels.js",
+      "bytes": 10368,
+      "sha256": "71e0e9c3eb35b1e232246c05607cb67935e3f5ce518655caa77845fe4793c599"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/step-cost.js",
+      "bytes": 1804,
+      "sha256": "9b0c4293aefcda5adedb476e38a2b6f8834cac94480b50b4c63a06f14c2e233e"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/backendWritePermissions.js",
+      "bytes": 2010,
+      "sha256": "8fd4b8211034db5e834b9731c7cc9d46d46612f2e37a57466239fb72ff44d221"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/chain-evaluate.js",
+      "bytes": 12547,
+      "sha256": "146f5b0adcd61b3ecc3ec8631ab9d9362df1052b5e66c1f0537d6e8dccbd7995"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/chain-types.js",
+      "bytes": 13570,
+      "sha256": "53851aecf92a050bf7c14d38bc2eb05642e430a86504f6d25d7e8f318514a299"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/chain-validate.js",
+      "bytes": 15247,
+      "sha256": "18a177243aa7741a201ae21ce0f8dc46b0fd7da8bde21ded1b02ff255da8abf4"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/check-catalog-dirs.js",
+      "bytes": 11827,
+      "sha256": "a94332dd7c62127e339fd5a7876a48233c30578a3b826f85e7532695bdc9db13"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/check-catalog-views.js",
+      "bytes": 10872,
+      "sha256": "f37a3cbe9b9a6b74f68e2cd2d4769d271056ae2c9465ba229872b2c976cc3a91"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/constants.js",
+      "bytes": 7096,
+      "sha256": "547fa36226e6108926a3019401a7102cba82b9e941455db40f71ef6364d22536"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/deck-derive.js",
+      "bytes": 12684,
+      "sha256": "6e7114603254a822502098fa6d93186ece1dbb9a78ec601ade197afbb7ffed2f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/guide-steps.js",
+      "bytes": 14478,
+      "sha256": "a1c67fc01b983331d5b6f31045b265c7666a8b32d5c117595f301faf229d90f8"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/indexWindow.js",
+      "bytes": 7761,
+      "sha256": "223f6bb4855a6345eb2dea5d22becf51d905e211ba92bd72bcd166d36d1312b4"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/initProjectErrorKinds.js",
+      "bytes": 3120,
+      "sha256": "bec0bdb3ad3e5b9e4d596fb8a21e343f9c551a42e135325281d046c1ec31e87f"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/link.js",
+      "bytes": 1930,
+      "sha256": "4dfdb523719f430e5f33599bd9b989493fc07504793181a1ae566568e23b0049"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/list-dedupe.js",
+      "bytes": 2786,
+      "sha256": "4cb33f0790c0798673b68fba1d55a0f314cf8c8f8b1ece669f40c95e73654ff7"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/outbound-admission.js",
+      "bytes": 7822,
+      "sha256": "61e1c1fd2fe07ac86fe4b9578d34661b137e59c0e580d9db57854b96474b9405"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/outbound-tiers.js",
+      "bytes": 3747,
+      "sha256": "3d43e7996a00692c5ea391e54ed416b00da18bf2c170f7459a948bc00bf4b546"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/shape.js",
+      "bytes": 11707,
+      "sha256": "33a2ab3607e07216a2d60de3d2ffa6a5dfabf4a64287991d42e37af41e5f614e"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/sync.js",
+      "bytes": 9920,
+      "sha256": "afd968c27a3fff1dc72ff5bce4ff1c53c53ac225822b082ab1356fe140e547b1"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/tracker/workspaceOwnership.js",
+      "bytes": 4573,
+      "sha256": "70a15bd0c1fb32efad30e3b608afa43283bac1b02b27039655fc73b4aa5ca189"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/ui/slots.js",
+      "bytes": 5075,
+      "sha256": "f6ce62313c73ecb85b7290133d31a8700be57bfb800c31b4957238806a4083aa"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/capabilities.js",
+      "bytes": 942,
+      "sha256": "a6df8864ebeb09bee4611886cd9f0095fba9bded83f1344c80a02d34e31b5fdb"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/commands.js",
+      "bytes": 5063,
+      "sha256": "d849d5fc785b14afa852c471a3493c820c045d5a8ba29e8f983daade39d37055"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/exec-envelope.js",
+      "bytes": 1711,
+      "sha256": "262844ded18b51c0310a32a77a8d4cc5e3ce8e58e3e35accc7f4510e4afd8e28"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/parse-diff-files.js",
+      "bytes": 2112,
+      "sha256": "8868800be195d60cccd574dcc3abfc9e06a73637532d94d31c114de3ed891ff2"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/parse-log.js",
+      "bytes": 1591,
+      "sha256": "29b07ae8b9061e112cfcda30a91421d1a9bf3d3bab1ff7e423a363218373f257"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/parse-patch.js",
+      "bytes": 1587,
+      "sha256": "fe1be6621624141b60c35641c1195b2ec9a25bdbfa0418118952df0d2d4ca094"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/parse-refs.js",
+      "bytes": 2188,
+      "sha256": "02bd4002f3dbbbf9a72d0f5accbec3885cb2eb2ffb300fc75ca0007d62ff7d65"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/parse-status.js",
+      "bytes": 4371,
+      "sha256": "2479ad760a8da88bba01df23b2a06ef49ded3ef11d6ec538dd944ffe11053170"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/parse-worktrees.js",
+      "bytes": 2441,
+      "sha256": "a7bfcdae1ea26d27f2edff84d4a6cc590fb5ca1a44568e39509185d3a26af4d5"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/ports.js",
+      "bytes": 181,
+      "sha256": "25042f4a712686a2ac46b863de19f3ce6cb33a2c6316cb7f38ab4168fcc2f1dd"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/push-plan.js",
+      "bytes": 2495,
+      "sha256": "a0cfd45efb258ab0f82b51c64de22f8c241c9491dc1f06dcbb7aaa417191b72b"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/rules.js",
+      "bytes": 3932,
+      "sha256": "3fbc438a2c73bc8be4aff8c7a1509c388c87939cfb13ebcdf18527e1df845b58"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/state.js",
+      "bytes": 8657,
+      "sha256": "ffb4d709b17dbd718bda47f76e50093574971ad0ca895a168cc431ef4c564fa9"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/write-reasons.js",
+      "bytes": 8176,
+      "sha256": "e66e43562aae18b31c1e8154b912feb8c22a141ce2bc7633744fa755f6c4e9c4"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/version-control/write-ticket.js",
+      "bytes": 3668,
+      "sha256": "ce5559125b10492bb48ad69cd6dac07df18b1f78ee0c9329a442268a6e0cf9a0"
+    },
+    {
+      "path": "vendor/mattskills-1.8.0-rc.7/shared/workspaceKey.js",
+      "bytes": 4454,
+      "sha256": "0e485d9a3c4cb713b201846314f762f6417b802df42c68be3997d0bf2dbd43c0"
+    }
+  ]
+}
