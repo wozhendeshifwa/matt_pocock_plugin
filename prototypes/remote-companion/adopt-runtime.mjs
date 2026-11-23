@@ -4,11 +4,11 @@ import { createHash, randomUUID } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { DatabaseSync, backup as sqliteBackup } from 'node:sqlite';
-import { mkdir, lstat, realpath, readFile, writeFile, readdir, rename, link, unlink, copyFile, utimes } from 'node:fs/promises';
+import { mkdir, lstat, realpath, readFile, writeFile, readdir, rename, link, unlink, copyFile, utimes, open } from 'node:fs/promises';
 import { canonical, bridgeUrl } from './protocol.mjs';
 import { verifyRuntimeRelease } from './build-runtime-release.mjs';
 import { verifyFrozenAdapter } from './freeze-adapter.mjs';
-import { loadPairing, createRuntimeControl, requestStop, backupFile } from './lifecycle.mjs';
+import { loadPairing, createRuntimeControl, backupFile } from './lifecycle.mjs';
 import { loadCallerRecord, planClientShortcut } from './client-launch.mjs';
 import { inventoryLocalData, planLocalDataUpgrade, registeredProjectDataBucket, createLocalDataSnapshot, verifyLocalDataSnapshot } from './local-data-upgrade.mjs';
 import { normalizeWriteGrant } from './write-grant.mjs';
@@ -59,8 +59,40 @@ async function processes(sourcePaths) {
   return { codex: rows.filter(r => ['chatgpt.exe', 'codex.exe'].includes(r.name.toLowerCase())).map(r => r.pid),
     producers: rows.filter(r => r.name.toLowerCase() === 'node.exe' && sourcePaths.some(p => r.command.toLowerCase().includes(path.dirname(p).toLowerCase()))).map(r => r.pid) };
 }
-async function runtimeRead(file) { try { const value = await json(file + '.runtime.json'); need(typeof value.instanceId === 'string' && typeof value.pairingId === 'string', 'RUNTIME_IDENTITY_REQUIRED'); return value; } catch (e) { if (e.code === 'ENOENT' || e.code === 'LOCAL_FILE_MISSING') return null; throw e; } }
-const runtime = { read: runtimeRead, stop: requestStop, claim: file => createRuntimeControl(file, { intervalMs: 50 }) };
+export async function readAdoptionRuntime(file) {
+  const runtimeFile = file + '.runtime.json', parent = await safe(path.dirname(runtimeFile), true), temporaryPrefix = path.basename(runtimeFile) + '.tmp-';
+  let absent = 0;
+  for (let attempt = 0; attempt < 32; attempt++) {
+    let handle;
+    try {
+      const named = await lstat(runtimeFile, { bigint: true }); need(named.isFile() && !named.isSymbolicLink() && named.size <= 32768n, 'RUNTIME_RECORD_NOT_REGULAR');
+      handle = await open(runtimeFile, 'r'); const before = await handle.stat({ bigint: true });
+      if (before.dev !== named.dev || before.ino !== named.ino) { absent = 0; continue; }
+      need(before.isFile() && before.size <= 32768n, 'RUNTIME_RECORD_NOT_BOUNDED');
+      const bytes = await handle.readFile(), after = await handle.stat({ bigint: true });
+      need(after.size === before.size && after.mtimeNs === before.mtimeNs && BigInt(bytes.length) === before.size, 'RUNTIME_RECORD_CHANGED_IN_PLACE');
+      const value = JSON.parse(bytes); need(/^[a-f0-9-]{36}$/.test(value.instanceId ?? '') && /^[a-f0-9-]{36}$/.test(value.pairingId ?? ''), 'RUNTIME_IDENTITY_REQUIRED'); return value;
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+      // A heartbeat replaces the path. Do not turn a short lookup window or
+      // an in-flight staged heartbeat into a claim that the owner released.
+      const pending = (await readdir(parent)).some(name => name.startsWith(temporaryPrefix));
+      absent = pending ? 0 : absent + 1; if (absent >= 3) return null;
+    } finally { await handle?.close(); }
+    await new Promise(resolve => setTimeout(resolve, 2));
+  }
+  throw Object.assign(new Error('RUNTIME_RECORD_CHANGING'), { code: 'RUNTIME_RECORD_CHANGING' });
+}
+export async function requestAdoptionStop(file, expectedInstanceId, { beforePublish } = {}) {
+  need(/^[a-f0-9-]{36}$/.test(expectedInstanceId ?? ''), 'EXACT_STOP_INSTANCE_REQUIRED');
+  const config = await loadPairing(file, { allowRevoked: true }), observed = await readAdoptionRuntime(file);
+  if (!observed) return { requested: false, reason: 'not-running' };
+  if (observed.pairingId !== config.pairingId || observed.instanceId !== expectedInstanceId) return { requested: false, reason: 'instance-changed' };
+  const stopFile = file + '.stop.json', expectedStopFile = await identity(stopFile, true); await beforePublish?.();
+  await cas(stopFile, expectedStopFile, Buffer.from(canonical({ pairingId: config.pairingId, instanceId: expectedInstanceId, requestedAt: Date.now() }) + '\n'));
+  return { requested: true, instanceId: expectedInstanceId };
+}
+const runtime = { read: readAdoptionRuntime, stop: requestAdoptionStop, claim: file => createRuntimeControl(file, { intervalMs: 50 }) };
 async function processRecord(pid) {
   need(Number.isInteger(pid) && pid > 0, 'PROCESS_ID_REQUIRED');
   const raw = await ps("Import-Module (Join-Path $PSHOME 'Modules\\CimCmdlets\\CimCmdlets.psd1');$d=[Console]::In.ReadToEnd()|ConvertFrom-Json;$p=Get-CimInstance Win32_Process -Filter ('ProcessId='+[int]$d.pid);if($p){@{pid=$p.ProcessId;parent=$p.ParentProcessId;created=$p.CreationDate.ToUniversalTime().ToString('o');command=$p.CommandLine}|ConvertTo-Json -Compress}else{'null'}", { pid });
@@ -260,7 +292,7 @@ export async function createRuntimeAdopter(input, local = {}) {
     const before = await inspect(sourcePaths.filter(p => fold(p) !== fold(activeAdapter)));
     need(before.codex.length === 0 && before.producers.length === 0, 'CODEX_AND_MAIN_PRODUCERS_MUST_EXIT_NORMALLY');
     const current = await controls.read(o.pairingFile); need((current?.instanceId ?? null) === expectedInstanceId, 'RUNTIME_INSTANCE_CHANGED');
-    if (current) { const stopped = await controls.stop(o.pairingFile); need(stopped.requested && stopped.instanceId === current.instanceId, 'EXACT_STOP_FAILED'); const end = Date.now() + 10000;
+    if (current) { const stopped = await controls.stop(o.pairingFile, current.instanceId); need(stopped.requested && stopped.instanceId === current.instanceId, 'EXACT_STOP_FAILED'); const end = Date.now() + 10000;
       for (;;) { const now = await controls.read(o.pairingFile); if (!now) break; need(now.instanceId === current.instanceId && Date.now() < end, 'RUNTIME_DID_NOT_RELEASE_OR_ABA'); await new Promise(r => setTimeout(r, 25)); } }
     const idle = await inspect(sourcePaths); need(!idle.codex.length && !idle.producers.length, 'SOURCE_PRODUCERS_STILL_RUNNING');
     return controls.claim(o.pairingFile);
@@ -401,7 +433,7 @@ export async function createRuntimeAdopter(input, local = {}) {
       try {
         const active = await controls.read(o.pairingFile);
         if (!owned && active && child && await child.owns(active)) owned = active;
-        if (owned) { need(active?.instanceId === owned.instanceId && await child.owns(active), 'FAILED_START_OWNER_CHANGED'); const stopped = await controls.stop(o.pairingFile); need(stopped.requested && stopped.instanceId === owned.instanceId, 'FAILED_START_EXACT_STOP_FAILED');
+        if (owned) { need(active?.instanceId === owned.instanceId && await child.owns(active), 'FAILED_START_OWNER_CHANGED'); const stopped = await controls.stop(o.pairingFile, owned.instanceId); need(stopped.requested && stopped.instanceId === owned.instanceId, 'FAILED_START_EXACT_STOP_FAILED');
           const drain = Date.now() + 10000; while (await controls.read(o.pairingFile)) { need(Date.now() < drain, 'FAILED_START_NOT_DRAINED'); await new Promise(resolve => setTimeout(resolve, 50)); } attempt.status = 'stopped';
         } else if (child?.ended && await child.ended()) attempt.status = 'stopped';
       } finally { await markerChange(attempt); }
@@ -425,7 +457,7 @@ export async function createRuntimeAdopter(input, local = {}) {
     const child = startOwners.get(attempt.attemptId) ?? (attempt.proof?.pid ? proofOwner(attempt.proof, attempt.releaseDirectory) : null); need(child, 'START_PROOF_UNAVAILABLE_RETAIN_DIAGNOSTICS');
     const active = await controls.read(o.pairingFile);
     if (active) { need(await child.owns(active), 'DRAIN_UNOWNED_RUNTIME'); attempt.status = 'draining'; await markerChange(attempt);
-      const stopped = await controls.stop(o.pairingFile); need(stopped.requested && stopped.instanceId === active.instanceId, 'DRAIN_EXACT_STOP_FAILED'); const end = Date.now() + 10000;
+      const stopped = await controls.stop(o.pairingFile, active.instanceId); need(stopped.requested && stopped.instanceId === active.instanceId, 'DRAIN_EXACT_STOP_FAILED'); const end = Date.now() + 10000;
       while (await controls.read(o.pairingFile)) { need(Date.now() < end, 'DRAIN_RUNTIME_NOT_RELEASED'); await new Promise(resolve => setTimeout(resolve, 50)); }
     } else need(child.ended && await child.ended(), 'START_STILL_PENDING_RETAIN_BARRIER');
     attempt.status = 'stopped'; await markerChange(attempt); return { status: 'stopped', exactRuntimeOnly: true, arbitraryPidKilled: false };

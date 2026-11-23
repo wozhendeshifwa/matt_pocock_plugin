@@ -181,7 +181,10 @@ export async function revokePairing(file) {
   return { pairingId: config.pairingId, revoked: true, backup };
 }
 
-export async function createRuntimeControl(file, { onStop = async () => {}, onRevoke = async () => {}, intervalMs = 1000 } = {}) {
+export async function createRuntimeControl(file, { onStop = async () => {}, onRevoke = async () => {}, intervalMs = 1000,
+  heartbeatRename = rename, heartbeatRetries = 20, heartbeatRetryDelayMs = 10 } = {}) {
+  if (typeof heartbeatRename !== 'function' || !Number.isSafeInteger(heartbeatRetries) || heartbeatRetries < 1 || heartbeatRetries > 50 ||
+      !Number.isSafeInteger(heartbeatRetryDelayMs) || heartbeatRetryDelayMs < 1 || heartbeatRetryDelayMs > 50) throw new Error('Use bounded local heartbeat I/O');
   const config = await loadPairing(file);
   const runtimeFile = sidecar(file, '.runtime.json');
   const instanceId = randomUUID();
@@ -203,7 +206,23 @@ export async function createRuntimeControl(file, { onStop = async () => {}, onRe
       const owner = await readJson(runtimeFile);
       if (owner.instanceId !== instanceId) throw new Error('Runtime ownership changed');
       const temporary = runtimeFile + '.tmp-' + instanceId;
-      try { await writeFile(temporary, JSON.stringify(value()) + '\n', { mode: 0o600 }); await rename(temporary, runtimeFile); }
+      try {
+        await writeFile(temporary, JSON.stringify(value()) + '\n', { mode: 0o600 });
+        for (let attempt = 0; ; attempt++) {
+          if (closed) return;
+          // Windows can briefly deny destination replacement with a native
+          // sharing error. Retain the last valid owner and retry only that
+          // specific native failure; never publish over another instance.
+          const current = await readJson(runtimeFile);
+          if (current.instanceId !== instanceId) throw new Error('Runtime ownership changed');
+          try { await heartbeatRename(temporary, runtimeFile); break; }
+          catch (error) {
+            if (!['EPERM', 'EACCES', 'EBUSY'].includes(error.code) || attempt + 1 >= heartbeatRetries) throw error;
+            if (closed) return;
+            await new Promise(resolve => setTimeout(resolve, heartbeatRetryDelayMs));
+          }
+        }
+      }
       finally { await unlink(temporary).catch(() => {}); }
     });
     writes = work.catch(() => {});

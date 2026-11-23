@@ -7,7 +7,7 @@ import { mkdir, mkdtemp, readFile, writeFile, readdir, rm, lstat, rename, symlin
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
-import { createRuntimeAdopter } from './adopt-runtime.mjs';
+import { createRuntimeAdopter, readAdoptionRuntime, requestAdoptionStop } from './adopt-runtime.mjs';
 import { createPairing, createRuntimeControl, revokePairing } from './lifecycle.mjs';
 import { createCallerRecord, loadCallerRecord, CLIENT_LAUNCH_TEMPLATE } from './client-launch.mjs';
 import { companionLaunchScript } from './build-runtime-release.mjs';
@@ -196,6 +196,69 @@ test('concurrent START binds its first marker observation and never overwrites a
   const b = other.start({ ...adopted.result, confirmation: 'START ' + adopted.result.receiptSha256 }); await bReady;
   const a = adopted.a.start({ ...adopted.result, confirmation: 'START ' + adopted.result.receiptSha256 });
   await assert.rejects(b, { code: 'CAS_IDENTITY_CHANGED' }); assert.equal(secondDispatches, 0); releaseA(); assert.equal((await a).status, 'connected');
+});
+
+test('fd-pinned reader never invents a stopped owner during high-frequency real heartbeat replacement', win, async t => {
+  const f = await fixture(t); let unexpectedStop = 0;
+  const control = await createRuntimeControl(f.pairingFile, { intervalMs: 1, onStop: async () => { unexpectedStop++; } });
+  t.after(() => control.close()); await control.setState('connected');
+  const initial = await readAdoptionRuntime(f.pairingFile); let last = initial;
+  for (let i = 0; i < 300; i++) {
+    const actual = await readAdoptionRuntime(f.pairingFile); assert.equal(actual?.instanceId, control.instanceId, 'a heartbeat is not an ownership release');
+    last = actual;
+  }
+  assert.ok(last.updatedAt > initial.updatedAt, 'successful heartbeat publications must advance, rather than repeatedly reading a stale record');
+  assert.equal(unexpectedStop, 0); await control.close(); assert.equal(await readAdoptionRuntime(f.pairingFile), null);
+});
+
+test('bound stop publishes only reviewed A even if B replaces ownership after the read', win, async t => {
+  const f = await fixture(t); let b, stoppedB = 0;
+  t.after(async () => b?.close());
+  const a = await createRuntimeControl(f.pairingFile, { intervalMs: 25 }); await a.setState('connected');
+  const result = await requestAdoptionStop(f.pairingFile, a.instanceId, { beforePublish: async () => {
+    await a.close(); b = await createRuntimeControl(f.pairingFile, { intervalMs: 10, onStop: async () => { stoppedB++; await b.close(); } }); await b.setState('connected');
+  } });
+  assert.equal(result.instanceId, a.instanceId); assert.equal(JSON.parse(await readFile(f.pairingFile + '.stop.json')).instanceId, a.instanceId);
+  await new Promise(resolve => setTimeout(resolve, 100)); assert.equal(stoppedB, 0); assert.equal((await readAdoptionRuntime(f.pairingFile)).instanceId, b.instanceId);
+});
+
+async function heartbeatFixture(t) {
+  await mkdir(scratch, { recursive: true }); const root = await mkdtemp(path.join(scratch, 'heartbeat retry test '));
+  t.after(async () => { assert.equal(path.dirname(root), scratch.replace(/[\\/]$/, '')); assert.ok(path.basename(root).startsWith('heartbeat retry test ')); await rm(root, { recursive: true, force: true, maxRetries: 5 }); });
+  const file = path.join(root, 'pair.json'), adapter = await put(root, 'sidebar.mjs', '// control only, never executed\n');
+  await createPairing({ file, relayOrigin: 'https://fixture.example.invalid', adapterPath: adapter, journalPath: path.join(root, 'journal.sqlite'), deviceToken: randomBytes(32).toString('hex') }); return file;
+}
+test('heartbeat transient native sharing failure recovers; persistent failure and foreign owner still stop conservatively', win, async t => {
+  const file = await heartbeatFixture(t); let failures = 2, attempts = 0, stops = 0;
+  const recovered = await createRuntimeControl(file, { intervalMs: 10000, onStop: async () => { stops++; }, heartbeatRetryDelayMs: 1, heartbeatRename: async (from, to) => {
+    attempts++; if (failures-- > 0) throw Object.assign(new Error('fixture sharing conflict'), { code: 'EPERM' }); return rename(from, to);
+  } }); t.after(() => recovered.close()); await recovered.setState('connected'); assert.equal(attempts, 3); assert.equal(stops, 0); assert.equal((await readAdoptionRuntime(file)).state, 'connected'); await recovered.close();
+  let persistentStops = 0;
+  const persistent = await createRuntimeControl(file, { intervalMs: 5, heartbeatRetries: 3, heartbeatRetryDelayMs: 1, heartbeatRename: async () => { throw Object.assign(new Error('persistent fixture'), { code: 'EACCES' }); }, onStop: async () => { persistentStops++; } });
+  t.after(() => persistent.close()); await new Promise(resolve => setTimeout(resolve, 80)); assert.equal(persistentStops, 1); await persistent.close();
+  let replaced = false, changedStops = 0; const foreign = '00000000-0000-4000-8000-000000000001';
+  const changed = await createRuntimeControl(file, { intervalMs: 10000, heartbeatRetryDelayMs: 1, heartbeatRename: async () => {
+    replaced = true; const record = JSON.parse(await readFile(file + '.runtime.json')); await writeFile(file + '.runtime.json', JSON.stringify({ ...record, instanceId: foreign })); throw Object.assign(new Error('sharing before ownership change'), { code: 'EBUSY' });
+  }, onStop: async () => { changedStops++; } }); t.after(() => changed.close());
+  await assert.rejects(changed.setState('connected'), /Runtime ownership changed/); assert.equal(replaced, true); assert.equal((await readAdoptionRuntime(file)).instanceId, foreign); await changed.close(); assert.equal((await readAdoptionRuntime(file)).instanceId, foreign);
+  const revokedFile = await heartbeatFixture(t); let revocations = 0, revokedStops = 0;
+  const revoked = await createRuntimeControl(revokedFile, { intervalMs: 5, heartbeatRetries: 2, heartbeatRetryDelayMs: 1,
+    heartbeatRename: async () => { throw Object.assign(new Error('persistent revoked fixture'), { code: 'EPERM' }); },
+    onRevoke: async () => { revocations++; }, onStop: async () => { revokedStops++; } });
+  t.after(() => revoked.close()); await writeFile(revokedFile + '.revoked', '{"revoked":true}\n');
+  await new Promise(resolve => setTimeout(resolve, 80)); assert.equal(revocations, 1, 'status retry exhaustion cannot suppress authoritative revocation'); assert.equal(revokedStops, 0); await revoked.close();
+  const fatalFile = await heartbeatFixture(t); let fatalAttempts = 0;
+  const fatal = await createRuntimeControl(fatalFile, { intervalMs: 10000, heartbeatRename: async () => { fatalAttempts++; throw Object.assign(new Error('non-transient fixture'), { code: 'EIO' }); } });
+  t.after(() => fatal.close()); await assert.rejects(fatal.setState('connected'), { code: 'EIO' }); assert.equal(fatalAttempts, 1); await fatal.close();
+});
+
+test('closing during a heartbeat retry neither publishes late nor removes a foreign owner', win, async t => {
+  const file = await heartbeatFixture(t); let closePending, instance, calls = 0;
+  const foreign = '00000000-0000-4000-8000-000000000002';
+  instance = await createRuntimeControl(file, { intervalMs: 10000, heartbeatRetryDelayMs: 1, heartbeatRename: async () => {
+    calls++; closePending = instance.close(); const record = JSON.parse(await readFile(file + '.runtime.json')); await writeFile(file + '.runtime.json', JSON.stringify({ ...record, instanceId: foreign })); throw Object.assign(new Error('fixture close during sharing conflict'), { code: 'EPERM' });
+  } }); t.after(() => instance.close()); await instance.setState('connected'); await closePending;
+  assert.equal(calls, 1); assert.equal((await readAdoptionRuntime(file)).instanceId, foreign);
 });
 
 test('legacy rollback blocks new durable state; stable full-code rollback keeps latest shared business and fixed existing ledger', win, async t => {
