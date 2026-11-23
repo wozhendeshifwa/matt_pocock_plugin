@@ -2,10 +2,13 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, readdir, lstat, realpath, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { applyPublicationOverlay } from './publication-overlay.mjs';
+import { apply as applyHostOpenOverlay } from './host-open-overlay.mjs';
 
 export const BASELINE_MANIFEST_SHA256 = '5390342ff96c94f3d3884853e2631d92f3a56cd0c1cc9aa37a96b83aee4dacef';
-export const OVERLAY_VERSION = 'choices-project-tracker-and-local-data-v4';
-export const READ_ONLY_OVERLAY_VERSIONS = Object.freeze(['choices-data-root-v1', 'choices-and-bound-project-v2', 'choices-bound-project-and-log-load-v3', OVERLAY_VERSION]);
+export const OVERLAY_VERSION = 'bound-effects-and-local-data-v5';
+export const LOCAL_DATA_OVERLAY_VERSIONS = Object.freeze(['choices-project-tracker-and-local-data-v4', OVERLAY_VERSION]);
+export const READ_ONLY_OVERLAY_VERSIONS = Object.freeze(['choices-data-root-v1', 'choices-and-bound-project-v2', 'choices-bound-project-and-log-load-v3', ...LOCAL_DATA_OVERLAY_VERSIONS]);
 export const OUTPUT_BASE = fileURLToPath(new URL('../../.scratch/', import.meta.url));
 const defaultManifest = fileURLToPath(new URL('../../docs/research/remote-companion-baseline-2026-11-24.json', import.meta.url));
 const roots = ['prototypes/upstream-port', 'vendor/mattskills-1.8.0-rc.7'];
@@ -49,7 +52,7 @@ async function catalog(root) {
 }
 function exact(source, from, to) {
   if (source.split(from).length !== 2) throw new Error('Overlay anchor drift; refusing to freeze');
-  return source.replace(from, to);
+  return source.replace(from, () => to);
 }
 export function applyChoicesOverlay(relative, bytes) {
   let text = bytes.toString('utf8');
@@ -106,7 +109,7 @@ export function applyChoicesOverlay(relative, bytes) {
       '            context: { cwd, sessionId: project.threadId, localTracker: request._deckLocalDispatch?.tracker },');
     text = exact(text, '        const result = await projectHosts.call(cwd, method, scopedPayload);', [
       '        await assertLocalDispatchProject(request, project, upstreamTool === "deck_upstream_write");',
-      '        const result = await projectHosts.call(cwd, method, { ...scopedPayload, __deckLocalTracker: request._deckLocalDispatch?.tracker });',
+      '        const result = await projectHosts.call(cwd, method, { ...scopedPayload, __deckLocalTracker: request._deckLocalDispatch?.tracker, __deckLocalPublication: request._deckLocalDispatch?.publication, __deckLocalOpen: request._deckLocalDispatch?.open });',
     ].join(eol));
   } else if (relative === 'prototypes/upstream-port/node-host.mjs') {
     text = exact(text, 'export async function createOriginalHost({ dataRoot, workspaceRoot }) {', [
@@ -116,6 +119,8 @@ export function applyChoicesOverlay(relative, bytes) {
       '    throw new Error("Missing verified local tracker context");',
       '  if (tracker.backendId === "github" && !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}\\/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/.test(tracker.repository))',
       '    throw new Error("Invalid verified GitHub repository");',
+      '  if (tracker.backendId === "github" && (typeof tracker.hostname !== "string" || !/^[a-z0-9.-]+(?::[0-9]{1,5})?$/.test(tracker.hostname)))',
+      '    throw new Error("Missing verified GitHub host");',
       '  return tracker;',
       '}',
       'function assertLocalGithubCommand(active, argv) {',
@@ -145,13 +150,24 @@ export function applyChoicesOverlay(relative, bytes) {
       '      const write = read ? null : gitWrite ?? graphWrite ?? classifyWriteCommand(options.argv);',
       '      if (write?.category === "external-github-write" && TRACKER_WRITE_METHODS.has(active?.method)) assertLocalGithubCommand(active, options.argv);',
     ].join(eol));
+    text = exact(text, '      // DSH\'s undefined env values are tombstones (not the string \'undefined\').', [
+      '      // Pin reads and writes inside this prepared operation to the same',
+      '      // local API authority. Ordinary read-only calls keep original GH_HOST.',
+      '      const localGithubHost = active?.localTracker?.backendId === "github" ? requireLocalTracker(active.localTracker).hostname',
+      '        : active?.localPublication && ["initPublish", "retryPush"].includes(active.method) ? "github.com" : null;',
+      '      if (localGithubHost && path.basename(String(options.argv[0])).replace(/\\.exe$/i, "").toLowerCase() === "gh") {',
+      '        for (const name of Object.keys(environment)) if (name.toUpperCase() === "GH_HOST") delete environment[name];',
+      '        environment.GH_HOST = localGithubHost;',
+      '      }',
+      '      // DSH\'s undefined env values are tombstones (not the string \'undefined\').',
+    ].join(eol));
     text = exact(text, '    async call(method, payload = {}) {', [
       '    async call(method, payload = {}) {',
-      '      const { __deckLocalTracker: localTracker, ...businessPayload } = payload;',
+      '      const { __deckLocalTracker: localTracker, __deckLocalPublication: localPublication, __deckLocalOpen: localOpen, ...businessPayload } = payload;',
       '      payload = businessPayload;',
     ].join(eol));
     text = exact(text, '        const execute = () => operation.run({ method, identity: {} }, () => route(request));',
-      '        const execute = () => operation.run({ method, localTracker, identity: {} }, () => route(request));');
+      '        const execute = () => operation.run({ method, localTracker, localPublication, localOpen, identity: {} }, () => route(request));');
     text = exact(text, '        if (["deck_issue_create", "deck_map_plan_create", "deck_map_link"].includes(name)) {',
       '        if (TRACKER_WRITE_METHODS.has(name) || context.localTracker) {');
     text = exact(text, '          if (selected?.data?.backend?.id === "github") repo = selected.data.repo?.refId;', [
@@ -186,6 +202,7 @@ export function applyChoicesOverlay(relative, bytes) {
     ].join(eol));
     text = exact(text, "path.join(home, '.dsh/mattskillsdeck/choices.json')",
       "path.join(dataRoot, '.dsh/mattskillsdeck/choices.json')");
+    text = exact(text, "      return hash.digest('hex');", "      hash.update('bound-effects-and-local-data-v5');" + eol + "      return hash.digest('hex');");
   } else if (relative === 'vendor/mattskills-1.8.0-rc.7/lib/logPkg/store.js' || relative === 'vendor/mattskills-1.8.0-rc.7/lib/logStore.js') {
     const semi = relative.includes('/logPkg/') ? ';' : '';
     text = exact(text, '  let switchLoaded = false' + semi, '  let switchLoadPromise = null' + semi);
@@ -208,6 +225,8 @@ export function applyChoicesOverlay(relative, bytes) {
       '    await loadSwitch()' + semi,
     ].join(eol));
   } else return bytes;
+  if (relative === 'prototypes/upstream-port/node-host.mjs') text = applyHostOpenOverlay(text, eol);
+  text = applyPublicationOverlay(relative, text, eol);
   return Buffer.from(text);
 }
 

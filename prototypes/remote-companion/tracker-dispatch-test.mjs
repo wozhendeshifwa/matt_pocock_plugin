@@ -27,7 +27,7 @@ const command = path.basename(process.argv[1]);
 const args = process.argv.slice(2);
 const stateFile = process.env.DECK_TRACKER_FIXTURE_STATE;
 const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-fs.appendFileSync(stateFile+'.calls', JSON.stringify({command,args})+'\n');
+fs.appendFileSync(stateFile+'.calls', JSON.stringify({command,args,host:process.env.GH_HOST})+'\n');
 const repoAt = args.findIndex(value => value === '--repo' || value === '-R');
 let repository = repoAt < 0 ? 'fixture/a' : args[repoAt + 1];
 const print = value => process.stdout.write(typeof value === 'string' ? value : JSON.stringify(value));
@@ -107,7 +107,7 @@ async function fixture(t) {
   const env = {};
   for (const key of ['PATH', 'Path', 'PATHEXT', 'SystemRoot', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP']) if (process.env[key]) env[key] = process.env[key];
   Object.assign(env, { CODEX_HOME: home, USERPROFILE: emptyHome, HOME: emptyHome, APPDATA: path.join(emptyHome, 'AppData/Roaming'),
-    GH_CONFIG_DIR: ghConfig, DECK_GH: gh, DECK_GIT: git, DECK_TRACKER_FIXTURE_STATE: stateFile,
+    GH_CONFIG_DIR: ghConfig, GH_HOST: 'other.example.invalid', DECK_GH: gh, DECK_GIT: git, DECK_TRACKER_FIXTURE_STATE: stateFile,
     GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: emptyConfig, GIT_CONFIG_SYSTEM: emptyConfig, GIT_TERMINAL_PROMPT: '0' });
   // The original spawn service may use the literal argv program rather than
   // its resolveExecutable hook. Pin PATH as well as DECK_GH, and keep just one
@@ -148,6 +148,8 @@ test('frozen original node host binds actual GH label writes to the trusted trac
   assert.equal(inner(changed)?.ok, true, JSON.stringify(changed));
   assert.deepEqual(inner(changed)?.failed, [], JSON.stringify(changed));
   assert.deepEqual((await f.state()).edits, [{ repository: 'fixture/a', name: 'wayfinder:map', color: '112233' }]);
+  assert.ok((await f.state()).calls.length > 0);
+  assert.ok((await f.state()).calls.filter(call => call.command === 'label' && call.args[0] === 'edit').every(call => call.host === 'github.com'), 'Actual GH writes use the prepared host, while ordinary reads retain their configured host');
 
   await f.setRemote('fixture/b');
   const before = await f.state();

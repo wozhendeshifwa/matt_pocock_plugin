@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import { resolveExecutable } from '../upstream-port/executables.mjs';
 import { prepareWriteIntent } from './write-intents.mjs';
 import { canonical, digest, threadId as identityOf } from './protocol.mjs';
+import { localGithubHost } from './github-host.mjs';
 
 export const GITHUB_EFFECT_METHODS = Object.freeze(['deck_issue_create', 'deck_issue_patch', 'deck_map_link', 'deck_map_plan_create', 'commentIssue', 'setLabelColors']);
 const run = promisify(execFile), METHODS = new Set(GITHUB_EFFECT_METHODS);
@@ -26,6 +27,7 @@ function endpoint({ repository, resource, issueNumber, page = 1 }) {
   need(Number.isSafeInteger(page) && page >= 1 && page <= 100, 'Readback page exceeds its bound');
   const base = 'repos/' + repository, suffix = '?per_page=100&page=' + page;
   if (resource === 'viewer') return 'user';
+  if (resource === 'repository') return base;
   if (resource === 'issues') return base + '/issues?state=all&per_page=100&page=' + page;
   if (resource === 'labels') return base + '/labels' + suffix;
   const key = number(issueNumber), issue = base + '/issues/' + key;
@@ -38,8 +40,9 @@ function endpoint({ repository, resource, issueNumber, page = 1 }) {
 }
 async function fixedReader(env) {
   const gh = await resolveExecutable('gh', { env }); need(gh, 'Local GitHub CLI is unavailable for independent readback');
+  const hostname = localGithubHost(env);
   return async scope => {
-    const args = ['api', '--hostname', 'github.com', '--include', '--method', 'GET', '-H', 'Accept: application/vnd.github+json', '-H', 'X-GitHub-Api-Version: 2026-03-10', endpoint(scope)];
+    const args = ['api', '--hostname', hostname, '--include', '--method', 'GET', '-H', 'Accept: application/vnd.github+json', '-H', 'X-GitHub-Api-Version: 2026-03-10', endpoint(scope)];
     let output;
     try { output = (await run(gh, args, { cwd: scope.projectRoot, env, windowsHide: true, timeout: 20000, maxBuffer: 16 * 1024 * 1024 })).stdout; }
     catch (error) { output = error.stdout; }
@@ -51,6 +54,7 @@ async function fixedReader(env) {
 }
 
 export async function createGithubWriteEffects({ adapterPath, env = process.env, readGithub } = {}) {
+  const hostname = localGithubHost(env);
   need(typeof adapterPath === 'string' && path.isAbsolute(adapterPath), 'Use the verified frozen sidebar entrypoint');
   const file = await realpath(adapterPath), root = await realpath(path.resolve(path.dirname(file), '../..'));
   need(fold(file) === fold(path.join(root, 'prototypes/upstream-port/sidebar-server.mjs')), 'Use the verified frozen sidebar entrypoint');
@@ -78,12 +82,15 @@ export async function createGithubWriteEffects({ adapterPath, env = process.env,
       const value = business(await call('deck_context', {}));
       need(value?.ok === true && value.status === 'ok' && value.tool === 'deck_context' && value.backend?.id === 'github' && value.repo?.backend === 'github' &&
         typeof value.workspace?.root === 'string' && fold(await realpath(value.workspace.root)) === fold(localRoot) && value.data?.workspace?.sessionId === threadId, 'No trusted local GitHub context');
-      need(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,38}\/[A-Za-z0-9_.-]{1,100}$/.test(value.repo.refId ?? '') && value.repo.url === 'https://github.com/' + value.repo.refId, 'Local GitHub context has no exact repository');
+      // The original backend formats github.com links even with GH_HOST. Keep
+      // that UI behavior while pinning actual API/CLI authority independently.
+      need(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,38}\/[A-Za-z0-9_.-]{1,100}$/.test(value.repo.refId ?? '') &&
+        ['https://github.com/' + value.repo.refId, 'https://' + hostname + '/' + value.repo.refId].includes(value.repo.url), 'Local GitHub context has no exact repository');
       if (selected) need(value.repo.refId === selected.repo.refId, 'Local GitHub repository changed during write');
       return value;
     }
     selected = await getContext();
-    const repository = selected.repo.refId, readScope = { repository, projectRoot: localRoot };
+    const repository = selected.repo.refId, readScope = { repository, projectRoot: localRoot, hostname };
     async function read(resource, issueNumber, page) {
       const scope = { ...readScope, resource, ...(issueNumber === undefined ? {} : { issueNumber }), ...(page === undefined ? {} : { page }) };
       endpoint(scope); const result = await reader(scope);
@@ -99,8 +106,18 @@ export async function createGithubWriteEffects({ adapterPath, env = process.env,
       }
       throw new Error('GitHub pagination reached its local bound without proving completion');
     }
+    let repositoryApiUrl = 'https://api.github.com/repos/' + repository;
+    if (hostname !== 'github.com') {
+      const metadata = await read('repository');
+      need(metadata.status === 200 && metadata.body?.full_name === repository && Number.isSafeInteger(metadata.body.id) && metadata.body.id > 0, 'Enterprise repository identity cannot be independently read');
+      const api = new URL(metadata.body.url);
+      need(api.protocol === 'https:' && !api.username && !api.password && !api.search && !api.hash &&
+        [new URL('https://' + hostname).host, new URL('https://api.' + hostname).host].includes(api.host) &&
+        ['/repos/' + repository, '/api/v3/repos/' + repository].includes(api.pathname), 'Enterprise repository API authority differs from the trusted host');
+      repositoryApiUrl = metadata.body.url;
+    }
     function issue(raw) {
-      need(raw && raw.repository_url === 'https://api.github.com/repos/' + repository && typeof raw.title === 'string' && ['open', 'closed'].includes(raw.state), 'Issue readback belongs to another repository or is incomplete');
+      need(raw && raw.repository_url === repositoryApiUrl && typeof raw.title === 'string' && ['open', 'closed'].includes(raw.state), 'Issue readback belongs to another repository or is incomplete');
       return { key: number(raw.number), id: raw.id, title: raw.title, body: typeof raw.body === 'string' ? raw.body : '', state: raw.state,
         labels: names(raw.labels), assignees: names(raw.assignees), isPull: Boolean(raw.pull_request) };
     }
@@ -184,7 +201,7 @@ export async function createGithubWriteEffects({ adapterPath, env = process.env,
       : await prepareWriteIntent({ method, parameters: intentArgs, projectRoot: localRoot, threadId }, { readBackend: async () => ({ backendId: 'github', repository }), readTracker });
     // The executor's installation ledger already owns correlationKey=operationId.
     // A local utility correlation must not replace that permanent identity.
-    const { correlationKey: ignored, ...target } = prepared.intent.target; target.contentSha256 = hash(args);
+    const { correlationKey: ignored, ...target } = prepared.intent.target; target.contentSha256 = hash(args); target.repositoryHost = hostname;
     const startedAt = Date.now();
     await getContext();
     async function expectedAssignees(value = []) { const list = names(value); if (list.includes('@me')) return names(list.map(name => name === '@me' ? actor ?? '' : name)); return list; }
@@ -201,7 +218,7 @@ export async function createGithubWriteEffects({ adapterPath, env = process.env,
       need(fresh.length === 1, 'Posted comment is missing or not unique');
       const echoed = value?.data; if (echoed?.id !== undefined) need(String(echoed.id) === fresh[0].id, 'Comment identity does not match independent readback'); return fresh[0];
     }
-    return { target, dispatchContext: { tracker: { backendId: 'github', repository } }, async verify(response) {
+    return { target, dispatchContext: { tracker: { backendId: 'github', repository, hostname } }, async verify(response) {
       try {
         need(response?.id === request.id, 'Write response identity changed'); await getContext();
         const value = rpc ? business(response) : boundEnvelope(response, method); need(value?.ok === true, 'Unsuccessful original GitHub write');

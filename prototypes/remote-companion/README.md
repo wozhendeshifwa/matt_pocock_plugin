@@ -27,11 +27,19 @@ SDK 只作验收依赖；部署 relay 不需要 npm 包。测试使用新建的�
 ## 隔离写入切片：尚未在真实配对开放
 
 生产配对仍为 `writeEnabled:false`。独立临时配置只有同时设置 `writeEnabled:true` 和
-`writeGrant:{enabled:true,projectRoots:[<可信绝对项目根>],methods:[<明确方法>]}` 才能写。项目列表、方法列表都不能空。当前实现允许明确选择18项隔离方法：原12项（`deck_issue_report`、六项 Git、`bind/logSetSwitch/logClear/cancelNewSessionWatcher/handoffResolve`），加上 `deck_issue_create/deck_issue_patch/deck_map_link/deck_map_plan_create/commentIssue/setLabelColors`。后六项的真实私有仓库验收正在进行，不能把本机 allowlist 或模拟 backend 当作线上写入验收。发布和窗口打开仍待完成；实际生产配对仍没有 grant。
+`writeGrant:{enabled:true,projectRoots:[<可信绝对项目根>],methods:[<明确方法>]}` 才能写。项目列表、方法列表都不能空。当前实现允许明确选择22项既有方法：原12项（`deck_issue_report`、六项 Git、`bind/logSetSwitch/logClear/cancelNewSessionWatcher/handoffResolve`），六项 tracker（`deck_issue_create/deck_issue_patch/deck_map_link/deck_map_plan_create/commentIssue/setLabelColors`），以及 `initPublish/retryPush/openFolder/openPath`。这是实现范围，逐项真实验收仍以证据为准；实际生产配对仍没有 grant。
+
+六项 tracker 已在[专用私有 GitHub 夹具](../../docs/research/github-fixture-44-setup.md)通过原 SDK/handler 与独立 REST 读回，包含原生边、部分失败和跨进程同计划重试无重复。发布和真实窗口验证正在进行；不能把 SDK 手工元数据当作真实 Codex 宿主审批签名。
 
 `write-grant.mjs` 只接受本机配置，按真实路径精确匹配项目根。`launch.mjs` 使用固定安装级 `%LOCALAPPDATA%/MattSkillsDeck/RemoteCompanion/write-ledger.sqlite`，不接受配对或 MCP 参数指定库文件。不能每个配对新建空库，也不能通过删库解除未知写入。程序测试可本机注入独立库，不能把该测试 seam 暴露为远程参数。
 
-启用隔离写 grant 时还必须是当前 `choices-project-tracker-and-local-data-v4` 冻结 overlay：适配器二次解析聊天后、派发工具/RPC前核对钉住的项目和 thread（包括 `current_project` 诊断）；GitHub 命令再核对可信本机选择的仓库。原 label list 精确读配方已补齐。日志初始加载共享同一完成通道，避免首次读答默认值或迟到读覆盖新设置。旧 v1/v2/v3 只读兼容；撤回候选的 `INCOMPLETE` 标记也会阻止启动。stdio 会先删除远端同名 envelope，再注入本机可信 `_deckLocalDispatch`，模型传入的根、tracker 不是授权来源。
+启用隔离写 grant 时必须是当前 `bound-effects-and-local-data-v5` 冻结 overlay：二次解析聊天后、派发工具/RPC前核对钉住的项目/thread（包括 `current_project`）；实际 GH 命令还钉住本机仓库与主机。旧 v1/v2/v3/v4只读兼容，v4也支持显式稳定目录；撤回候选的 `INCOMPLETE` 标记会阻止启动。stdio 先删除远端同名 envelope，再注入本机可信 `_deckLocalDispatch`，模型传入的根、tracker、publication、opener数据不是授权来源。日志首次加载修复与 label-list 精确读配方继续保留。
+
+D6 的 API reader、原 GH 子进程及 ledger 的 `repositoryHost` 使用同一可信本机 `GH_HOST`（缺省github.com）；无写上下文的普通只读保留原环境语义，不静默把 GHE 改投公共站。企业主机的隔离检查证明路由与 API 归属，不证明真实企业部署/鉴权通过。原发布 handler 仍构造github.com URL，非该主机在任何 Git 改动前明确拒绝，避免异站创建；企业发布尚未验收。
+
+发布保留原初始化/提交/建仓/推送流程：实际 `gh repo create` 仅在原配方验证后资格化为可信owner/name；独立核对当前账号、完整远端refs、真实commit与源文件。push URL重写必须仍归属于该目标。只有确切远端ID和commit均已证明的半完成才写本机重推记录，`retryPush`显式读取该记录；URL/halfCreated回显不能替代授权，也不自动重新建仓。
+
+窗口打开保留原平台配方，路径在准备和实际派发时二次核对。一次性本机回执记录OS opener进程的真实启动/退出，而非只相信fire-and-forget的ok。`exit-zero`只证明OS调起已接受，窗口可见另行观察；缺失/晚到/退出失败保持unknown，不重复开窗。
 
 `write-ledger.mjs` 在 SQLite 事务及唯一索引内登记项目未决写：跨聊天、MCP session、配对和进程重开都保留屏障。同 operation id 永不重新执行；不同项目互不阻塞。只保存类型化本机意图/结果引用，不接收认证、任意命令或原始响应。超时及 `isError` 不证明零副作用，保留 unknown；本机核对也不能仅传 `confirmed:true`。核对“未执行”需要实际读回及执行已停止证据，不能把“还没看到结果”当作“以后不会执行”。
 
@@ -49,9 +57,11 @@ node --test prototypes/remote-companion/write-ledger-test.mjs prototypes/remote-
 
 集成测试创建临时 Git 仓库、临时 Codex 索引并复制适配器静态文件到新 runtime，验证实际 `git add`，不操作用户现有工作树、配对或运行中的冻结实例。`DECK_TEST_ADAPTER_ROOT` 仅为本机测试选择待复制的候选源；未指定时使用此检出的适配器。测试还覆盖新 session/另一聊天/另一配对的未知写屏障及迟到结果。原工具 annotations、RPC 和 UI 对话框不增加新确认；这些结构检查不能代替真实客户端对审批次数和取消行为的 HITL 验收。未通过该验收前不得启用真实配对。
 
-`local-data-upgrade.mjs` 提供只读盘点、可信注册项目过滤、新目录快照与校验。v4 增加显式本机 `localDataRoot`：只接受已存在且无重定向的绝对目录；启动器清除继承环境中的同名变量，再仅从已验证本机配置传给 stdio，独立验收器使用同一目录。旧配置仍沿原路径，不会因环境变量意外切换。这里只增加稳定目录能力，尚未激活生产迁移；升级计划仍为 `activationReady:false`，停止/种入/失败回退和用户手动确认尚待完成。
+`local-data-upgrade.mjs` 提供盘点、注册项目过滤、新目录快照与校验；v4起显式 `localDataRoot` 不随代码目录变化，不能由继承环境/请求选择。[手动升级 API](LOCAL-UPDATE.md)增加确切实例停止、SQLite未决屏障、同一配置读像/CAS、可恢复备份和不会用旧快照覆盖新业务的回退。该API只切换固定adapter/dataRoot，不自动升级插件/relay/companion本体，也不自动启动。生产尚未迁移；结果仍 `activationReady:false`，实际新版本启动和最终用户确认待完成。日常caller的独立DPAPI与固定release入口见[客户端启动器](CLIENT-LAUNCH.md)。
 
 ## 部署配置与免费边界
+
+最新reviewed v5检查点完整回归 **289/289，无skip**，包含SDK、Windows DPAPI/生命周期、原适配器、Git、本机持久读回、安装账本、SQLite authority、资源预算、手动升级/回退与主机绑定。专用GitHub真实D6另有独立证据；主机模拟不等于真实GHE部署。这些检查不替代真人审批或完整交付。
 
 Render 选已确认的 My Workspace，单个 free Web service、Singapore、手动部署。源码为本分支，构建可用 `node --check prototypes/remote-companion/relay.mjs`，启动 `node prototypes/remote-companion/relay.mjs`；Node 需 >=24。实际 source commit 和 deploy ID 必须读回，live 后才做 HTTPS smoke。
 

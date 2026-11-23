@@ -4,7 +4,7 @@ import { createExecutor, startCompanion } from './companion.mjs';
 import { createStdioAdapter } from './stdio.mjs';
 import { Journal } from './journal.mjs';
 import path from 'node:path';
-import { verifyFrozenAdapter, OVERLAY_VERSION } from './freeze-adapter.mjs';
+import { verifyFrozenAdapter, OVERLAY_VERSION, LOCAL_DATA_OVERLAY_VERSIONS } from './freeze-adapter.mjs';
 import { mkdir } from 'node:fs/promises';
 import { WriteLedger } from './write-ledger.mjs';
 import { installationWriteLedgerFile, normalizeWriteGrant } from './write-grant.mjs';
@@ -21,7 +21,7 @@ export async function launchPairing(file, { onState = () => {}, writeLedgerFile 
   if (normalize(verified.adapterPath) !== normalize(config.adapterPath)) throw new Error('Adapter is not the locally pinned baseline');
   const grant = config.writeEnabled === true ? normalizeWriteGrant(config.writeGrant) : null;
   if (grant && verified.overlayVersion !== OVERLAY_VERSION) throw new Error('Local writes require the current frozen project-binding overlay; legacy candidates are read-only');
-  if (config.localDataRoot !== undefined && verified.overlayVersion !== OVERLAY_VERSION) throw new Error('Explicit local data root requires the current compatible frozen adapter');
+  if (config.localDataRoot !== undefined && !LOCAL_DATA_OVERLAY_VERSIONS.includes(verified.overlayVersion)) throw new Error('Explicit local data root requires a compatible frozen adapter');
   const layout = await resolveAdapterDataLayout({ adapterPath: config.adapterPath, localDataRoot: config.localDataRoot });
   let journal, adapter, companion, control, stopping, writes;
   let stopRequested = false;

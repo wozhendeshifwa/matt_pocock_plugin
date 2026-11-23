@@ -3,6 +3,8 @@ import { createGitWriteEffects } from './write-effects-git.mjs';
 import { createLocalWriteEffects } from './write-effects-local.mjs';
 import { createGithubWriteEffects, GITHUB_EFFECT_METHODS } from './write-effects-github.mjs';
 import { createMarkdownWriteEffects } from './write-effects-markdown.mjs';
+import { createPublicationWriteEffects } from './write-effects-publication.mjs';
+import { createHostOpenEffects } from './host-open-effects.mjs';
 
 const folded = value => process.platform === 'win32' ? value.toLowerCase() : value;
 const business = response => response?.error || response?.result?.isError || response?.result?.structuredContent?.ok === false
@@ -13,7 +15,7 @@ const business = response => response?.error || response?.result?.isError || res
 export async function createWriteEffects({ adapterPath, localDataRoot, env = process.env } = {}) {
   const [git, local] = await Promise.all([createGitWriteEffects({ env }), createLocalWriteEffects({ adapterPath, localDataRoot })]);
   const checks = new Map();
-  let github, markdown;
+  let github, markdown, publication, opener;
   const checkKey = (root, thread, id) => JSON.stringify([folded(root), thread, id]);
   async function observeRead({ request, response, projectRoot, threadId }) {
     if (request.params?.name !== 'deck_upstream_read' || request.params.arguments?.method !== 'gitWriteCheck') return;
@@ -24,9 +26,24 @@ export async function createWriteEffects({ adapterPath, localDataRoot, env = pro
     const now = Date.now();
     for (const [key, value] of checks) if (value.check.ticket.expiresAtMs <= now || checks.size > 128) checks.delete(key);
   }
-  async function prepare({ method, request, projectRoot, threadId, adapter }) {
+  async function prepare({ method, request, projectRoot, threadId, adapter, operationId }) {
     const root = await realpath(projectRoot);
     const parameters = request.params.name === 'deck_upstream_write' ? request.params.arguments?.payload : request.params.arguments;
+    if (['initPublish', 'retryPush'].includes(method)) {
+      publication ??= createPublicationWriteEffects({ adapterPath, localDataRoot, env });
+      return (await publication).prepare({ method, request, projectRoot: root, threadId });
+    }
+    if (['openFolder', 'openPath'].includes(method)) {
+      // Initialize the original worker through its fixed read route so a new
+      // project's private data directory exists before independently inspecting
+      // targets. The local context is rechecked again by the actual spawn gate.
+      const cwd = business(await adapter.request({ jsonrpc: '2.0', id: 'local-opener-worker', method: 'tools/call', params: {
+        name: 'deck_upstream_read', arguments: { method: 'cwd', payload: { expectedThreadId: threadId } }, _meta: request.params._meta,
+      } }, { projectRoot: root, threadId }));
+      if (cwd?.ok !== true || typeof cwd.workspaceRoot !== 'string' || folded(await realpath(cwd.workspaceRoot)) !== folded(root)) throw new Error('No verified local opener worker');
+      opener ??= createHostOpenEffects({ adapterPath, localDataRoot });
+      return (await opener).prepare({ method, request, parameters, projectRoot: root, operationId });
+    }
     if (method === 'setLabelColors') {
       // Backend selection is a fresh local read. A failed GitHub preparation
       // never falls through to a local file write, and request.backendId cannot

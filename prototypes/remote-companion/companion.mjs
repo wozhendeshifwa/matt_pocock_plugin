@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 import { realpath } from 'node:fs/promises';
 import { VERSION, MAX_BYTES, bridgeUrl, secret, digest, requestHash, validateRequest, threadId, rpcError } from './protocol.mjs';
 import { Journal } from './journal.mjs';
-import { createStdioAdapter, normalizeLocalTracker } from './stdio.mjs';
+import { createStdioAdapter, normalizeLocalTracker, normalizeLocalPublication, normalizeLocalOpen } from './stdio.mjs';
 import { normalizeWriteGrant, assertWriteGranted } from './write-grant.mjs';
 
 const SAFE_TOOLS = new Set(['open_deck_sidebar_probe', 'deck_context', 'deck_issue_get', 'deck_issue_list', 'deck_map_snapshot', 'deck_current_project', 'deck_rpc_manifest', 'deck_host_context_probe']);
@@ -75,13 +75,17 @@ export function createExecutor({ adapter, journal, resolveProject, isReadMethod,
             operationId: job.operationId, state: reservation.state, reason: reservation.reason,
           });
           writeRecord = { ...record, intent, method };
-          const prepared = await prepareWrite?.({ method, request, projectRoot, threadId: identity, adapter });
+          const prepared = await prepareWrite?.({ method, request, projectRoot, threadId: identity, adapter, operationId: job.operationId });
           if (method !== 'deck_issue_report' && typeof prepared?.verify !== 'function') throw new Error('Independent local write readback is unavailable');
           if (prepared?.dispatchContext !== undefined && (!prepared.dispatchContext || typeof prepared.dispatchContext !== 'object' ||
-              Array.isArray(prepared.dispatchContext) || Object.keys(prepared.dispatchContext).some(key => key !== 'tracker'))) {
+              Array.isArray(prepared.dispatchContext) || Object.keys(prepared.dispatchContext).some(key => !['tracker', 'publication', 'open'].includes(key)))) {
             throw new Error('Invalid trusted write dispatch context');
           }
           writeRecord.tracker = normalizeLocalTracker(prepared?.dispatchContext?.tracker);
+          writeRecord.publication = normalizeLocalPublication(prepared?.dispatchContext?.publication);
+          writeRecord.open = normalizeLocalOpen(prepared?.dispatchContext?.open);
+          if (writeRecord.open && (!['openFolder', 'openPath'].includes(method) || writeRecord.open.operationId !== job.operationId) ||
+              writeRecord.publication && !['initPublish', 'retryPush'].includes(method)) throw new Error('Local write context does not match this operation');
           writeRecord.intent = writeLedger.refineIntent({ ...record, intent: { ...intent,
             target: { ...intent.target, ...(prepared?.target ?? { localStateKey: 'session-tickets' }) } } });
           writeRecord.verify = prepared?.verify;
@@ -107,7 +111,9 @@ export function createExecutor({ adapter, journal, resolveProject, isReadMethod,
         if (job.expiresAt <= Date.now()) throw new Error('Request expired before local write dispatch');
         adapterStarted = true;
         const localContext = { projectRoot: scope.projectRoot, threadId: identity,
-          ...(writeRecord.tracker ? { tracker: writeRecord.tracker } : {}) };
+          ...(writeRecord.tracker ? { tracker: writeRecord.tracker } : {}),
+          ...(writeRecord.publication ? { publication: writeRecord.publication } : {}),
+          ...(writeRecord.open ? { open: writeRecord.open } : {}) };
         const call = typeof adapter.beginRequest === 'function' ? adapter.beginRequest(request, localContext) : (() => {
           const completion = adapter.request(request, localContext); return { response: completion, completion };
         })();

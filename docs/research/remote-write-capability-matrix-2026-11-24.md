@@ -14,7 +14,7 @@
 | adapter read | `portSnapshotCache` | 只作辅助读取，不扩成写 |
 | deck 工具 | 9 个 | 4 GitHub 写 + 1 本地 report 逐项列明；4 read 是 `deck_context/issue_get/issue_list/map_snapshot` |
 | wrapper 工具 | 6 个 | 17 RPC 经同一个 `deck_upstream_write`；`deck_host_context_probe` 是独立脱敏诊断写，不是业务写/恢复授权 |
-| 远程写切片 | 当前实现 allowlist 18/22：report、六Git、五本机、六tracker | 这是实现范围；后六项真实私有仓库验收进行中，发布/窗口4项尚待完成；生产配对仍只读 |
+| 远程写切片 | 当前实现 allowlist 22/22：report、六Git、五本机、六tracker、两发布、两opener | 这是实现范围；tracker真实私有夹具已通过，发布/实际窗口仍在验收；生产配对仍只读 |
 
 合计：**22 个既有写路由能力 = 17 RPC + 5 deck 写工具，100% 完成源码盘点**；另明确处理 **1 条条件写拒绝、8 条既有未开放写拒绝**。22 是能力数，不是已通过真实远程验收数，也不等于22条底层原子副作用。`deck_issue_patch`、建图、发布等一次能产生多步副作用。
 

@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { ENABLED_WRITE_ENDPOINTS, DECK_TOOL_POLICY } from '../upstream-port/write-policy.mjs';
+import { normalizeKnownGithubHost } from './github-host.mjs';
 
 // Installation-level local authority, deliberately separate from per-pairing
 // response caches. Reuse the same file across sessions, pairings and upgrades.
@@ -51,6 +52,7 @@ function target(value) {
   if (!plainObject(value) || Object.keys(value).length === 0) throw fail('INVALID_INTENT', 'A typed reconciliation target is required');
   const validators = {
     repository: value => text(value, 150) && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,38}\/[A-Za-z0-9_.-]{1,100}$/.test(value),
+    repositoryHost: value => { try { return normalizeKnownGithubHost(value) === value; } catch { return false; } },
     issueNumber: value => Number.isSafeInteger(value) && value > 0,
     issueNumbers: value => Array.isArray(value) && value.length > 0 && value.length <= 128 && value.every(n => Number.isSafeInteger(n) && n > 0),
     branch: value => text(value, 256) && !value.startsWith('-') && !/[\s~^:?*\[\\]|\.\.|@\{/.test(value),

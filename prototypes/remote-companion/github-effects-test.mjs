@@ -19,16 +19,17 @@ const request = (method, args, id = 1) => ({ jsonrpc: '2.0', id, method: 'tools/
 } });
 const wrap = (id, value) => ({ jsonrpc: '2.0', id, result: { structuredContent: value } });
 
-async function fixture(t) {
+async function fixture(t, { env = {}, hostname = 'github.com', repositoryApiUrl = 'https://api.github.com/repos/' + repository } = {}) {
   const base = fileURLToPath(new URL('../../.scratch/', import.meta.url)); await mkdir(base, { recursive: true });
   const directory = await realpath(await mkdtemp(path.join(base, 'github-effects-test-'))), projectRoot = path.join(directory, 'project'); await mkdir(projectRoot);
   t.after(async () => { const actual = await realpath(directory), parent = await realpath(base); assert.equal(path.dirname(actual).toLowerCase(), parent.toLowerCase()); assert.ok(path.basename(actual).startsWith('github-effects-test-')); await rm(actual, { recursive: true, maxRetries: 5, retryDelay: 100 }); });
   const issues = new Map(), comments = new Map(), plans = new Map(), reads = [], calls = [], labels = [
     { id: 1, name: 'preexisting', color: '111111', description: '' }, { id: 2, name: 'keep', color: '222222', description: 'preserve this label' },
   ];
-  const state = { repo: repository, backend: 'github', faultPage: null, omitCommentPage: false, failLabels: [], partial: false };
+  const state = { repo: repository, backend: 'github', faultPage: null, omitCommentPage: false, failLabels: [], partial: false,
+    repositoryMetadata: { id: 42001, full_name: repository, url: repositoryApiUrl } };
   let next = 10, commentId = 1000;
-  function row(n, options = {}) { return { id: 10000 + n, number: n, repository_url: 'https://api.github.com/repos/' + repository,
+  function row(n, options = {}) { return { id: 10000 + n, number: n, repository_url: repositoryApiUrl,
     html_url: 'https://github.com/' + repository + '/issues/' + n, title: 'Fixture ' + n, body: '# Fixture\n\n## 进度\n\ninitial\n', state: 'open',
     labels: [{ name: 'preexisting' }], assignees: [], parent: null, blockedBy: [], ...options }; }
   issues.set(1, row(1, { title: 'Parent map', labels: [{ name: 'wayfinder:map' }] }));
@@ -39,11 +40,12 @@ async function fixture(t) {
   const brief = raw => ({ key: String(raw.number), title: raw.title, body: raw.body, state: raw.state,
     labels: raw.labels.map(item => item.name), assignees: raw.assignees.map(item => item.login) });
   async function readGithub(scope) {
-    reads.push(structuredClone(scope)); assert.equal(scope.repository, repository); assert.equal(scope.projectRoot, await realpath(projectRoot));
+    reads.push(structuredClone(scope)); assert.equal(scope.repository, repository); assert.equal(scope.projectRoot, await realpath(projectRoot)); assert.equal(scope.hostname, hostname);
     if (state.faultPage?.resource === scope.resource && state.faultPage.page === scope.page) throw new Error('isolated page failure');
     const raw = issues.get(scope.issueNumber), page = scope.page ?? 1;
     const pageOf = list => ({ status: 200, body: structuredClone(list.slice((page - 1) * 100, page * 100)) });
     if (scope.resource === 'viewer') return { status: 200, body: { login: 'fixture-user' } };
+    if (scope.resource === 'repository') return { status: 200, body: structuredClone(state.repositoryMetadata) };
     if (scope.resource === 'issues') return pageOf([...issues.values()].sort((a, b) => a.number - b.number));
     if (scope.resource === 'labels') return pageOf(labels);
     if (!raw) return { status: 404, body: { message: 'Not Found' } };
@@ -115,7 +117,7 @@ async function fixture(t) {
     }
     throw new Error('Unsupported fixture write');
   }
-  const effects = await createGithubWriteEffects({ adapterPath: fileURLToPath(new URL('../upstream-port/sidebar-server.mjs', import.meta.url)), readGithub });
+  const effects = await createGithubWriteEffects({ adapterPath: fileURLToPath(new URL('../upstream-port/sidebar-server.mjs', import.meta.url)), env, readGithub });
   const prepare = value => effects.prepare({ method: value.params.name === 'deck_upstream_write' ? value.params.arguments.method : value.params.name, request: value, projectRoot, threadId, adapter });
   return { directory, projectRoot, issues, comments, labels, state, reads, calls, prepare, write, postComment, create, row };
 }
@@ -249,6 +251,9 @@ test('repository drift and unsupported backend cannot be recorded as the previou
 test('remote authority parameters are rejected and utility correlation never replaces ledger ownership', async t => {
   const f = await fixture(t);
   await assert.rejects(f.prepare(request('deck_issue_create', { title: 'Bad authority', repository: 'other/repo' })), /Unknown write parameter/);
+  for (const authority of [{ hostname: 'attacker.example.invalid' }, { repositoryHost: 'attacker.example.invalid' }]) {
+    await assert.rejects(f.prepare(request('deck_issue_create', { title: 'Host belongs to local environment', ...authority })), /Unknown write parameter/);
+  }
   const value = request('deck_issue_create', { title: 'Durable typed result', idempotencyKey: 'typed-ledger' }), prepared = await f.prepare(value);
   assert.equal(prepared.target.correlationKey, undefined);
   const ledger = new WriteLedger(path.join(f.directory, 'ledger.sqlite'));
@@ -264,21 +269,100 @@ test('remote authority parameters are rejected and utility correlation never rep
   } finally { ledger.close(); }
 });
 
+test('all six enterprise effects bind independent reads, dispatch and durable ledger targets to the same trusted hostname', async t => {
+  for (const [hostname, repositoryApiUrl] of [
+    ['ghe.example.invalid', 'https://ghe.example.invalid/api/v3/repos/' + repository],
+    ['ghe.example.invalid:8443', 'https://api.ghe.example.invalid:8443/repos/' + repository],
+    ['ghe.example.invalid:443', 'https://ghe.example.invalid:443/api/v3/repos/' + repository],
+    ['ghe.example.invalid:00443', 'https://api.ghe.example.invalid:443/repos/' + repository],
+  ]) {
+    const f = await fixture(t, { env: { GH_HOST: hostname.toUpperCase() }, hostname, repositoryApiUrl });
+    const cases = [
+      ['deck_issue_create', { title: 'Enterprise create', parentKey: '1', idempotencyKey: 'ghe-create' }],
+      ['deck_issue_patch', { key: '2', title: 'Enterprise patch', comment: 'Enterprise patch comment' }],
+      ['deck_map_link', { key: '2', blockedBy: ['3'] }],
+      ['deck_map_plan_create', { title: 'Enterprise plan', planId: 'ghe-plan', children: [{ key: 'a', title: 'Enterprise child' }] }],
+      ['commentIssue', { number: 2, body: 'Enterprise standalone comment' }],
+      ['setLabelColors', { changes: [{ name: 'keep', color: 'abcdef' }] }],
+    ];
+    const ledger = new WriteLedger(path.join(f.directory, 'enterprise-ledger.sqlite'));
+    try {
+      for (const [method, args] of cases) {
+        const value = request(method, args), prepared = await f.prepare(value);
+        assert.deepEqual(prepared.dispatchContext.tracker, { backendId: 'github', repository, hostname });
+        assert.equal(prepared.target.repositoryHost, hostname);
+        const operationId = digest(hostname + ':' + method), ownerScope = { pairingId: 'enterprise-fixture', threadId }, record = { operationId, projectKey: f.projectRoot, ownerScope };
+        const intent = { method, parametersSha256: requestHash(value), target: { correlationKey: operationId, ...prepared.target } };
+        ledger.reserve({ ...record, intent });
+        const response = f.write(value), proof = await prepared.verify(response); assert.ok(proof?.resultSha256, method + ' must independently verify its enterprise side effect');
+        assert.equal(proof.target.repositoryHost, hostname); ledger.complete({ ...record, outcome: 'succeeded', result: proof });
+        const status = ledger.inspect(record); assert.equal(status.intent.target.repositoryHost, hostname); assert.equal(status.result.target.repositoryHost, hostname);
+        if (method.startsWith('deck_')) assert.equal(response.result.structuredContent.repo.url, 'https://github.com/' + repository, 'original hard-coded display links remain compatible but do not choose the API host');
+      }
+    } finally { ledger.close(); }
+    assert.ok(f.reads.some(read => read.resource === 'repository')); assert.ok(f.reads.length > 20);
+    assert.ok(f.reads.every(read => read.hostname === hostname && read.repository === repository));
+  }
+});
+
+test('enterprise metadata rejects a foreign API host, repository, identity or unsafe URL before business dispatch', async t => {
+  for (const override of [
+    { url: 'https://api.github.com/repos/' + repository }, { url: 'https://other.example.invalid/api/v3/repos/' + repository },
+    { url: 'https://ghe.example.invalid:8443/api/v3/repos/' + repository },
+    { url: 'https://ghe.example.invalid/repos/other/repo' }, { url: 'http://ghe.example.invalid/repos/' + repository },
+    { url: 'https://user@ghe.example.invalid/repos/' + repository }, { url: 'https://ghe.example.invalid/repos/' + repository + '?scope=elsewhere' },
+    { url: 'https://ghe.example.invalid/arbitrary/' + repository }, { full_name: 'other/repo' }, { id: 0 }, { id: '42001' },
+  ]) {
+    const hostname = 'ghe.example.invalid', f = await fixture(t, { env: { GH_HOST: hostname }, hostname, repositoryApiUrl: 'https://' + hostname + '/api/v3/repos/' + repository });
+    Object.assign(f.state.repositoryMetadata, override);
+    await assert.rejects(f.prepare(request('deck_issue_create', { title: 'Must not dispatch' })), /API authority|repository identity/);
+    assert.equal(f.issues.size, 4); assert.equal(f.comments.size, 0); assert.equal(f.calls.filter(call => call.name !== 'deck_context').length, 0);
+  }
+});
+
+test('every enterprise issue and native relation must retain the exact independently verified repository API URL', async t => {
+  const hostname = 'ghe.example.invalid', repositoryApiUrl = 'https://' + hostname + '/api/v3/repos/' + repository;
+  for (const identity of ['target', 'parent', 'blocker']) {
+    const f = await fixture(t, { env: { GH_HOST: hostname }, hostname, repositoryApiUrl }); f.issues.get(2).blockedBy = [3];
+    f.issues.get(identity === 'target' ? 2 : identity === 'parent' ? 1 : 3).repository_url = 'https://api.github.com/repos/' + repository;
+    await assert.rejects(f.prepare(request('deck_issue_patch', { key: '2', title: 'Bound host only' })), /another repository/);
+  }
+  for (const wrongUrl of ['https://api.github.com/repos/' + repository, 'https://ghe.example.invalid/repos/' + repository, 'https://other.example.invalid/api/v3/repos/' + repository]) {
+    const f = await fixture(t, { env: { GH_HOST: hostname }, hostname, repositoryApiUrl });
+    const value = request('deck_issue_create', { title: 'After-dispatch host drift', idempotencyKey: 'ghe-url-drift' }), prepared = await f.prepare(value), response = f.write(value);
+    const key = Number(response.result.structuredContent.data.ticket.key); f.issues.get(key).repository_url = wrongUrl;
+    assert.equal(await prepared.verify(response), null, 'success cannot be recorded from an issue on another API authority/path');
+  }
+});
+
+test('invalid and Windows-ambiguous local host settings reject before adapter or independent reads', async () => {
+  let reads = 0;
+  for (const env of [{ GH_HOST: 'https://ghe.example.invalid' }, { GH_HOST: 'user@ghe.example.invalid' }, { GH_HOST: 'ghe.example.invalid/path' },
+    { GH_HOST: '--hostname' }, { GH_HOST: 'ghe.example.invalid:65536' }, { GH_HOST: 'ghe.example.invalid\n' },
+    { GH_HOST: 'github.com', gh_host: 'ghe.example.invalid' }, { GH_HOST: 'ghe.example.invalid:443', Gh_Host: 'ghe.example.invalid:00443' }]) {
+    await assert.rejects(createGithubWriteEffects({ adapterPath: fileURLToPath(new URL('../upstream-port/sidebar-server.mjs', import.meta.url)), env,
+      readGithub: async () => { reads++; throw new Error('A rejected local host must not make a request'); } }), error => ['INVALID_GITHUB_HOST', 'AMBIGUOUS_GITHUB_HOST'].includes(error.code));
+  }
+  assert.equal(reads, 0);
+});
+
 test('the production GET reader parses real CLI status headers and never launches a write recipe', async t => {
-  const f = await fixture(t), snapshot = path.join(f.projectRoot, 'readback-fixture.json'), log = path.join(f.projectRoot, 'reader-calls.jsonl');
+  for (const hostname of ['github.com', 'ghe.example.invalid']) {
+  const repositoryApiUrl = hostname === 'github.com' ? 'https://api.github.com/repos/' + repository : 'https://' + hostname + '/api/v3/repos/' + repository;
+  const f = await fixture(t, { env: { GH_HOST: hostname }, hostname, repositoryApiUrl }), snapshot = path.join(f.projectRoot, 'readback-fixture.json'), log = path.join(f.projectRoot, 'reader-calls.jsonl');
   // Node is the locally selected fake gh executable; its entrypoint is the
   // fixed argv token "api" in this isolated project, not a remote script path.
   await writeFile(path.join(f.projectRoot, 'api'), `const fs=require('node:fs');
-const args=process.argv.slice(2),route=args.at(-1),base='repos/${repository}/';
-if(args[args.indexOf('--method')+1]!=='GET'||args[args.indexOf('--hostname')+1]!=='github.com'||!args.includes('--include')||!route.startsWith(base))throw new Error('Non-GET or cross-repo recipe');
+const args=process.argv.slice(2),route=args.at(-1),base='repos/${repository}';
+if(args[args.indexOf('--method')+1]!=='GET'||args[args.indexOf('--hostname')+1]!==${JSON.stringify(hostname)}||!args.includes('--include')||!(route===base||route.startsWith(base+'/')))throw new Error('Non-GET or cross-repo recipe');
 fs.appendFileSync('reader-calls.jsonl',JSON.stringify(args)+'\\n');
-const state=JSON.parse(fs.readFileSync('readback-fixture.json','utf8')),url=new URL('https://fixture.invalid/'+route),tail=url.pathname.slice(('/'+base).length),page=Number(url.searchParams.get('page')||1);
+const state=JSON.parse(fs.readFileSync('readback-fixture.json','utf8')),url=new URL('https://fixture.invalid/'+route),tail=url.pathname.slice(('/'+base).length).replace(/^\\//,''),page=Number(url.searchParams.get('page')||1);
 let status=200,body;const take=rows=>rows.slice((page-1)*100,page*100);
-if(tail==='issues')body=take(state.issues);else{const hit=/^issues\\/(\\d+)(?:\\/(parent|sub_issues|dependencies\\/blocked_by))?$/.exec(tail);if(!hit)throw new Error('Unknown fixed read resource');const issue=state.issues.find(row=>row.number===Number(hit[1]));if(!issue){status=404;body={message:'Not Found'};}else if(!hit[2])body=issue;else if(hit[2]==='parent'){if(issue.parent==null){status=404;body={message:'Not Found'};}else body=state.issues.find(row=>row.number===issue.parent);}else if(hit[2]==='sub_issues')body=take(state.issues.filter(row=>row.parent===issue.number));else body=take(issue.blockedBy.map(key=>state.issues.find(row=>row.number===key)));}
+if(tail==='')body=state.repository;else if(tail==='issues')body=take(state.issues);else{const hit=/^issues\\/(\\d+)(?:\\/(parent|sub_issues|dependencies\\/blocked_by))?$/.exec(tail);if(!hit)throw new Error('Unknown fixed read resource');const issue=state.issues.find(row=>row.number===Number(hit[1]));if(!issue){status=404;body={message:'Not Found'};}else if(!hit[2])body=issue;else if(hit[2]==='parent'){if(issue.parent==null){status=404;body={message:'Not Found'};}else body=state.issues.find(row=>row.number===issue.parent);}else if(hit[2]==='sub_issues')body=take(state.issues.filter(row=>row.parent===issue.number));else body=take(issue.blockedBy.map(key=>state.issues.find(row=>row.number===key)));}
 process.stdout.write('HTTP/2.0 '+status+' Fixture\\r\\ncontent-type: application/json\\r\\n\\r\\n'+JSON.stringify(body));if(status!==200)process.exitCode=1;
 `);
-  const save = () => writeFile(snapshot, JSON.stringify({ issues: [...f.issues.values()] })); await save();
-  const env = { DECK_GH: process.execPath };
+  const save = () => writeFile(snapshot, JSON.stringify({ issues: [...f.issues.values()], repository: f.state.repositoryMetadata })); await save();
+  const env = { DECK_GH: process.execPath, GH_HOST: hostname };
   for (const key of ['PATH', 'Path', 'PATHEXT', 'SystemRoot', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP']) if (process.env[key]) env[key] = process.env[key];
   const effects = await createGithubWriteEffects({ adapterPath: fileURLToPath(new URL('../upstream-port/sidebar-server.mjs', import.meta.url)), env });
   const value = request('deck_issue_create', { title: 'Fixed GET readback', parentKey: '1', idempotencyKey: 'cli-proof' });
@@ -295,5 +379,7 @@ process.stdout.write('HTTP/2.0 '+status+' Fixture\\r\\ncontent-type: application
   const prepared = await effects.prepare({ method: 'deck_issue_create', request: value, projectRoot: f.projectRoot, threadId, adapter }), response = f.write(value); await save();
   assert.ok(await prepared.verify(response));
   const calls = (await readFile(log, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
-  assert.ok(calls.length >= 5); assert.ok(calls.every(args => args[args.indexOf('--method') + 1] === 'GET'));
+  assert.ok(calls.length >= 5); assert.ok(calls.every(args => args[args.indexOf('--method') + 1] === 'GET' && args[args.indexOf('--hostname') + 1] === hostname));
+  if (hostname !== 'github.com') assert.ok(calls.some(args => args.at(-1) === 'repos/' + repository), 'the production reader independently checks enterprise metadata on its pinned host');
+  }
 });

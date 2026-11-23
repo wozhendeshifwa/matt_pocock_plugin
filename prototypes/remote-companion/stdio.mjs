@@ -1,19 +1,55 @@
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import path from 'node:path';
+import { normalizeKnownGithubHost } from './github-host.mjs';
 
 // Values here are supplied by local preparation, never by an MCP argument.
 export function normalizeLocalTracker(value) {
   if (value === undefined) return undefined;
   if (!value || typeof value !== 'object' || Array.isArray(value) ||
-      Object.keys(value).some(key => !['backendId', 'repository'].includes(key)) ||
+      Object.keys(value).some(key => !['backendId', 'repository', 'hostname'].includes(key)) ||
       !['github', 'gitlab', 'markdown'].includes(value.backendId) ||
       typeof value.repository !== 'string' || !value.repository || value.repository.length > 4096 ||
       /[\u0000-\u001f\u007f]/.test(value.repository) ||
       value.backendId === 'github' && !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}\/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/.test(value.repository)) {
     throw new Error('Invalid trusted local tracker context');
   }
-  return Object.freeze({ backendId: value.backendId, repository: value.repository });
+  if (value.backendId !== 'github' && value.hostname !== undefined) throw new Error('Only a GitHub tracker may select a local GitHub host');
+  return Object.freeze({ backendId: value.backendId, repository: value.repository,
+    ...(value.backendId === 'github' ? { hostname: normalizeKnownGithubHost(value.hostname ?? 'github.com') } : {}) });
+}
+
+export function normalizeLocalOpen(value) {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== 'object' || Array.isArray(value) ||
+      Object.keys(value).sort().join(',') !== 'commandTargetSha256,kind,operationId,targetSha256' ||
+      !['folder', 'file'].includes(value.kind) ||
+      ![value.operationId, value.targetSha256, value.commandTargetSha256].every(item => /^[a-f0-9]{64}$/.test(item ?? ''))) {
+    throw new Error('Invalid trusted local opener context');
+  }
+  return Object.freeze({ ...value });
+}
+
+export function normalizeLocalPublication(value) {
+  if (value === undefined) return undefined;
+  const plain = item => item && typeof item === 'object' && !Array.isArray(item);
+  const oid = item => /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(item ?? '');
+  const branch = item => typeof item === 'string' && item.length > 0 && item.length <= 256 && !/[\u0000-\u0020\u007f~^:?*\[\\]|\.\.|@\{/.test(item) && !item.startsWith('-');
+  const url = item => typeof item === 'string' && /^(?:https:\/\/github\.com\/|git@github\.com:)[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9_.-]{1,100}?(?:\.git)?$/.test(item);
+  const before = value?.before;
+  if (!plain(value) || Object.keys(value).some(name => !['repository', 'visibility', 'before', 'retry'].includes(name)) ||
+      !/^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9_.-]{1,100}$/.test(value.repository ?? '') || !['private', 'public'].includes(value.visibility) ||
+      !plain(before) || Object.keys(before).sort().join(',') !== 'branch,headOid,originPushUrls,originUrls,repositoryExists' ||
+      typeof before.repositoryExists !== 'boolean' || !(before.headOid === null || oid(before.headOid)) || !(before.branch === null || branch(before.branch)) ||
+      !Array.isArray(before.originUrls) || before.originUrls.length > 1 || !before.originUrls.every(url) ||
+      !Array.isArray(before.originPushUrls) || before.originPushUrls.length !== 0 ||
+      (!before.repositoryExists && (before.headOid !== null || before.branch !== null || before.originUrls.length)) ||
+      value.retry !== undefined && (!plain(value.retry) || Object.keys(value.retry).sort().join(',') !== 'branch,commitOid,repositoryId' ||
+        !Number.isSafeInteger(value.retry.repositoryId) || value.retry.repositoryId <= 0 || !oid(value.retry.commitOid) || !branch(value.retry.branch) ||
+        value.retry.commitOid !== before.headOid || value.retry.branch !== before.branch)) {
+    throw new Error('Invalid trusted local publication context');
+  }
+  return structuredClone(value);
 }
 
 // A fixed, locally selected adapter. Neither its path, argv nor environment can
@@ -53,6 +89,10 @@ export function createStdioAdapter(file, { env = process.env, timeout = 45000, c
       dispatch = { projectRoot: localContext.projectRoot, threadId: localContext.threadId };
       const tracker = normalizeLocalTracker(localContext.tracker);
       if (tracker) dispatch.tracker = tracker;
+      const publication = normalizeLocalPublication(localContext.publication);
+      if (publication) dispatch.publication = publication;
+      const open = normalizeLocalOpen(localContext.open);
+      if (open) dispatch.open = open;
     }
     let resolveCompletion, rejectCompletion;
     const completion = new Promise((resolve, reject) => { resolveCompletion = resolve; rejectCompletion = reject; });
