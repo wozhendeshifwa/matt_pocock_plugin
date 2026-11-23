@@ -70,6 +70,6 @@ node --test prototypes/remote-companion/runtime-release-test.mjs
 * `.scratch/runtime-releases/runtime-70aa02f-v6-complete-a`
 * `.scratch/runtime-releases/runtime-70aa02f-v6-complete-b`
 
-两包manifest SHA256完全相同：`10c3befde71d6352b1a6938df4d0338cc52a1f7ec840373f2d053e1c2f64f344`。各479文件、8,554,162字节，353模块只编译未求值，709相对导入闭包引用和133动态导入配方核对通过，原`verifyClientRelease`及adapter验证也通过。
+两包manifest SHA256完全相同：`10c3befde71d6352b1a6938df4d0338cc52a1f7ec840373f2d053e1c2f64f344`。各479项catalog载荷、8,554,162字节，另有92,890-byte的`client-release.json`，实际目录共480文件。353模块只编译未求值，709相对导入闭包引用和133动态导入配方核对通过，原`verifyClientRelease`及adapter验证也通过。
 
 本机打包工具SHA256为`052397fc45f636c92993e362869e885e9990037895673ed5400900846f5d47f5`；该工具当时尚未进入源commit `70aa02f...`，因此包内源与构建工具证据明确分开。[包外构建证据](../../.scratch/runtime-releases/runtime-70aa02f-v6-build-evidence.json)记录上述结果。当前产物没有执行真实启动或安装；后续SDK读流水线、受控状态迁移和实际版本切换应独立记录，不能从此打包结果推定完成。

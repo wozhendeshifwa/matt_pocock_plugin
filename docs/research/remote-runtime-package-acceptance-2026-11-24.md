@@ -10,7 +10,7 @@
 | Adapter | 固定 450 文件 v6；manifest SHA-256 `dc04813e34b463827667f8bca236ffc6c31ec847959a414c334d4ead9e756e10` |
 | 协议／overlay | protocol 1；`bound-effects-and-bundled-docs-v6` |
 | 两个独立输出 | `runtime-70aa02f-v6-complete-a`、`runtime-70aa02f-v6-complete-b` |
-| 各包内容 | **479 files，8,554,162 bytes** |
+| 各包catalog载荷 | **479项，8,554,162 bytes**；另有92,890-byte的`client-release.json`，实际目录共480个文件 |
 | 两包相同 manifest SHA-256 | `10c3befde71d6352b1a6938df4d0338cc52a1f7ec840373f2d053e1c2f64f344` |
 | 静态验证 | 353 模块仅编译、不求值；709 条相对导入引用及 133 个动态导入配方核对通过 |
 | 构建工具 SHA-256 | `052397fc45f636c92993e362869e885e9990037895673ed5400900846f5d47f5` |
@@ -25,7 +25,7 @@
 
 - ZIP：`deck-runtime-v6-70aa02f-10c3befd.zip`，位于 `.scratch/runtime-distribution-44/`。
 - 压缩文件 **3,001,879 bytes**，SHA-256 **`6f267f3d568502a42c7444215cc43e61b5198401e7d4149856c69dc5901512ec`**。
-- `extractionVerified:true`，479 文件；源 commit、release manifest 与 adapter manifest 均与上述固定值相同。
+- `extractionVerified:true`，479项catalog载荷及独立manifest本身全部核对（实际480文件）；源commit、release manifest与adapter manifest均与上述固定值相同。
 
 ZIP hash 证明这个分发文件的身份；解压校验与下述包内 SDK 读取是分别保存的证据，不从 ZIP 存在推定已经安装。
 
