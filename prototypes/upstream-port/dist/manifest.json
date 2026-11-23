@@ -4,6 +4,7 @@
   "output": "client.js",
   "adaptedBoundaries": [
     "inject",
-    "openTextInNewSession"
+    "openTextInNewSession",
+    "comments.pagination"
   ]
 }

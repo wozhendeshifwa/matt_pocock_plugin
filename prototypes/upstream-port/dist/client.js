@@ -21058,7 +21058,7 @@ const renderIssueDetailComments = function (h, st, issueNumber, detail, mode, co
         h('div', { style: { fontSize: 11, fontWeight: 600, color: 'var(--dsw-alias-label-secondary,#a1a1aa)', marginBottom: 6 } }, detail
           ? '评论 ' + (commentsNodes.length ? '(' + commentsNodes.length + ')' : '(0)')
           : '评论 · ' + (mode === 'err' ? tr('detail.notYet') : tr('list.loading'))),
-        commentsNodes.length ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } }, commentsNodes.slice(0,50).map(function (c, i) {
+        commentsNodes.length ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } }, commentsNodes.map(function (c, i) {
           const login = c.author && c.author.login || 'ghost'
           const t = c.createdAt ? String(c.createdAt).slice(0,10) : ''
           const itemCls = (typeof confirmedIdx === 'number' && confirmedIdx === i) ? ' dsws-row-added' : ''
@@ -21106,7 +21106,7 @@ const renderIssueDetailComments = function (h, st, issueNumber, detail, mode, co
           ])
         })() : null,
         // 超 50 的静默提示（T5 前占位，T5 后由 hasMore 驱动）
-        commentsNodes.length > 50 ? h('div', { style: { fontSize: 11, color: 'var(--dsw-alias-label-caption,#8b8b95)', textAlign: 'center', marginTop: 6 } }, '已显示 ' + Math.min(50, commentsNodes.length) + '/' + commentsNodes.length + (st.issueCommentsHasMore===false ? ' · 已加载全部' : ' · 可加载更多')) : null,
+        commentsNodes.length > 50 ? h('div', { style: { fontSize: 11, color: 'var(--dsw-alias-label-caption,#8b8b95)', textAlign: 'center', marginTop: 6 } }, '已显示 ' + commentsNodes.length + '/' + commentsNodes.length + (st.issueCommentsHasMore===false ? ' · 已加载全部' : ' · 可加载更多')) : null,
         // #255 评论输入区：位于评论列表后、原只读提示处；MISSING 不渲染、EMPTY 渲染（零分支判据见谓词）。
         canComment ? h('div', { style: { padding: '2px 0 6px' } }, [
           st.cmtError ? h('div', { style: { marginBottom: 6, padding: '7px 9px', borderRadius: 6, fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',

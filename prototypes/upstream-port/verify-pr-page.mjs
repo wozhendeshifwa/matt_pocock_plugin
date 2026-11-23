@@ -18,7 +18,7 @@ const PROJECT_REPO_ROOT = await realpath(fileURLToPath(new URL("../../", import.
 const marker = "PR fixture (ticket #4)";
 
 function gh(args) {
-  return execFileSync("gh", args, { encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "ignore"] }).trim();
+  return execFileSync("gh", args, { encoding: "utf8", windowsHide: true, timeout: 60000, stdio: ["ignore", "pipe", "pipe"] }).trim();
 }
 function ghJson(args) {
   const text = gh(args);
@@ -168,8 +168,34 @@ async function mountPanel(threadId, cwd) {
 
 let panel;
 let commentId = null;
+const paginationIds = [];
+const paginationPrefix = `pr-pagination-32-${process.pid}-`;
+async function clearPaginationFixture() {
+  const failures = [];
+  while (paginationIds.length) {
+    const id = paginationIds.shift();
+    try { gh(["api", `repos/${REPO}/issues/comments/${id}`, "--method", "DELETE"]); }
+    catch { failures.push(id); }
+  }
+  paginationIds.push(...failures);
+  if (failures.length) throw new Error(`Unable to remove pagination fixture comments: ${failures.join(',')}; marker ${paginationPrefix}`);
+}
 try {
   await rpc("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "pr-page-check", version: "1" } });
+
+  if (process.argv.includes('--pagination')) {
+    // Pace writes below GitHub's content creation limits; a refused write fails
+    // the run rather than retrying a non-idempotent create or evading throttling.
+    for (let i = 1; i <= 101; i++) {
+      const r = ghJson(['api', `repos/${REPO}/issues/${fixturePr.number}/comments`, '--method', 'POST', '-f', `body=${paginationPrefix + String(i).padStart(3, '0')}`]);
+      assert.ok(r.id, 'created fixture comment has an id');
+      paginationIds.push(r.id);
+      if (i % 20 === 0 || i === 101) console.log(`Prepared ${i}/101 pagination comments`);
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+    assert.equal(paginationIds.length, 101);
+    console.log('PASS prepared 101 isolated PR comments');
+  }
 
   // --- 1. RPC read path sees the PR as a PR
   const snapshot = await upstream(fixtureThread, "snapshot", {});
@@ -189,18 +215,15 @@ try {
   assert.equal(detail.issue?.isPullRequest, true, "issueDetail marks the PR");
   assert.ok(Array.isArray(detail.issue?.reviews?.nodes), "issueDetail carries the reviews collection");
   assert.ok(detail.issue?.comments?.nodes !== undefined, "issueDetail carries the first comment page");
-  // The tracker-backed comments endpoint resolves issue numbers through GraphQL,
-  // which returns null for a PR. The panel's first page comes from issueDetail, so
-  // this is a documented limitation rather than a broken detail view.
+  // A PR number must resolve on the continuation endpoint as well as detail.
   const commentsRaw = await rpc("tools/call", {
     name: "deck_upstream_read",
     arguments: { method: "issueComments", payload: { number: fixturePr.number, expectedThreadId: fixtureThread } },
     _meta: { thread_id: fixtureThread, threadId: fixtureThread },
   });
   const commentsBody = (commentsRaw.structuredContent ?? JSON.parse(commentsRaw.content[0].text));
-  if (commentsBody?.ok === true && commentsBody?.value?.ok === false) {
-    console.log("NOTE issueComments on a PR returns " + commentsBody.value.error.kind + " (tracker resolves issue numbers only)");
-  }
+  assert.equal(commentsBody?.ok, true, JSON.stringify(commentsBody));
+  assert.equal(commentsBody?.value?.ok, true, JSON.stringify(commentsBody));
   console.log("PASS snapshot/detail see the fixture PR");
 
   // --- 2. The PR tab lists it and the row opens the PR detail
@@ -224,6 +247,36 @@ try {
   assert.equal(panel.window.document.querySelector("textarea"), null, "PR detail intentionally has no comment box");
   assert.deepEqual(panel.errors, []);
   console.log("PASS PR detail is read-only (comment list only, no comment box)");
+
+  if (process.argv.includes('--pagination')) {
+    const expected = ghJson(['api', `repos/${REPO}/issues/${fixturePr.number}/comments?per_page=100`, '--paginate', '--slurp']).flat();
+    const first = await upstream(fixtureThread, 'issueDetail', { number: fixturePr.number, isPullRequest: true });
+    const actual = [...first.issue.comments.nodes];
+    let info = first.issue.comments.pageInfo;
+    const sizes = [actual.length];
+    while (info.hasNextPage) {
+      const next = await upstream(fixtureThread, 'issueComments', { number: fixturePr.number, after: info.endCursor });
+      assert.equal(next.ok, true, JSON.stringify(next));
+      actual.push(...next.nodes); sizes.push(next.nodes.length); info = next.pageInfo;
+      assert.ok(sizes.length < 10, 'pagination terminates');
+    }
+    assert.deepEqual(actual.map(c => c.body), expected.map(c => c.body));
+    assert.equal(actual.filter(c => c.body.startsWith(paginationPrefix)).length, 101);
+    assert.equal(new Set(actual.filter(c => c.body.startsWith(paginationPrefix)).map(c => c.body)).size, 101);
+    console.log('PASS real MCP PR pages ' + sizes.join('/') + ', independent REST order/count match');
+    for (let i = 0; i < sizes.length - 1; i++) {
+      await new Promise(resolve => setTimeout(resolve, 650)); // existing UI throttle
+      const more = [...panel.window.document.querySelectorAll('button')].find(b => b.textContent.trim() === '加载下 50');
+      assert.ok(more, 'panel offers the next page');
+      more.click();
+      const marker = paginationPrefix + String(Math.min((i + 2) * 50, 101)).padStart(3, '0');
+      await panel.until(() => panel.rootText().includes(marker), 'next page ' + (i + 2));
+    }
+    assert.ok(![...panel.window.document.querySelectorAll('button')].some(b => b.textContent.trim() === '加载下 50'), 'last page has no load more');
+    assert.deepEqual(panel.errors, []);
+    console.log('PASS real panel load-more through last page, PR remains read-only');
+    await clearPaginationFixture();
+  }
 
   // --- 3. Comment through the same upstream endpoint the prompt side uses
   const body = "pr-comment-fixture-" + process.pid;
@@ -255,14 +308,18 @@ try {
   assert.ok(panel.rootText().includes("还没有拉取请求"), "a repo without PRs shows the empty state");
   console.log("PASS PR tab shows 还没有拉取请求 for a repo without pull requests");
 } finally {
-  if (commentId !== null) {
-    try { gh(["api", `repos/${REPO}/issues/comments/${commentId}`, "--method", "DELETE"]); } catch {}
+  try {
+    await clearPaginationFixture();
+  } finally {
+    if (commentId !== null) {
+      try { gh(["api", `repos/${REPO}/issues/comments/${commentId}`, "--method", "DELETE"]); } catch {}
+    }
+    panel?.dom.window.close();
+    for (const { timer } of requests.values()) clearTimeout(timer);
+    child.stdin.end();
+    child.kill();
+    await rm(codexHome, { recursive: true, force: true }).catch(() => {});
+    await rm(fixtureProject, { recursive: true, force: true }).catch(() => {});
+    await rm(emptyProject, { recursive: true, force: true }).catch(() => {});
   }
-  panel?.dom.window.close();
-  for (const { timer } of requests.values()) clearTimeout(timer);
-  child.stdin.end();
-  child.kill();
-  await rm(codexHome, { recursive: true, force: true }).catch(() => {});
-  await rm(fixtureProject, { recursive: true, force: true }).catch(() => {});
-  await rm(emptyProject, { recursive: true, force: true }).catch(() => {});
 }

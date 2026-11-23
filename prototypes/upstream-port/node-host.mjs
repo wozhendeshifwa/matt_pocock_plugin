@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import "./comment-pagination-hook.mjs";
 import originalHost from "./upstream-host.mjs";
 import { createPlatform } from "../../vendor/mattskills-1.8.0-rc.7/lib/platform/index.js";
 import { resolveExecutable } from "./executables.mjs";
