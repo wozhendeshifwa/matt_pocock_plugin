@@ -167,14 +167,16 @@ test('explicit START observes owned connected state; failed secondary read exact
   } });
   const connected = await activated.a.start({ ...activated.result, confirmation: 'START ' + activated.result.receiptSha256 }); assert.equal(connected.status, 'connected'); assert.equal(connected.realCodexStarted, false);
   const rollback = await activated.a.planRollback(activated.result); await activated.a.rollback({ ...activated.result, planDigest: rollback.planDigest, confirmation: 'ROLLBACK ' + rollback.planDigest });
-  const g = await fixture(t); let late, pending;
-  t.after(async () => { await pending; await late?.close(); });
+  const g = await fixture(t); let late, pending, releaseLate;
+  const lateGate = new Promise(resolve => { releaseLate = resolve; });
+  t.after(async () => { releaseLate(); await pending; await late?.close(); });
   const delayed = await apply(g, { startTimeoutMs: 10, startPinned: async () => {
-    pending = new Promise(resolve => setTimeout(async () => { late = await createRuntimeControl(g.pairingFile, { intervalMs: 25, onStop: async () => late.close() }); await late.setState('connected'); resolve(); }, 150));
+    pending = (async () => { await lateGate; late = await createRuntimeControl(g.pairingFile, { intervalMs: 25, onStop: async () => late.close() }); await late.setState('connected'); })();
     return { owns: active => late && active?.instanceId === late.instanceId, ended: async () => false };
   } }); let unknown;
   await assert.rejects(delayed.a.start({ ...delayed.result, confirmation: 'START ' + delayed.result.receiptSha256 }), e => { unknown = e; return e.startOutcome === 'unknown'; });
-  await pending; assert.ok((await delayed.a.planRollback(delayed.result)).blockers.includes('start-outcome-unresolved'));
+  assert.equal(late, undefined, 'late instance is released only after the unknown outcome was durably returned');
+  releaseLate(); await pending; assert.ok((await delayed.a.planRollback(delayed.result)).blockers.includes('start-outcome-unresolved'));
   const drained = await delayed.a.drainStart({ attemptFile: unknown.startAttemptFile, attemptSha256: unknown.startAttemptSha256, confirmation: 'DRAIN ' + unknown.startAttemptSha256 }); assert.equal(drained.status, 'stopped');
   const h = await fixture(t); let failing;
   t.after(async () => failing?.close());
@@ -183,6 +185,19 @@ test('explicit START observes owned connected state; failed secondary read exact
     return { owns: active => active?.instanceId === failing.instanceId, ended: async () => false };
   } });
   await assert.rejects(missing.a.start({ ...missing.result, confirmation: 'START ' + missing.result.receiptSha256 }), e => e.startOutcome === 'stopped'); assert.equal(await lstat(h.pairingFile + '.runtime.json').then(() => true, () => false), false);
+  const i = await fixture(t); let appearedInCatch, readPhase = 'inactive', catchReads = 0, exactStops = 0;
+  t.after(async () => appearedInCatch?.close());
+  const caught = await apply(i, { startTimeoutMs: 1, runtime: {
+    async read(file) {
+      if (readPhase === 'initial-no-owner') { readPhase = 'catch-owner'; await new Promise(resolve => setTimeout(resolve, 10)); return null; }
+      if (readPhase === 'catch-owner') { readPhase = 'active'; catchReads++; appearedInCatch = await createRuntimeControl(file, { intervalMs: 25, onStop: async () => appearedInCatch.close() }); await appearedInCatch.setState('connected'); }
+      return readAdoptionRuntime(file);
+    },
+    async stop(file, expectedInstanceId) { assert.equal(expectedInstanceId, appearedInCatch.instanceId); exactStops++; return requestAdoptionStop(file, expectedInstanceId); },
+    claim: file => createRuntimeControl(file, { intervalMs: 25 })
+  }, startPinned: async () => { readPhase = 'initial-no-owner'; return { owns: active => active?.instanceId === appearedInCatch?.instanceId, ended: async () => false }; } });
+  await assert.rejects(caught.a.start({ ...caught.result, confirmation: 'START ' + caught.result.receiptSha256 }), e => e.code === 'START_NOT_CONNECTED' && e.startOutcome === 'stopped');
+  assert.equal(catchReads, 1); assert.equal(exactStops, 1); assert.equal(await readAdoptionRuntime(i.pairingFile), null);
 });
 
 test('concurrent START binds its first marker observation and never overwrites another pending dispatch', win, async t => {
