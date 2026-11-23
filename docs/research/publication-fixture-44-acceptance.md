@@ -21,7 +21,7 @@
 
 | 私有实验仓库后缀 | Repository ID | 验收事实 | 唯一remote分支HEAD |
 | --- | --- | --- | --- |
-| `1795465033050-5998d366-ok` | `1469265629` | 原init因默认Windows TLS失败；一次OpenSSL缺CA重试也失败；补齐现有系统信任后原retry成功，同repo/commit，无重建 | `2933d16a67a3666fea2af8f2b497c2c5c33782e8` |
+| `1795465033050-5998d366-ok` | `1469265629` | 空配置夹具的原init因schannel TLS失败；一次OpenSSL缺CA重试也失败；补齐现有系统信任后原retry成功，同repo/commit，无重建 | `2933d16a67a3666fea2af8f2b497c2c5c33782e8` |
 | `1795465033050-5998d366-retry` | `1469273036` | 原init已创建私有远端和exact commit，但自有pre-push hook输出固定sentinel后exit1；verifier确认empty refs并记known partial；仅重命名自有hook为disabled后原retry成功 | `6f625d1276648a0fec6d7f1877d7e4efa4171523` |
 | `1795465033050-5998d366-normal` | `1469273700` | 全新第三owned项目原init一次全成功，独立metadata/private/HEAD/完整refs读回一致 | `c685f1dbfce47330ec2f6b7261936c9869a5d41b` |
 
@@ -35,7 +35,7 @@
 
 | 阶段 | 实测 | 处理边界 |
 | --- | --- | --- |
-| 原Windows schannel | `CRYPT_E_NO_REVOCATION_CHECK (0x80092012)`，创建已成但push失败 | 原失败回包和ledger保留；没有关闭revocation或sslVerify |
+| 空Git系统/全局配置的fixture使用Windows schannel | `CRYPT_E_NO_REVOCATION_CHECK (0x80092012)`，创建已成但push失败 | 原失败回包和ledger保留；没有关闭revocation或sslVerify |
 | fixture仅切OpenSSL、空Git系统/全局配置 | `unable to get local issuer certificate (20)` | 仍保持证书验证，显式原retry失败被诚实记入ledger |
 | fixture OpenSSL + 固定公共CA bundle | 严格`-verify_hostname github.com -verify_return_error`链校验return code0，原retry/normal init成功 | 仅复用Windows已信任公开根到项目外；不修改用户Git或系统信任 |
 
@@ -48,7 +48,9 @@
 * 新项目外bundle为 `installation/trust/ca-bundle.pem`，186711字节，SHA256 `77091576dd015333973df0285ced379a66df3f12a389a37ee4760997d616b944`，由原包原字节加该既有公开根组成；每次session在auth前再核对hash。
 * 只在fixture child env设置 `http.sslBackend=openssl` 和该 `http.sslCAInfo`，未设置`sslVerify=false`、未改schannel revocation选项，也未将该环境调整写入产品默认行为。
 
-因此本报告**不能写成“默认Windows发布已全绿”或“原站公开链验证通过”**。已证实默认环境失败、诚实partial、现有系统信任在隔离OpenSSL环境中的安全复用，以及修复环境后原流程成功。
+因此本报告不能推断用户主工作区Git故障，也不能写成用户默认Windows发布已验收或原站公开链验证通过。已证实空配置fixture失败、诚实partial、现有系统信任在隔离OpenSSL环境中的安全复用，以及修复fixture环境后原流程成功。
+
+补充的[真实主工作区只读预检](../../.scratch/actual-git-readonly-preflight-44.json)使用用户实际有效Git配置：backend为schannel，未额外设置sslVerify、schannelCheckRevoke或自定义CA；`git ls-remote --heads origin`成功读取3条分支。该检查没有push、没有改用户配置；它只证明当时真实配置的远程读取正常，不能把夹具的TLS错误扩写为用户环境异常，也不能把只读成功升级为真实发布通过。
 
 ## 可重复只读复核与一次性动作
 
