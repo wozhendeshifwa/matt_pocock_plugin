@@ -94,6 +94,24 @@ test('scope protects intent and result even when project is known', async t => {
   assert.deepEqual(ledger.inspect({ operationId, projectKey: project, ownerScope: owner }).intent, intent);
 });
 
+test('local preparation can add readback facts without changing ownership, parameters or reserved correlation', async t => {
+  const f = await fixture(t), ledger = f.open(), operationId = id();
+  const provisional = { method: 'gitStage', parametersSha256: 'a'.repeat(64), target: { correlationKey: operationId } };
+  const record = { operationId, projectKey: project, ownerScope: owner };
+  ledger.reserve({ ...record, intent: provisional });
+  assertBlocked(() => f.open().assertAvailable({ projectKey: project }), operationId);
+  const refined = { ...provisional, target: { ...provisional.target, paths: ['note.txt'], beforeStateSha256: 'b'.repeat(64) } };
+  assert.deepEqual(ledger.refineIntent({ ...record, intent: refined }), refined);
+  for (const changed of [{ ...refined, method: 'gitUnstage' }, { ...refined, parametersSha256: 'c'.repeat(64) },
+    { ...refined, target: { ...refined.target, correlationKey: id() } }, { ...refined, target: { correlationKey: operationId } }]) {
+    assert.throws(() => ledger.refineIntent({ ...record, intent: changed }), { code: 'INTENT_REFINEMENT_CONFLICT' });
+  }
+  assert.throws(() => ledger.refineIntent({ ...record, ownerScope: { ...owner, pairingId: 'other' }, intent: refined }), { code: 'OPERATION_NOT_FOUND' });
+  ledger.markUnknown({ ...record, reason: 'process-ended' });
+  assert.throws(() => ledger.refineIntent({ ...record, intent: refined }), { code: 'INTENT_REFINEMENT_CONFLICT' });
+  assert.deepEqual(f.open().inspect(record).intent, refined);
+});
+
 test('only explicit correlated local readback evidence can reconcile, never a confirmed flag', async t => {
   const f = await fixture(t), ledger = f.open(), operationId = id();
   ledger.reserve(reserve(operationId));

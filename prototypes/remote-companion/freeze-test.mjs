@@ -78,6 +78,9 @@ test('freeze preserves exact static bytes, overlays three known modules and refu
   await assert.rejects(freezeAdapter(f.options), { code: 'EEXIST' });
   assert.equal((await readFile(path.join(result.directory, vendor + 'LICENSE'), 'utf8')), 'Fixture license is preserved verbatim.\n');
   assert.equal((await verifyFrozenAdapter({ directory: result.directory, expectedManifestSha256: result.manifestSha256 })).adapterPath, result.adapterPath);
+  await writeFile(path.join(result.directory, 'INCOMPLETE'), 'Withdrawn generated test candidate.\n');
+  await assert.rejects(verifyFrozenAdapter({ directory: result.directory, expectedManifestSha256: result.manifestSha256 }), /withdrawn frozen candidate/);
+  await rm(path.join(result.directory, 'INCOMPLETE'));
   await writeFile(path.join(result.directory, port + 'sidebar-server.mjs'), '// changed after freeze\n');
   await assert.rejects(verifyFrozenAdapter({ directory: result.directory, expectedManifestSha256: result.manifestSha256 }), /Frozen candidate drift/);
 });

@@ -15,7 +15,7 @@
 | `baseline` | 冻结目录与本机固定的 manifest SHA-256；启动前逐文件复查，拒绝漂移或另一适配器 |
 | `secretDPAPI` | Windows DPAPI `CurrentUser` 加密的 device token，明文不写配置/插件、不打印 |
 | `writeEnabled` | 正式配对保持 `false`；隔离写验收须同时有完整 `writeGrant`，只改为 `true` 会拒绝启动 |
-| `writeGrant` | 仅本机的 `enabled:true`、非空绝对 `projectRoots`、非空 `methods`；当前切片只接受 `deck_issue_report` / `gitStage` |
+| `writeGrant` | 仅本机的 `enabled:true`、非空绝对 `projectRoots`、非空 `methods`；当前12项切片见 README，正式配对仍未启用 |
 | `revoked` | 本机撤销状态，另有不可因恢复配置备份而消失的 `.revoked` 标记 |
 
 此处“配对”是本机凭据安装，不宣称已实现交互式云端设备注册/一次性代码。需要预先取得对应 relay 的 **device token**；本工具不生成云端 caller token、不接收 GitHub 凭据、不修改 OpenAI/DeepSeek provider。

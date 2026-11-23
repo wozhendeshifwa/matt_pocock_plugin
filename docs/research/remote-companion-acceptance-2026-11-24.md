@@ -81,3 +81,21 @@ stdio 在45秒前台超时后继续跟踪最长300秒的本机结果；HTTP已�
 根代理独立复跑 **40/40** 检查通过：原SDK/HTTP12、Windows生命周期5、冻结4、ledger9、写集成7、项目绑定3；写集成的源选择为上述 v2。首次默认沙箱32/40通过，8项本机回环 HTTP 被 `connect EACCES 127.0.0.1` 阻断；获准在同一隔离夹具复跑后40/40，无测试跳过，不将环境阻断藏作通过。测试未连接生产relay、未改变真实配对/自启、未写业务 GitHub。
 
 report 的工具 `ok`、内存 `chain.recorded:true` 仍可能伴随磁盘 flush 失败，因此当前不会仅据回包将其记成功；持久链读回正在实现。全部22项既有写能力的[参数、结果与恢复矩阵](remote-write-capability-matrix-2026-11-24.md)已完成源码盘点，不能将2项试验切片或盘点当作22项已开放/验收。正式规格继续 open。
+
+## 独立效果验证与全量隔离回归
+
+本机持久链读回已经实现并接入启动器：可信 context、宿主聊天、本机 canonical root、分片、后端、票、动作与时间共同匹配，原 writer 的 silent flush 失败不能假成功。Git 不再只核对路径回显：独立读取索引、工作树、提交 parent/tree/message、配置、tracking refs、FETCH_HEAD 和远端 refs；预检只从同项目/聊天的实际只读响应捕获。六项 Git 经原 stdio 适配器与专用本机 bare/peer 串行执行，另有伪回包、额外分支、删除、二进制与字面 pathspec 等负例。默认配置目标 HTTPS/SSH 的读取代码保留；线上 GitHub 网络写与复杂多目标/refspec、脏树 pull 仍未专项验收。
+
+五项本机方法也已通过原适配器：binding、日志开关/清空、manual cancellation、handoff selector。`bind:null` 的原内存解绑/未持久化被明确记录为已知 `failed/partial`；原 `cancelled:false` 只在已核实的无匹配建议分支且磁盘不变时记录 `failed/rejected`，允许后续操作。真 `cancelled:true` 却丢盘或跨聊天记录则仍 unknown。没有用通用错误推断未执行。
+
+真实全链还揭示了两个必须修正的验收口径：默认配色模块须按原 Markdown backend 初始化后再核对非空11色；日志 store 的第一次异步加载必须共享 pending promise，且新设置等待初始读完成。日志竞态在旧 v2 的主/备用 store 均稳定 RED，新候选均 GREEN。新候选 `.scratch/frozen-adapter-20261124-log-v3-reviewed` 为450文件、`choices-bound-project-and-log-load-v3`、清单 `4b6e2183a3c3b0226cd88629fa5fa2e17ddb456e9b7114985190c928b1cc2a6b`，仍 `userAccepted:false`。一次未安装的生成候选因缓存旧设置快照被撤回，`INCOMPLETE` 标记现会阻止任何启动；不修改 v1/v2 原字节。
+
+准备前即持有项目屏障，补充本机 before facts 时只能增补同一意图。真实 SQLite 锁等待还复现了“检查时未过期、等待后才派发”的问题；现真正派发前再校验过期/撤销。该确定性回归中已过期写为零 dispatch、`completed/failed/rejected`，随后新操作可执行。
+
+根代理对已完成模块独立完整复跑 **155/155、无跳过**（约177秒）：原SDK/HTTP、Windows DPAPI/生命周期、冻结、六Git真实本机链/独立读回、C组真实stdIO、持久链、安装账本/并发/锁等待/晚到、资源预算、22项 typed intent 与只读升级快照计划。随后扩大原合法幂等键到200字符的兼容断言与准备中的 GitHub 读回模块共30/30通过（其中11项是原intent回归，19项为有状态假backend）。后者尚未接入正式 grant，不代表真实 GitHub 写或 tracker 漂移已被阻止。
+
+云端预算提交 `cee163b8208dfc3849f017dde1587a3393eb4a05` 已在原 free 服务部署为 `dep-dc28n26c6qcc73eqt6ag live`。实际 Codex context/issue 及官方SDK完整2,518,404-byte UI、56 RPC、项目和只读状态复验通过；Render新实例正常负载分钟采样约39–48MB，对应报告限额536,870,900bytes，详见[资源记录](remote-relay-budget-2026-11-24.md)。不是极限云端压测。
+
+为后续真实外部验收创建了专用私有仓库 `wozhendeshifwa/deck-remote-acceptance-44`，独立REST确认 Issues 开启、Actions 关闭；当前尚未进行其中的 issue/评论/关系写验收。生产配对仍 `writeEnabled:false`。正在做[真实离线与冷启动](remote-cold-start-acceptance-2026-11-24.md)：已固定旧只读包、精确停止本次组件并关闭远程测试面板，保持聊天/草稿；静默和恢复尚在验收，不提前标为通过。
+
+升级盘点确认换冻结根会换业务 dataRoot，现仅有只读注册项目过滤、全源新目录快照和hash校验；原本机有业务状态、远程v1缺这些文件，唯一实盘冲突是日志。尚未激活稳定数据目录，`activationReady:false`，未迁移生产状态。完整 tracker 绑定、剩余 GitHub/发布/窗口能力、稳定状态接线与手动更新恢复、真实自启/审批/最终用户确认仍待完成，规格和地图继续 open。

@@ -1,4 +1,4 @@
-# #44 既有写能力、结果证据与恢复矩阵
+# 既有写能力、结果证据与恢复矩阵
 
 日期：2026-11-24。用途：为远程 companion 的下一批本机授权、隔离验收和结果恢复提供范围清单。本文是源码核对与受控测试记录，不是正式写能力已通过真实 Codex 验收的声明。没有向真实 GitHub 仓库写入、没有调用真实 `gh auth`，没有修改用户业务仓库、生产授权或插件配置。
 
@@ -184,3 +184,11 @@ publish首次第54行retry.ok断言失败，诊断捕获真实Git `sh.exe` 的 `
 优先完成试验切片的真实结果判据：gitStage精确索引、report磁盘链，而不只把17+5名字塞进grant。随后按B/C组为每方法实现本机intent提取、终局判定、只读reconciler及故障测试，再逐组加入明确本机method/project allowlist。group D在独立repo和相应授权落实后再做；保留既有UI/approval语义。每完成一组，在#44正文写清“本地隔离/真实远程/真人确认”的不同证据，不将分组通过外推为全量通过。
 
 本文结论：17 RPC + 5 deck写的参数、已有gate、成功信封、typed intent需求、读回/unknown规则和测试复用均已盘点；**22项全量remote grant、逐项恢复器、真实GitHub写回与逐次HITL尚未由本文实现/验收**。#44不能因本文或两方法切片关闭。
+
+### 盘点后新增的意图模块（不改变上述验收边界）
+
+`prototypes/remote-companion/write-intents.mjs` 提供 `buildWriteIntent(input,localDeps)` → `{method,parametersSha256,target}`，以及 `prepareWriteIntent` → `{intent,facts}`，后者facts仅供可信本机后续verifier使用，不能直接发到relay或当成功证明。input的projectRoot/threadId来自调用前已通过grant的本机resolver；parameters只放原RPC payload或原deck args，不接受事实/授权/confirmed同名字段。当前policy的22方法均有typed intent分支；setupLayout与未开放方法拒绝。
+
+默认B组reader使用固定本地Git只读配方、不调用gh/auth/network；对索引和工作树读前状态做指纹，不以原始WT字节hash冒充经过CRLF/filter的Git blobOID。默认C组reader使用可信`dataRootFor`实际文件预读；缺可信读数失败关闭。fetch/pull/push的目标必须来自注入`readGitTicket`读取的本机预检票，不能从无remote的write payload推测。GH预读只通过可信`readBackend/readTracker/readGithubIdentity/readPublicationRecord`依赖注入，本模块没有自动在线调用。创建参数的idempotencyKey/planId保持上游可选，本地operation correlation不能冒充上游幂等保证。
+
+`node --test prototypes/remote-companion/write-intents-test.mjs`：**11/11通过**。覆盖22/22生成结果实际进入既有WriteLedger target validators，真实隔离Git的HEAD/index保持、实际C组文件变化、缺前提/伪根/错票/错repo拒绝、原有可选anchor语义。初次Windows sandbox不允许junction创建，测试明确诊断该分支未执行；随后只提升同一组自有隔离夹具复验，**11/11再次通过且实际执行junction越界拒绝**，无诊断跳过、无在线Git/gh/auth。这个模块既不开放grant，也不实现逐方法成功/恢复判据。

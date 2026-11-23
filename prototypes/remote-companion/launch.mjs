@@ -8,6 +8,7 @@ import { verifyFrozenAdapter, OVERLAY_VERSION } from './freeze-adapter.mjs';
 import { mkdir } from 'node:fs/promises';
 import { WriteLedger } from './write-ledger.mjs';
 import { installationWriteLedgerFile, normalizeWriteGrant } from './write-grant.mjs';
+import { createWriteEffects } from './write-effects.mjs';
 
 // Config selection is a local CLI action, never an MCP argument. All tokens
 // remain local; the cloud gets neither this file nor the adapter's environment.
@@ -49,8 +50,10 @@ export async function launchPairing(file, { onState = () => {}, writeLedgerFile 
       writes = new WriteLedger(ledgerFile);
     }
     adapter = createStdioAdapter(config.adapterPath);
+    const effects = grant ? await createWriteEffects({ adapterPath: config.adapterPath }) : null;
     const execute = createExecutor({ adapter, journal, resolveProject: resolveSessionProject, pairingId: config.pairingId,
-      isReadMethod: (method, payload) => classifyEndpoint(method, payload) === 'read', writeGrant: grant, writeLedger: writes });
+      isReadMethod: (method, payload) => classifyEndpoint(method, payload) === 'read', writeGrant: grant, writeLedger: writes,
+      prepareWrite: effects?.prepare, observeRead: effects?.observeRead });
     companion = startCompanion({ relayOrigin: config.relayOrigin, deviceToken: config.deviceToken, execute,
       onState(state) {
         onState(state);

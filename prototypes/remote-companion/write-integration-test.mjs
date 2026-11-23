@@ -19,6 +19,7 @@ import { classifyEndpoint } from '../upstream-port/rpc-endpoints.mjs';
 import { resolveExecutable } from '../upstream-port/executables.mjs';
 import { createPairing, loadPairing, createRuntimeControl } from './lifecycle.mjs';
 import { launchPairing } from './launch.mjs';
+import { createWriteEffects } from './write-effects.mjs';
 
 const run = promisify(execFile);
 const A = '01a1b180-89f8-7291-beb2-43f569f3709c';
@@ -31,7 +32,7 @@ async function until(predicate, limit = 5000) {
   const deadline = Date.now() + limit;
   while (!await predicate()) { if (Date.now() >= deadline) throw new Error('Isolated write condition did not become true'); await new Promise(resolve => setTimeout(resolve, 20)); }
 }
-async function fixture(t, { realAdapter = false, delayed = false } = {}) {
+async function fixture(t, { realAdapter = false, delayed = false, methods = ['gitStage', 'deck_issue_report'] } = {}) {
   const base = fileURLToPath(new URL('../../.scratch/', import.meta.url)); await mkdir(base, { recursive: true });
   const directory = await realpath(await mkdtemp(path.join(base, 'remote-write-test-')));
   const resources = [];
@@ -56,11 +57,15 @@ async function fixture(t, { realAdapter = false, delayed = false } = {}) {
   const journal = new Journal(path.join(directory, 'pair-a-journal.sqlite')); cleanup(() => journal.close());
   const ledgerFile = path.join(directory, 'installation-write-ledger.sqlite');
   const writeLedger = new WriteLedger(ledgerFile); cleanup(() => writeLedger.close());
-  const grant = { enabled: true, projectRoots: [projectA], methods: ['gitStage', 'deck_issue_report'] };
+  const grant = { enabled: true, projectRoots: [projectA], methods };
+  let effects;
   const resolveProject = createSessionProjectResolver({ codexHome: home });
-  const executor = (adapter, { pairingId = 'trial-pair-a', journal: pairJournal = journal, writeLedger: ledger = writeLedger, writeGrant = grant } = {}) => {
+  const executor = (adapter, { pairingId = 'trial-pair-a', journal: pairJournal = journal, writeLedger: ledger = writeLedger, writeGrant = grant, prepareWrite } = {}) => {
     const execute = createExecutor({ adapter, journal: pairJournal, writeLedger: ledger, writeGrant, resolveProject, pairingId,
-      isReadMethod: (method, payload) => classifyEndpoint(method, payload) === 'read' });
+      isReadMethod: (method, payload) => classifyEndpoint(method, payload) === 'read',
+      prepareWrite: prepareWrite ?? effects?.prepare ?? (async ({ method, request }) => method === 'gitStage'
+        ? { target: { paths: request.params.arguments?.payload?.paths }, verify: async () => null } : null),
+      observeRead: effects?.observeRead });
     cleanup(() => execute.drain()); return execute;
   };
   let adapter, git, env;
@@ -72,6 +77,7 @@ async function fixture(t, { realAdapter = false, delayed = false } = {}) {
     for (const key of ['PATH', 'Path', 'PATHEXT', 'SystemRoot', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP']) if (process.env[key]) env[key] = process.env[key];
     Object.assign(env, { CODEX_HOME: home, USERPROFILE: fakeHome, HOME: fakeHome, APPDATA: path.join(fakeHome, 'AppData/Roaming'),
       GH_CONFIG_DIR: gh, DECK_GIT: git, DECK_GH: process.execPath, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: gitConfig, GIT_CONFIG_SYSTEM: gitConfig });
+    Object.assign(env, { GIT_AUTHOR_NAME: 'Isolated Test', GIT_AUTHOR_EMAIL: 'test@example.invalid', GIT_COMMITTER_NAME: 'Isolated Test', GIT_COMMITTER_EMAIL: 'test@example.invalid' });
     for (const project of [projectA, projectB]) {
       await run(git, ['-C', project, 'init', '--quiet'], { env, windowsHide: true });
       await writeFile(path.join(project, 'sample.txt'), 'initial\n');
@@ -90,6 +96,7 @@ async function fixture(t, { realAdapter = false, delayed = false } = {}) {
         filter: file => filter(path.relative(sourceDirectory, file)) });
     }
     let adapterFile = path.join(runtime, 'prototypes/upstream-port/sidebar-server.mjs');
+    effects = await createWriteEffects({ adapterPath: adapterFile, env });
     if (delayed) {
       const original = adapterFile; adapterFile = path.join(directory, 'delayed-stdio.mjs');
       await writeFile(adapterFile, `import {spawn} from 'node:child_process';
@@ -97,11 +104,11 @@ import {createInterface} from 'node:readline';
 const child=spawn(process.execPath,[${JSON.stringify(original)}],{env:process.env,windowsHide:true,stdio:['pipe','pipe','pipe']});
 const delayed=new Set();
 createInterface({input:process.stdin}).on('line',line=>{const message=JSON.parse(line);if(message.params?.name==='deck_upstream_write'&&message.params?.arguments?.method==='gitStage')delayed.add(message.id);child.stdin.write(line+'\\n');}).on('close',()=>child.stdin.end());
-createInterface({input:child.stdout}).on('line',line=>{const message=JSON.parse(line);if(delayed.delete(message.id))setTimeout(()=>process.stdout.write(line+'\\n'),700);else process.stdout.write(line+'\\n');});
+createInterface({input:child.stdout}).on('line',line=>{const message=JSON.parse(line);if(delayed.delete(message.id))setTimeout(()=>process.stdout.write(line+'\\n'),2000);else process.stdout.write(line+'\\n');});
 child.stderr.resume(); child.on('exit',()=>process.exit(0));
 `);
     }
-    adapter = createStdioAdapter(adapterFile, { env, timeout: delayed ? 500 : 45000, completionTimeout: delayed ? 5000 : 300000 });
+    adapter = createStdioAdapter(adapterFile, { env, timeout: delayed ? 1500 : 45000, completionTimeout: delayed ? 7000 : 300000 });
     cleanup(() => adapter.close());
   }
   return { directory, projectA, projectB, journal, writeLedger, ledgerFile, resolveProject, grant, executor, cleanup, adapter, git, env,
@@ -111,7 +118,7 @@ child.stderr.resume(); child.on('exit',()=>process.exit(0));
 test('local grants require explicit enable plus nonempty absolute project and supported-method allowlists', () => {
   assert.equal(normalizeWriteGrant(undefined), null); assert.equal(normalizeWriteGrant({ enabled: false }), null);
   for (const grant of [{ enabled: true, projectRoots: [], methods: ['gitStage'] }, { enabled: true, projectRoots: ['relative'], methods: ['gitStage'] },
-    { enabled: true, projectRoots: [path.resolve('.')], methods: [] }, { enabled: true, projectRoots: [path.resolve('.')], methods: ['gitPush'] },
+    { enabled: true, projectRoots: [path.resolve('.')], methods: [] }, { enabled: true, projectRoots: [path.resolve('.')], methods: ['setupLayout'] },
     { enabled: 'true', projectRoots: [path.resolve('.')], methods: ['gitStage'] }]) assert.throws(() => normalizeWriteGrant(grant), /policy/);
   const stable = installationWriteLedgerFile(); assert.ok(path.isAbsolute(stable));
   assert.ok(stable.endsWith(path.join('MattSkillsDeck', 'RemoteCompanion', 'write-ledger.sqlite')));
@@ -183,6 +190,76 @@ test('real temporary Git staging reuses the original adapter while routing, proj
   assert.equal(tools.result.tools.find(tool => tool.name === 'deck_issue_report').annotations.readOnlyHint, false);
 });
 
+test('original adapter stage, unstage and ticketed commit complete only after independent Git readback', { timeout: 30000 }, async t => {
+  const f = await fixture(t, { realAdapter: true, methods: ['gitStage', 'gitUnstage', 'gitCommit'] });
+  const execute = f.executor(f.adapter);
+  assert.ok((await execute(job(req(1)))).result);
+  const unstage = req(2, 'deck_upstream_write', { method: 'gitUnstage', payload: { paths: ['sample.txt'], expectedThreadId: A } });
+  assert.ok((await execute(job(unstage))).result); assert.equal(await f.staged(), '');
+  assert.ok((await execute(job(req(3)))).result);
+  const missing = req(4, 'deck_upstream_write', { method: 'gitCommit', payload: { message: 'isolated effect commit', ticketId: 'not-a-local-ticket', expectedThreadId: A } });
+  const rejected = await execute(job(missing));
+  assert.equal(rejected.error.data.state, 'not-executed'); assert.match(rejected.error.message, /precheck/);
+  const check = req(5, 'deck_upstream_read', { method: 'gitWriteCheck', payload: { op: 'commit', message: 'isolated effect commit', expectedThreadId: A } });
+  const checked = await execute(job(check));
+  const ticket = checked.result?.structuredContent?.value?.ticket;
+  assert.ok(ticket?.id, JSON.stringify(checked));
+  const commit = job(req(6, 'deck_upstream_write', { method: 'gitCommit', payload: {
+    message: 'isolated effect commit', ticketId: ticket.id, requestId: 'isolated-commit-1', expectedThreadId: A,
+  } }));
+  const result = await execute(commit);
+  assert.ok(result.result, JSON.stringify(result));
+  assert.equal(result.result.structuredContent.value.committed, true);
+  assert.equal(await f.staged(), '');
+  const head = (await run(f.git, ['-C', f.projectA, 'rev-parse', 'HEAD'], { env: f.env, windowsHide: true })).stdout.trim();
+  assert.equal(head, result.result.structuredContent.value.headAfter);
+  assert.equal((await execute(commit)).error.data.state, 'completed');
+  assert.equal((await run(f.git, ['-C', f.projectA, 'rev-parse', 'HEAD'], { env: f.env, windowsHide: true })).stdout.trim(), head);
+  assert.equal(await f.staged(f.projectB), '');
+});
+
+test('original adapter pushes, fetches and fast-forwards an isolated local bare repository with captured prechecks', { timeout: 45000 }, async t => {
+  const f = await fixture(t, { realAdapter: true, methods: ['gitPush', 'gitFetch', 'gitPull'] });
+  const git = (root, args) => run(f.git, ['-C', root, ...args], { env: f.env, windowsHide: true, timeout: 15000 });
+  const bare = path.join(f.directory, 'network-fixture.git'); await mkdir(bare);
+  await git(bare, ['init', '--bare', '--quiet']);
+  await git(f.projectA, ['add', '--', 'sample.txt']); await git(f.projectA, ['commit', '--quiet', '-m', 'fixture local head']);
+  await git(f.projectA, ['remote', 'add', 'origin', bare]);
+  let localWrite;
+  const execute = f.executor({ request: (...args) => f.adapter.request(...args), beginRequest(...args) {
+    const call = f.adapter.beginRequest(...args);
+    return { response: call.response, completion: call.completion.then(response => { localWrite = response; return response; }) };
+  } }); let id = 0;
+  async function checkedWrite(method) {
+    const checked = await execute(job(req(++id, 'deck_upstream_read', { method: 'gitWriteCheck', payload: { op: method.slice(3).toLowerCase(), expectedThreadId: A } })));
+    const ticket = checked.result?.structuredContent?.value?.ticket;
+    assert.ok(ticket?.id, JSON.stringify(checked));
+    const operation = job(req(++id, 'deck_upstream_write', { method, payload: { ticketId: ticket.id, requestId: 'isolated-network-' + id, expectedThreadId: A } }));
+    const response = await execute(operation);
+    assert.ok(response.result, JSON.stringify({ response, localWrite }));
+    assert.equal(response.result.structuredContent.value.ok, true);
+    assert.equal((await execute(operation)).error.data.state, 'completed');
+    return response.result.structuredContent.value;
+  }
+  const pushed = await checkedWrite('gitPush'); assert.equal(pushed.mode, 'set-upstream');
+  const branch = (await git(f.projectA, ['symbolic-ref', '--short', 'HEAD'])).stdout.trim();
+  const localHead = (await git(f.projectA, ['rev-parse', 'HEAD'])).stdout.trim();
+  assert.equal((await git(bare, ['rev-parse', 'refs/heads/' + branch])).stdout.trim(), localHead);
+  const peer = path.join(f.directory, 'peer');
+  await run(f.git, ['clone', '--quiet', '--', bare, peer], { env: f.env, windowsHide: true, timeout: 15000 });
+  await writeFile(path.join(peer, 'sample.txt'), 'isolated remote fast forward\n');
+  await git(peer, ['add', '--', 'sample.txt']); await git(peer, ['commit', '--quiet', '-m', 'fixture remote head']);
+  await git(peer, ['push', '--quiet', 'origin', 'HEAD']);
+  const remoteHead = (await git(bare, ['rev-parse', 'refs/heads/' + branch])).stdout.trim();
+  const fetched = await checkedWrite('gitFetch'); assert.equal(fetched.mode, 'fetched');
+  assert.equal((await git(f.projectA, ['rev-parse', 'refs/remotes/origin/' + branch])).stdout.trim(), remoteHead);
+  assert.equal((await git(f.projectA, ['rev-parse', 'HEAD'])).stdout.trim(), localHead);
+  const pulled = await checkedWrite('gitPull'); assert.equal(pulled.mode, 'fast-forward');
+  assert.equal((await git(f.projectA, ['rev-parse', 'HEAD'])).stdout.trim(), remoteHead);
+  assert.equal(await readFile(path.join(f.projectA, 'sample.txt'), 'utf8'), 'isolated remote fast forward\n');
+  assert.equal(await f.staged(f.projectB), '');
+});
+
 test('report status cannot prove durable recording and an isError write also leaves a project barrier', async t => {
   const f = await fixture(t); const seen = [];
   const execute = f.executor({ async request(request) { seen.push(request); return { jsonrpc: '2.0', id: request.id,
@@ -200,6 +277,28 @@ test('report status cannot prove durable recording and an isError write also lea
   assert.equal(blocked.error.data.reason, 'PROJECT_WRITE_UNRESOLVED');
 });
 
+test('project barrier covers readback preparation and an expired prepared write never dispatches', async t => {
+  const f = await fixture(t);
+  let enter, release, calls = 0;
+  const started = new Promise(resolve => { enter = resolve; });
+  const wait = new Promise(resolve => { release = resolve; });
+  const execute = f.executor({ async request() { calls++; throw new Error('Expired write must never reach adapter'); } }, {
+    async prepareWrite() { enter(); await wait; return { target: { localStateKey: 'session-tickets' }, verify: async () => null }; },
+  });
+  const value = job(req(1, 'deck_issue_report', { key: '1' })); value.expiresAt = Date.now() + 100;
+  const pending = execute(value); await started;
+  const another = await execute(job(req(2, 'deck_issue_report', { key: '1' }, A2)));
+  assert.equal(another.error.data.reason, 'PROJECT_WRITE_UNRESOLVED'); assert.equal(calls, 0);
+  await new Promise(resolve => setTimeout(resolve, 110)); release();
+  const expired = await pending;
+  assert.equal(expired.error.data.state, 'not-executed'); assert.match(expired.error.message, /expired before/);
+  assert.equal(calls, 0);
+  const repeated = await execute(value); assert.equal(repeated.error.data.state, 'not-executed');
+  const scope = { pairingId: 'trial-pair-a', threadId: A, projectRoot: process.platform === 'win32' ? f.projectA.toLowerCase() : f.projectA };
+  const record = f.writeLedger.inspect({ operationId: value.operationId, projectKey: scope.projectRoot, ownerScope: scope });
+  assert.equal(record.state, 'completed'); assert.equal(record.outcome, 'failed');
+});
+
 test('stdio strips caller spoofing and injects only the trusted local dispatch context', async t => {
   const f = await fixture(t), echo = path.join(f.directory, 'echo-dispatch.mjs');
   await writeFile(echo, "import {createInterface} from 'node:readline'; for await (const line of createInterface({input:process.stdin})) { const request=JSON.parse(line); process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:request.id,result:{dispatch:request._deckLocalDispatch??null}})+'\\n'); }");
@@ -213,7 +312,7 @@ test('stdio strips caller spoofing and injects only the trusted local dispatch c
 test('relay timeout and new session/thread/pair cannot replay a real staged write; late stdio completion is queryable', { timeout: 20000 }, async t => {
   const f = await fixture(t, { realAdapter: true, delayed: true }); const execute = f.executor(f.adapter);
   const credentials = { callerToken: randomBytes(32).toString('hex'), deviceToken: randomBytes(32).toString('hex'), sessionSecret: randomBytes(32).toString('hex') };
-  const relay = await createRelay({ ...credentials, requestTimeout: 300, pollTimeout: 20 }); f.cleanup(() => relay.close());
+  const relay = await createRelay({ ...credentials, requestTimeout: 1000, pollTimeout: 20 }); f.cleanup(() => relay.close());
   const origin = `http://127.0.0.1:${relay.port}`;
   let connected = false;
   const companion = startCompanion({ relayOrigin: origin, deviceToken: credentials.deviceToken, execute, allowLoopback: true, retryMs: 1,

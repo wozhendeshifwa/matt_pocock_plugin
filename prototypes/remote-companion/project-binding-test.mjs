@@ -15,6 +15,7 @@ import { digest, requestHash } from './protocol.mjs';
 import { createSessionProjectResolver } from '../upstream-port/session-project.mjs';
 import { classifyEndpoint } from '../upstream-port/rpc-endpoints.mjs';
 import { resolveExecutable } from '../upstream-port/executables.mjs';
+import { createGitWriteEffects } from './write-effects-git.mjs';
 
 const run = promisify(execFile);
 const thread = '01a1b180-89f8-7291-beb2-43f569f3709c';
@@ -57,10 +58,12 @@ async function fixture(t) {
   const stdio = createStdioAdapter(frozen.adapterPath, { env }); cleanups.push(() => stdio.close());
   const journal = new Journal(path.join(root, 'journal.sqlite')); cleanups.push(() => journal.close());
   const ledger = new WriteLedger(path.join(root, 'write-ledger.sqlite')); cleanups.push(() => ledger.close());
+  const effects = await createGitWriteEffects({ env });
   const execute = adapter => {
     const execute = createExecutor({ adapter, journal, writeLedger: ledger, pairingId: 'binding-fixture',
       resolveProject: createSessionProjectResolver({ codexHome: home }),
       writeGrant: { enabled: true, projectRoots: [a], methods: ['gitStage'] },
+      prepareWrite: ({ method, projectRoot, request }) => effects.prepare({ method, projectRoot, parameters: request.params.arguments?.payload }),
       isReadMethod: (method, payload) => classifyEndpoint(method, payload) === 'read' });
     cleanups.push(() => execute.drain()); return execute;
   };

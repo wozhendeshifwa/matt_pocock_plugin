@@ -4,8 +4,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const BASELINE_MANIFEST_SHA256 = '5390342ff96c94f3d3884853e2631d92f3a56cd0c1cc9aa37a96b83aee4dacef';
-export const OVERLAY_VERSION = 'choices-and-bound-project-v2';
-export const READ_ONLY_OVERLAY_VERSIONS = Object.freeze(['choices-data-root-v1', OVERLAY_VERSION]);
+export const OVERLAY_VERSION = 'choices-bound-project-and-log-load-v3';
+export const READ_ONLY_OVERLAY_VERSIONS = Object.freeze(['choices-data-root-v1', 'choices-and-bound-project-v2', OVERLAY_VERSION]);
 export const OUTPUT_BASE = fileURLToPath(new URL('../../.scratch/', import.meta.url));
 const defaultManifest = fileURLToPath(new URL('../../docs/research/remote-companion-baseline-2026-11-24.json', import.meta.url));
 const roots = ['prototypes/upstream-port', 'vendor/mattskills-1.8.0-rc.7'];
@@ -93,6 +93,27 @@ export function applyChoicesOverlay(relative, bytes) {
     ].join(eol));
     text = exact(text, "path.join(home, '.dsh/mattskillsdeck/choices.json')",
       "path.join(dataRoot, '.dsh/mattskillsdeck/choices.json')");
+  } else if (relative === 'vendor/mattskills-1.8.0-rc.7/lib/logPkg/store.js' || relative === 'vendor/mattskills-1.8.0-rc.7/lib/logStore.js') {
+    const semi = relative.includes('/logPkg/') ? ';' : '';
+    text = exact(text, '  let switchLoaded = false' + semi, '  let switchLoadPromise = null' + semi);
+    text = exact(text, ['    if (switchLoaded) return getSwitchState()' + semi, '    switchLoaded = true' + semi].join(eol), [
+      '    // One pending disk load is shared by startup and the first RPC.',
+      '    if (switchLoadPromise) { await switchLoadPromise; return getSwitchState() }' + semi,
+      '    switchLoadPromise = (async () => {',
+    ].join(eol));
+    text = exact(text, ['    return getSwitchState()' + semi, '  }', '  async function persistSwitch() {'].join(eol), [
+      '    return getSwitchState()' + semi,
+      '    })()' + semi,
+      '    await switchLoadPromise' + semi,
+      '    return getSwitchState()' + semi,
+      '  }',
+      '  async function persistSwitch() {',
+    ].join(eol));
+    text = exact(text, '  async function setSwitch(enabled, sampleRate) {', [
+      '  async function setSwitch(enabled, sampleRate) {',
+      '    // A late startup read must not overwrite a newly requested switch.',
+      '    await loadSwitch()' + semi,
+    ].join(eol));
   } else return bytes;
   return Buffer.from(text);
 }
@@ -177,6 +198,9 @@ export async function freezeAdapter({ sourceRoot, outputRoot, manifestFile = def
 export async function verifyFrozenAdapter({ directory, expectedManifestSha256 } = {}) {
   if (!directory || !/^[a-f0-9]{64}$/.test(expectedManifestSha256 ?? '')) throw new Error('Select a candidate directory and its locally pinned manifest digest');
   const root = await realpath(directory);
+  if (await lstat(path.join(root, 'INCOMPLETE')).then(() => true, error => { if (error.code === 'ENOENT') return false; throw error; })) {
+    throw new Error('Incomplete or withdrawn frozen candidate');
+  }
   const manifestBytes = await readFile(path.join(root, 'frozen-adapter.json'));
   if (hash(manifestBytes) !== expectedManifestSha256) throw new Error('Frozen manifest SHA-256 mismatch');
   const manifest = JSON.parse(manifestBytes.toString('utf8'));

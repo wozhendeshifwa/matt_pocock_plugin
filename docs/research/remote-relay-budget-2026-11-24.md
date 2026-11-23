@@ -77,3 +77,24 @@ in a heap-limited child, unfinished body/disconnect recovery, and unknown-result
 correlation when the response budget is exceeded. Windows sandbox loopback
 initially failed with `EACCES`; the same isolated checks passed with authorized
 loopback execution. That initial environment failure is not a product pass.
+
+## Actual free Render deployment
+
+The budget implementation was pushed as `cee163b8208dfc3849f017dde1587a3393eb4a05`
+and deliberately deployed to the existing free `deck-relay-44` service (no plan
+change). Deploy `dep-dc28n26c6qcc73eqt6ag` reached `live`. The root agent
+independently repeated all 19 HTTP/SDK and budget regressions before deployment.
+
+After deployment, the actual Codex plugin successfully read its current context
+and the implementation issue. A separate official SDK session checked health
+200, missing-auth 401, initialize, 16 tools, the entire 2,518,404-byte UI resource,
+56 RPCs, the correct local project, and writes still disabled. The SDK supplied
+the actual thread's metadata explicitly; the real-host context/issue calls are
+separate evidence. This check did not stop/reconfigure the running companion.
+
+Render metrics for the new `p99bv` instance, 2026-11-23 18:54:30–18:59:30 UTC
+(Beijing 2026-11-24 02:54:30–02:59:30), reported memory usage between 39,124,990
+and 47,665,150 bytes (peak sampled about 45.46 MiB), against a reported
+536,870,900-byte limit. This is actual minute-sampled normal-workload platform
+usage, including the full UI read; it is not a cloud stress test or a continuous
+peak RSS guarantee. The old instance's transition sample is excluded.

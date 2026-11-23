@@ -27,15 +27,19 @@ SDK 只作验收依赖；部署 relay 不需要 npm 包。测试使用新建的�
 ## 隔离写入切片：尚未在真实配对开放
 
 生产配对仍为 `writeEnabled:false`。独立临时配置只有同时设置 `writeEnabled:true` 和
-`writeGrant:{enabled:true,projectRoots:[<可信绝对项目根>],methods:[<明确方法>]}` 才能写。项目列表、方法列表都不能空；本切片只实现 `deck_issue_report` 与 `gitStage`，其他原本开放的写能力仍待后续实现和验收，不能据此缩减最终规格。
+`writeGrant:{enabled:true,projectRoots:[<可信绝对项目根>],methods:[<明确方法>]}` 才能写。项目列表、方法列表都不能空。当前隔离切片覆盖12项：`deck_issue_report`、六项 Git（stage/unstage/commit/fetch/pull/push），以及 `bind/logSetSwitch/logClear/cancelNewSessionWatcher/handoffResolve`。其他既有写能力继续实施，不能据此缩减最终规格；实际生产配对仍没有 grant。
 
 `write-grant.mjs` 只接受本机配置，按真实路径精确匹配项目根。`launch.mjs` 使用固定安装级 `%LOCALAPPDATA%/MattSkillsDeck/RemoteCompanion/write-ledger.sqlite`，不接受配对或 MCP 参数指定库文件。不能每个配对新建空库，也不能通过删库解除未知写入。程序测试可本机注入独立库，不能把该测试 seam 暴露为远程参数。
 
-启用隔离写 grant 时还必须是当前 `choices-and-bound-project-v2` 冻结 overlay：适配器在二次解析聊天后、执行前核对本机钉住的项目和 thread。旧 `choices-data-root-v1` 仅允许只读启动，不会为了接入新代码强行重启当前生产只读组件。stdio 会先删除远端同名 envelope，再注入本机可信 `_deckLocalDispatch`，模型传入的根不是授权来源。
+启用隔离写 grant 时还必须是当前 `choices-bound-project-and-log-load-v3` 冻结 overlay：适配器在二次解析聊天后、执行前核对本机钉住的项目和 thread；日志初始加载共享同一完成通道，避免首次读答默认值或迟到读覆盖新设置。旧 v1/v2 只读兼容；撤回候选的 `INCOMPLETE` 标记也会阻止启动。stdio 会先删除远端同名 envelope，再注入本机可信 `_deckLocalDispatch`，模型传入的根不是授权来源。
 
 `write-ledger.mjs` 在 SQLite 事务及唯一索引内登记项目未决写：跨聊天、MCP session、配对和进程重开都保留屏障。同 operation id 永不重新执行；不同项目互不阻塞。只保存类型化本机意图/结果引用，不接收认证、任意命令或原始响应。超时及 `isError` 不证明零副作用，保留 unknown；本机核对也不能仅传 `confirmed:true`。核对“未执行”需要实际读回及执行已停止证据，不能把“还没看到结果”当作“以后不会执行”。
 
-`deck_issue_report` 的上游 `ok/status` 甚至 `chain.recorded:true` 都不单独证明写盘成功。本切片会校验工单、工作区及 backend/repo 自洽，但本机持久链文件读回尚未实现，因此该方法执行后仍保守标为 unknown，不宣称“已可靠记链”。它的最终完成判定仍需补齐持久证据。
+`deck_issue_report` 的上游 `ok/status` 甚至 `chain.recorded:true` 都不单独证明写盘成功。现在从可信本机 context 绑定仓库/后端/聊天，再独立读取原持久链，核对根、会话分片、票、动作和时间；持久化失败、旧行或范围不符均保持 unknown。Git 同样独立读取 index/工作树/commit parent/tree、remote refs/FETCH_HEAD/config，不能只相信 `staged` 或 `ok` 回显。预检票只能从同项目、同聊天的真实只读响应捕获，不能由写参数构造。
+
+本机状态通过真实文件和原 writer 的重启结果核对。已证实的原 `bind:null` 仅内存解绑会保留原回包，并记 `failed/partial`；没有匹配命名建议且磁盘不变的 `cancelled:false` 记已知 `failed/rejected`。泛用失败、丢写或部分结果不能据此推断未执行。准备过程开始前即持有项目屏障；SQLite等待后真正派发前再次校验过期和撤销。
+
+Git 网络读回目前要求单一匹配的 fetch/push URL、普通 tracking refspec，pull 正向验收使用干净工作树。测试包含真实本机 bare/peer 与原适配器闭环；HTTPS/SSH 配置目标读回代码已保留，线上 GitHub 写及复杂配置仍待专项验收。只读 intent 工具覆盖22个既有方法，不能把意图生成或模拟 backend 当真实外部副作用已通过。
 
 stdio 的 `beginRequest()` 分离前台响应与本机完成通道。前台超时或 relay 不再等待后，仍跟踪至有界的 300 秒完成窗口；晚到的明确成功会写入安装级记录，状态工具可查询，绝不重发原写。停止组件会等待这些完成通道；超过完成窗口则保留未知屏障。
 
@@ -44,6 +48,8 @@ node --test prototypes/remote-companion/write-ledger-test.mjs prototypes/remote-
 ```
 
 集成测试创建临时 Git 仓库、临时 Codex 索引并复制适配器静态文件到新 runtime，验证实际 `git add`，不操作用户现有工作树、配对或运行中的冻结实例。`DECK_TEST_ADAPTER_ROOT` 仅为本机测试选择待复制的候选源；未指定时使用此检出的适配器。测试还覆盖新 session/另一聊天/另一配对的未知写屏障及迟到结果。原工具 annotations、RPC 和 UI 对话框不增加新确认；这些结构检查不能代替真实客户端对审批次数和取消行为的 HITL 验收。未通过该验收前不得启用真实配对。
+
+`local-data-upgrade.mjs` 只提供只读盘点、可信注册项目过滤、新目录快照与校验。版本换目录会换旧业务 dataRoot，故正式更新还须稳定数据目录及停止/种入/回退流程；当前计划一律 `activationReady:false`，不据此宣称已迁移生产状态或已确认更新。
 
 ## 部署配置与免费边界
 
@@ -59,4 +65,6 @@ Render 选已确认的 My Workspace，单个 free Web service、Singapore、手�
 
 ## 当前验收记录
 
-2026-11-24，Windows Node 26.13.0：12 项 HTTP/SDK/本机 stdio 测试和 5 项生命周期测试通过。两项安全回归在隔离副本撤去对应修复后均按预期失败，证明能捕获聊天移项目后复用旧结果、迟到回包误结束新投递。未以这些局部结果宣称远程写入已获批准或全部功能已验收。
+2026-11-24，Windows Node 26.13.0：根代理对已完成模块完整复跑155/155通过、无跳过；候选为 `.scratch/frozen-adapter-20261124-log-v3-reviewed`，450文件、manifest `4b6e2183a3c3b0226cd88629fa5fa2e17ddb456e9b7114985190c928b1cc2a6b`。包含原SDK/HTTP、Windows生命周期、六Git、C组原适配器、独立持久回读、安装账本、真实SQLite锁等待、资源预算及升级快照计划。冻结日志竞态在旧v2稳定失败、reviewed v3通过；不把这些隔离结果当作真人审批或全量正式交付。
+
+中继预算修复 `cee163b` 已部署到现有免费服务，真实 Codex context/issue 与SDK完整2.5MiB UI、56 RPC、项目及只读状态已复验，详见[预算与云端实测](../../docs/research/remote-relay-budget-2026-11-24.md)。

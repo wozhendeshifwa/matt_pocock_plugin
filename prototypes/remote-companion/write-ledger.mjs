@@ -144,6 +144,14 @@ export class WriteLedger {
     if (!row || row.project_hash !== projectHash(projectKey) || row.owner_hash !== ownerHash(ownerScope)) throw fail('OPERATION_NOT_FOUND', 'No operation belongs to this project and owner');
     return row;
   }
+  assertAvailable({ projectKey }) {
+    // Fast rejection before expensive readback preparation. reserve() still
+    // repeats this check in its transaction: this read is not the write lock.
+    const blocker = this.database.prepare("SELECT operation_id,state FROM write_ledger WHERE project_hash=? AND state IN ('running','unknown')").get(projectHash(projectKey));
+    if (blocker) throw Object.assign(fail('PROJECT_WRITE_UNRESOLVED', 'This project has an unresolved write; inspect the local result before issuing another write'), {
+      blockingOperationId: blocker.operation_id, state: blocker.state,
+    });
+  }
   reserve({ operationId, projectKey, intent, ownerScope }) {
     checkedOperationId(operationId);
     const project = projectHash(projectKey), owner = ownerHash(ownerScope), checked = intentRecord(intent);
@@ -164,6 +172,21 @@ export class WriteLedger {
       this.database.prepare("INSERT INTO write_ledger (operation_id,project_hash,owner_hash,intent_json,intent_hash,state,created_at,updated_at) VALUES (?,?,?,?,?,'running',?,?)")
         .run(operationId, project, owner, serialized, intentHash, now, now);
       return { reserved: true, operationId, state: 'running' };
+    });
+  }
+  refineIntent({ operationId, projectKey, ownerScope, intent }) {
+    const checked = intentRecord(intent);
+    return this.transaction(() => {
+      const row = this.owned(operationId, projectKey, ownerScope);
+      const original = JSON.parse(row.intent_json);
+      if (row.state !== 'running' || checked.method !== original.method || checked.parametersSha256 !== original.parametersSha256 ||
+          Object.entries(original.target).some(([key, value]) => canonical(checked.target[key]) !== canonical(value))) {
+        throw fail('INTENT_REFINEMENT_CONFLICT', 'Only local preparation may add facts to its running write intent');
+      }
+      const serialized = canonical(checked);
+      this.database.prepare('UPDATE write_ledger SET intent_json=?,intent_hash=?,updated_at=? WHERE operation_id=?')
+        .run(serialized, digest(serialized), Date.now(), operationId);
+      return checked;
     });
   }
   complete({ operationId, projectKey, ownerScope, outcome, result }) {
