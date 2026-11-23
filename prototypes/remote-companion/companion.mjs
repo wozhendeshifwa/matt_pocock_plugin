@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 import { realpath } from 'node:fs/promises';
 import { VERSION, MAX_BYTES, bridgeUrl, secret, digest, requestHash, validateRequest, threadId, rpcError } from './protocol.mjs';
 import { Journal } from './journal.mjs';
-import { createStdioAdapter } from './stdio.mjs';
+import { createStdioAdapter, normalizeLocalTracker } from './stdio.mjs';
 import { normalizeWriteGrant, assertWriteGranted } from './write-grant.mjs';
 
 const SAFE_TOOLS = new Set(['open_deck_sidebar_probe', 'deck_context', 'deck_issue_get', 'deck_issue_list', 'deck_map_snapshot', 'deck_current_project', 'deck_rpc_manifest', 'deck_host_context_probe']);
@@ -77,6 +77,11 @@ export function createExecutor({ adapter, journal, resolveProject, isReadMethod,
           writeRecord = { ...record, intent, method };
           const prepared = await prepareWrite?.({ method, request, projectRoot, threadId: identity, adapter });
           if (method !== 'deck_issue_report' && typeof prepared?.verify !== 'function') throw new Error('Independent local write readback is unavailable');
+          if (prepared?.dispatchContext !== undefined && (!prepared.dispatchContext || typeof prepared.dispatchContext !== 'object' ||
+              Array.isArray(prepared.dispatchContext) || Object.keys(prepared.dispatchContext).some(key => key !== 'tracker'))) {
+            throw new Error('Invalid trusted write dispatch context');
+          }
+          writeRecord.tracker = normalizeLocalTracker(prepared?.dispatchContext?.tracker);
           writeRecord.intent = writeLedger.refineIntent({ ...record, intent: { ...intent,
             target: { ...intent.target, ...(prepared?.target ?? { localStateKey: 'session-tickets' }) } } });
           writeRecord.verify = prepared?.verify;
@@ -101,7 +106,8 @@ export function createExecutor({ adapter, journal, resolveProject, isReadMethod,
         if (journal.revoked) throw new Error('Pairing revoked before local write dispatch');
         if (job.expiresAt <= Date.now()) throw new Error('Request expired before local write dispatch');
         adapterStarted = true;
-        const localContext = { projectRoot: scope.projectRoot, threadId: identity };
+        const localContext = { projectRoot: scope.projectRoot, threadId: identity,
+          ...(writeRecord.tracker ? { tracker: writeRecord.tracker } : {}) };
         const call = typeof adapter.beginRequest === 'function' ? adapter.beginRequest(request, localContext) : (() => {
           const completion = adapter.request(request, localContext); return { response: completion, completion };
         })();

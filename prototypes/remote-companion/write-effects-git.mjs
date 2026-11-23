@@ -44,7 +44,7 @@ export async function createGitWriteEffects({ env = process.env, localBareRoots 
   const git = await resolveExecutable('git', { env });
   if (!git) throw new Error('Local Git is unavailable for independent readback');
   const readEnv = gitReadEnvironment(env, { hasConfiguredSshCommand: true });
-  async function read(root, args, accepted = [0]) {
+  async function read(root, args, accepted = [0], input) {
     try {
       let commandEnv = readEnv;
       if (args[0] === 'ls-remote' && !env.GIT_SSH_COMMAND && !env.GIT_SSH) {
@@ -56,8 +56,13 @@ export async function createGitWriteEffects({ env = process.env, localBareRoots 
         } catch (error) { if (error.code !== 1) throw new Error('Cannot verify the existing local SSH configuration'); }
         commandEnv = gitReadEnvironment(env, { hasConfiguredSshCommand: configured });
       }
-      const result = await run(git, ['--no-optional-locks', '--literal-pathspecs', '-c', 'credential.interactive=false', '-c', 'core.fsmonitor=false', '-C', root, ...args],
+      const pending = run(git, ['--no-optional-locks', '--literal-pathspecs', '-c', 'credential.interactive=false', '-c', 'core.fsmonitor=false', '-C', root, ...args],
         { env: commandEnv, windowsHide: true, timeout: 15000, maxBuffer: 16 * 1024 * 1024, encoding: 'utf8' });
+      let inputError;
+      pending.child.stdin?.on('error', error => { inputError = error; });
+      pending.child.stdin?.end(input);
+      const result = await pending;
+      if (inputError) throw new Error('Independent local Git input failed');
       return { code: 0, text: result.stdout };
     } catch (error) {
       if (accepted.includes(error.code) && typeof error.stdout === 'string') return { code: error.code, text: error.stdout };
@@ -113,6 +118,27 @@ export async function createGitWriteEffects({ env = process.env, localBareRoots 
   async function configValue(root, key) {
     const result = await read(root, ['config', '--get', key], [0, 1]);
     return result.code === 0 ? result.text.trim() : null;
+  }
+  async function intendedCommitMessage(root, message) {
+    const configured = await read(root, ['config', '--get', 'commit.cleanup'], [0, 1]);
+    const mode = configured.code === 1 ? 'default' : configured.text.replace(/\r?\n$/, '');
+    if (!['default', 'whitespace', 'strip', 'verbatim', 'scissors'].includes(mode)) throw new Error('Unsupported local commit.cleanup mode');
+    // The original writer uses one -m and no editor. Git completes that line;
+    // verbatim keeps every other byte. In this non-editor path scissors has
+    // whitespace semantics and does not cut a pasted scissors/comment line.
+    if (mode === 'verbatim') return message && !message.endsWith('\n') ? message + '\n' : message;
+    let comments = mode === 'strip';
+    if (comments) {
+      const configuredComments = await read(root, ['config', '--null', '--get-regexp', '^core\\.comment(char|string)$'], [0, 1]);
+      const overrides = configuredComments.text.split('\0').filter(Boolean);
+      const last = overrides.at(-1);
+      // commentChar/commentString share Git's ordered configuration. With
+      // auto, commit chooses a prefix absent from the supplied message, so
+      // stripping comments removes no message line; stripspace alone does not
+      // perform that auto-selection and must use its whitespace path instead.
+      if (last && last.slice(last.indexOf('\n') + 1) === 'auto') comments = false;
+    }
+    return (await read(root, ['stripspace', ...(comments ? ['--strip-comments'] : [])], [0], message)).text;
   }
   function expectedRefs(before, changes) {
     const map = new Map(before.map(ref => [ref.name, { ...ref }]));
@@ -319,8 +345,11 @@ export async function createGitWriteEffects({ env = process.env, localBareRoots 
     if (beforeHead !== null && !oid.test(beforeHead)) throw new Error('Git HEAD is unavailable');
     if (method === 'gitCommit') {
       if (!beforeHead || beforeIndex.some(entry => entry.stage !== '0') || typeof parameters?.message !== 'string') throw new Error('Commit readback requires HEAD, a resolved index and message');
+      const intendedMessage = await intendedCommitMessage(root, parameters.message);
       const beforeStateSha256 = fingerprint({ beforeHead, beforeIndex });
-      return { target: { beforeOid: beforeHead, beforeStateSha256, contentSha256: digest(parameters.message) },
+      const target = { beforeOid: beforeHead, beforeStateSha256, contentSha256: digest(parameters.message),
+        expectedStateSha256: fingerprint({ parent: beforeHead, index: beforeIndex, messageSha256: digest(intendedMessage) }) };
+      return { target,
         async verify(response) {
           const value = business(response);
           if (value?.ok !== true || value.committed !== true || value.headBefore !== beforeHead || !oid.test(value.headAfter ?? '')) return null;
@@ -329,14 +358,14 @@ export async function createGitWriteEffects({ env = process.env, localBareRoots 
           const commit = (await read(root, ['cat-file', 'commit', head])).text;
           const split = commit.indexOf('\n\n'); if (split < 0) return null;
           const parents = [...commit.slice(0, split).matchAll(/^parent (.+)$/gm)].map(item => item[1]);
-          if (canonical(parents) !== canonical([beforeHead]) || commit.slice(split + 2).trimEnd() !== parameters.message.trimEnd()) return null;
+          if (canonical(parents) !== canonical([beforeHead]) || commit.slice(split + 2) !== intendedMessage) return null;
           const tree = (await read(root, ['ls-tree', '-r', '-z', head])).text.split('\0').filter(Boolean).map(line => {
             const match = /^(\d{6}) (?:blob|commit) ([a-f0-9]{40}|[a-f0-9]{64})\t([\s\S]+)$/.exec(line);
             if (!match) throw new Error('Invalid committed tree readback');
             return { mode: match[1], oid: match[2], stage: '0', path: match[3] };
           }).sort((a, b) => a.path.localeCompare(b.path));
           if (canonical(tree) !== canonical(beforeIndex)) return null;
-          return { target: { beforeOid: beforeHead, commitOid: head, beforeStateSha256, contentSha256: digest(parameters.message) }, resultSha256: fingerprint({ head, tree, parents }) };
+          return { target: { ...target, commitOid: head }, resultSha256: fingerprint({ head, tree, parents }) };
         } };
     }
     if (method === 'gitUnstage' && !beforeHead) throw new Error('Unstage readback requires an existing HEAD');

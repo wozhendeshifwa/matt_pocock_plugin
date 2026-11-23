@@ -27,11 +27,11 @@ SDK 只作验收依赖；部署 relay 不需要 npm 包。测试使用新建的�
 ## 隔离写入切片：尚未在真实配对开放
 
 生产配对仍为 `writeEnabled:false`。独立临时配置只有同时设置 `writeEnabled:true` 和
-`writeGrant:{enabled:true,projectRoots:[<可信绝对项目根>],methods:[<明确方法>]}` 才能写。项目列表、方法列表都不能空。当前隔离切片覆盖12项：`deck_issue_report`、六项 Git（stage/unstage/commit/fetch/pull/push），以及 `bind/logSetSwitch/logClear/cancelNewSessionWatcher/handoffResolve`。其他既有写能力继续实施，不能据此缩减最终规格；实际生产配对仍没有 grant。
+`writeGrant:{enabled:true,projectRoots:[<可信绝对项目根>],methods:[<明确方法>]}` 才能写。项目列表、方法列表都不能空。当前实现允许明确选择18项隔离方法：原12项（`deck_issue_report`、六项 Git、`bind/logSetSwitch/logClear/cancelNewSessionWatcher/handoffResolve`），加上 `deck_issue_create/deck_issue_patch/deck_map_link/deck_map_plan_create/commentIssue/setLabelColors`。后六项的真实私有仓库验收正在进行，不能把本机 allowlist 或模拟 backend 当作线上写入验收。发布和窗口打开仍待完成；实际生产配对仍没有 grant。
 
 `write-grant.mjs` 只接受本机配置，按真实路径精确匹配项目根。`launch.mjs` 使用固定安装级 `%LOCALAPPDATA%/MattSkillsDeck/RemoteCompanion/write-ledger.sqlite`，不接受配对或 MCP 参数指定库文件。不能每个配对新建空库，也不能通过删库解除未知写入。程序测试可本机注入独立库，不能把该测试 seam 暴露为远程参数。
 
-启用隔离写 grant 时还必须是当前 `choices-bound-project-and-log-load-v3` 冻结 overlay：适配器在二次解析聊天后、执行前核对本机钉住的项目和 thread；日志初始加载共享同一完成通道，避免首次读答默认值或迟到读覆盖新设置。旧 v1/v2 只读兼容；撤回候选的 `INCOMPLETE` 标记也会阻止启动。stdio 会先删除远端同名 envelope，再注入本机可信 `_deckLocalDispatch`，模型传入的根不是授权来源。
+启用隔离写 grant 时还必须是当前 `choices-project-tracker-and-local-data-v4` 冻结 overlay：适配器二次解析聊天后、派发工具/RPC前核对钉住的项目和 thread（包括 `current_project` 诊断）；GitHub 命令再核对可信本机选择的仓库。原 label list 精确读配方已补齐。日志初始加载共享同一完成通道，避免首次读答默认值或迟到读覆盖新设置。旧 v1/v2/v3 只读兼容；撤回候选的 `INCOMPLETE` 标记也会阻止启动。stdio 会先删除远端同名 envelope，再注入本机可信 `_deckLocalDispatch`，模型传入的根、tracker 不是授权来源。
 
 `write-ledger.mjs` 在 SQLite 事务及唯一索引内登记项目未决写：跨聊天、MCP session、配对和进程重开都保留屏障。同 operation id 永不重新执行；不同项目互不阻塞。只保存类型化本机意图/结果引用，不接收认证、任意命令或原始响应。超时及 `isError` 不证明零副作用，保留 unknown；本机核对也不能仅传 `confirmed:true`。核对“未执行”需要实际读回及执行已停止证据，不能把“还没看到结果”当作“以后不会执行”。
 
@@ -49,7 +49,7 @@ node --test prototypes/remote-companion/write-ledger-test.mjs prototypes/remote-
 
 集成测试创建临时 Git 仓库、临时 Codex 索引并复制适配器静态文件到新 runtime，验证实际 `git add`，不操作用户现有工作树、配对或运行中的冻结实例。`DECK_TEST_ADAPTER_ROOT` 仅为本机测试选择待复制的候选源；未指定时使用此检出的适配器。测试还覆盖新 session/另一聊天/另一配对的未知写屏障及迟到结果。原工具 annotations、RPC 和 UI 对话框不增加新确认；这些结构检查不能代替真实客户端对审批次数和取消行为的 HITL 验收。未通过该验收前不得启用真实配对。
 
-`local-data-upgrade.mjs` 只提供只读盘点、可信注册项目过滤、新目录快照与校验。版本换目录会换旧业务 dataRoot，故正式更新还须稳定数据目录及停止/种入/回退流程；当前计划一律 `activationReady:false`，不据此宣称已迁移生产状态或已确认更新。
+`local-data-upgrade.mjs` 提供只读盘点、可信注册项目过滤、新目录快照与校验。v4 增加显式本机 `localDataRoot`：只接受已存在且无重定向的绝对目录；启动器清除继承环境中的同名变量，再仅从已验证本机配置传给 stdio，独立验收器使用同一目录。旧配置仍沿原路径，不会因环境变量意外切换。这里只增加稳定目录能力，尚未激活生产迁移；升级计划仍为 `activationReady:false`，停止/种入/失败回退和用户手动确认尚待完成。
 
 ## 部署配置与免费边界
 

@@ -15,7 +15,8 @@
 | `baseline` | 冻结目录与本机固定的 manifest SHA-256；启动前逐文件复查，拒绝漂移或另一适配器 |
 | `secretDPAPI` | Windows DPAPI `CurrentUser` 加密的 device token，明文不写配置/插件、不打印 |
 | `writeEnabled` | 正式配对保持 `false`；隔离写验收须同时有完整 `writeGrant`，只改为 `true` 会拒绝启动 |
-| `writeGrant` | 仅本机的 `enabled:true`、非空绝对 `projectRoots`、非空 `methods`；当前12项切片见 README，正式配对仍未启用 |
+| `writeGrant` | 仅本机的 `enabled:true`、非空绝对 `projectRoots`、非空 `methods`；当前18项实现范围及验收边界见 README，正式配对仍未启用 |
+| `localDataRoot` | 可选、明确由本机选择的已存在绝对目录；v4起独立于组件安装目录；不接受请求或继承环境选目录，不自动种入旧状态 |
 | `revoked` | 本机撤销状态，另有不可因恢复配置备份而消失的 `.revoked` 标记 |
 
 此处“配对”是本机凭据安装，不宣称已实现交互式云端设备注册/一次性代码。需要预先取得对应 relay 的 **device token**；本工具不生成云端 caller token、不接收 GitHub 凭据、不修改 OpenAI/DeepSeek provider。
@@ -63,7 +64,7 @@ token 只在进程环境、匿名 stdin 和内存中经过；PowerShell helper �
 
 启动前必须有 `baseline` 固定记录。启动器先校验冻结清单与每个文件的哈希，再取得本机实例所有权；不能通过编辑远程请求选择另一适配器。重建冻结目录和记录摘要的方法见 `freeze-adapter.mjs` 及基线报告。
 
-写 grant 还要求当前 `choices-and-bound-project-v2` 冻结修正，以在适配器二次解析后、实际执行前核对本机钉住的项目/thread。旧 `choices-data-root-v1` 保持只读启动兼容；不能给旧候选翻开写开关来跳过新的绑定闸门，也不自动重启现有生产只读组件。
+写 grant 要求当前 `choices-project-tracker-and-local-data-v4` 冻结修正，在二次解析后核对本机项目/thread，并把可信 tracker 归属限制传到底层实际写命令。旧 v1/v2/v3 保持只读启动兼容；旧候选不支持显式 `localDataRoot`，启动器会拒绝该组合，不能静默忽略目录配置。不自动重启现有生产只读组件。
 
 ```powershell
 node prototypes/remote-companion/launch.mjs --pairing $pairingFile

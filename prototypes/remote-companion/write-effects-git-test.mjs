@@ -28,16 +28,17 @@ async function fixture(t) {
   Object.assign(env, { USERPROFILE: home, HOME: home, APPDATA: path.join(home, 'AppData/Roaming'), GIT_CONFIG_NOSYSTEM: '1',
     GIT_CONFIG_GLOBAL: config, GIT_CONFIG_SYSTEM: config, GIT_TERMINAL_PROMPT: '0' });
   const binary = await resolveExecutable('git', { env }); assert.ok(binary); env.DECK_GIT = binary;
-  const git = async args => (await run(binary, ['--literal-pathspecs', '-C', project, '-c', 'core.hooksPath=' + hooks,
+  const gitRaw = async args => (await run(binary, ['--literal-pathspecs', '-C', project, '-c', 'core.hooksPath=' + hooks,
     '-c', 'core.autocrlf=false', '-c', 'user.name=Isolated Git Effects', '-c', 'user.email=git-effects@example.invalid', ...args],
-    { env, windowsHide: true, timeout: 15000, maxBuffer: 4 * 1024 * 1024 })).stdout.trim();
+    { env, windowsHide: true, timeout: 15000, maxBuffer: 4 * 1024 * 1024 })).stdout;
+  const git = async args => (await gitRaw(args)).trim();
   await git(['init', '--quiet']); await mkdir(path.join(project, 'tree'));
   for (const name of ['ordinary.txt', 'outside.txt', '[a].txt', 'a.txt', 'delete.txt', 'tree/tracked.txt', 'tree/gone.txt']) await writeFile(path.join(project, name), 'initial ' + name + '\n');
   await writeFile(path.join(project, 'binary.dat'), Buffer.from([0, 255, 10, 128]));
   await git(['add', '--', '.']); await git(['commit', '--quiet', '-m', 'initial fixture']);
   const effects = await createGitWriteEffects({ env });
   const prepare = (method, parameters) => effects.prepare({ method, projectRoot: project, parameters });
-  return { directory, project, git, prepare, env, effects };
+  return { directory, project, git, gitRaw, prepare, env, effects };
 }
 
 for (const kind of ['ordinary', 'binary', 'literal pathspec', 'deleted path', 'directory']) {
@@ -115,6 +116,63 @@ test('commit requires an independently observed parent, prepared index tree and 
   await f.git(['commit', '--quiet', '-m', message]); const after = await f.git(['rev-parse', 'HEAD']);
   const result = await effect.verify(output({ ok: true, committed: true, headBefore: before, headAfter: after }));
   assert.ok(result); assert.equal(result.target.commitOid, after); assert.equal(result.target.beforeOid, before);
+});
+
+const commitCleanupCases = [
+  { name: 'default non-editor cleanup', message: '\n标题   \n\n正文行尾空白   \n', expected: '标题\n\n正文行尾空白\n' },
+  { name: 'explicit default', mode: 'default', message: '\n标题   \n# 保留注释样式行\n', expected: '标题\n# 保留注释样式行\n' },
+  { name: 'whitespace', mode: 'whitespace', message: '\n标题   \n\n正文   \n\n', expected: '标题\n\n正文\n' },
+  { name: 'strip default comment character', mode: 'strip', message: '\n标题   \n# 删除\n正文   \n', expected: '标题\n正文\n' },
+  { name: 'strip configured comment character', mode: 'strip', comments: [['core.commentChar', ';']], message: '\n标题   \n; 删除\n# 保留\n正文   \n', expected: '标题\n# 保留\n正文\n' },
+  { name: 'strip automatic comment character', mode: 'strip', comments: [['core.commentChar', 'auto']], message: '\n标题   \n# 保留\n; 保留\n正文   \n', expected: '标题\n# 保留\n; 保留\n正文\n' },
+  { name: 'comment string overrides earlier auto', mode: 'strip', comments: [['core.commentChar', 'auto'], ['core.commentString', '//']], message: '# 保留\n// 删除\n正文   \n', expected: '# 保留\n正文\n' },
+  { name: 'auto overrides earlier comment string', mode: 'strip', comments: [['core.commentString', '//'], ['core.commentChar', 'auto']], message: '# 保留\n// 保留\n正文   \n', expected: '# 保留\n// 保留\n正文\n' },
+  { name: 'verbatim with Git final newline', mode: 'verbatim', message: '\n标题   \n# 保留\n正文   ', expected: '\n标题   \n# 保留\n正文   \n' },
+  { name: 'verbatim preserves existing final blank lines', mode: 'verbatim', message: '\n标题   \n正文   \n\n', expected: '\n标题   \n正文   \n\n' },
+  { name: 'non-editor scissors keeps the scissors line', mode: 'scissors', message: '\n标题   \n# ------------------------ >8 ------------------------\n下方正文   \n', expected: '标题\n# ------------------------ >8 ------------------------\n下方正文\n' },
+];
+for (const sample of commitCleanupCases) {
+  test(`commit verifies real ${sample.name} without altering the requested message`, async t => {
+    const f = await fixture(t);
+    if (sample.mode) await f.git(['config', 'commit.cleanup', sample.mode]);
+    for (const [key, value] of sample.comments ?? []) await f.git(['config', key, value]);
+    await writeFile(path.join(f.project, 'ordinary.txt'), 'prepared cleanup commit\n'); await f.git(['add', '--', 'ordinary.txt']);
+    const before = await f.git(['rev-parse', 'HEAD']), effect = await f.prepare('gitCommit', { message: sample.message });
+    await f.git(['commit', '--quiet', '-m', sample.message]);
+    const after = await f.git(['rev-parse', 'HEAD']), commit = await f.gitRaw(['cat-file', 'commit', after]);
+    assert.equal(commit.slice(commit.indexOf('\n\n') + 2), sample.expected, 'the original git commit -m defines the expected cleanup behavior');
+    const verified = await effect.verify(output({ ok: true, committed: true, headBefore: before, headAfter: after }));
+    assert.ok(verified, 'a completed commit matching its configured cleanup is known, not unknown');
+    assert.equal(verified.target.commitOid, after);
+    assert.match(verified.target.expectedStateSha256, /^[a-f0-9]{64}$/);
+  });
+}
+
+for (const mode of ['whitespace', 'strip', 'verbatim', 'scissors']) {
+  test(`commit ${mode} still rejects another actual message despite the correct parent and tree`, async t => {
+    const f = await fixture(t); await f.git(['config', 'commit.cleanup', mode]);
+    await writeFile(path.join(f.project, 'ordinary.txt'), 'same intended tree\n'); await f.git(['add', '--', 'ordinary.txt']);
+    const before = await f.git(['rev-parse', 'HEAD']), effect = await f.prepare('gitCommit', { message: '\n正确标题\n\n正确正文   \n' });
+    await f.git(['commit', '--quiet', '-m', '\n正确标题\n\n错误正文   \n']);
+    const after = await f.git(['rev-parse', 'HEAD']);
+    assert.equal(await effect.verify(output({ ok: true, committed: true, headBefore: before, headAfter: after })), null);
+  });
+}
+
+test('invalid cleanup or unreadable Git configuration rejects preparation without changing HEAD or index', async t => {
+  const f = await fixture(t);
+  await writeFile(path.join(f.project, 'ordinary.txt'), 'still staged after rejection\n'); await f.git(['add', '--', 'ordinary.txt']);
+  const before = await f.git(['rev-parse', 'HEAD']), index = await f.gitRaw(['ls-files', '--stage', '-z']);
+  await f.git(['config', 'commit.cleanup', 'invalid-mode']);
+  await assert.rejects(f.prepare('gitCommit', { message: 'must not commit' }), /commit\.cleanup/);
+  assert.equal(await f.git(['rev-parse', 'HEAD']), before); assert.equal(await f.gitRaw(['ls-files', '--stage', '-z']), index);
+  await f.git(['config', 'commit.cleanup', 'strip']); await f.git(['config', 'core.commentChar', '']);
+  await assert.rejects(f.prepare('gitCommit', { message: 'must not commit either' }), /local Git readback failed/);
+  // Git validates the malformed on-disk value before command-line overrides.
+  // Remove only this generated fixture fault before independent state reads.
+  await f.git(['config', '--unset', 'core.commentChar']);
+  assert.equal(await f.git(['rev-parse', 'HEAD']), before);
+  assert.equal(await f.gitRaw(['ls-files', '--stage', '-z']), index);
 });
 
 for (const mismatch of ['not executed', 'tree', 'parent', 'message']) {

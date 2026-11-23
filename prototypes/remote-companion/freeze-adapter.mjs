@@ -4,8 +4,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const BASELINE_MANIFEST_SHA256 = '5390342ff96c94f3d3884853e2631d92f3a56cd0c1cc9aa37a96b83aee4dacef';
-export const OVERLAY_VERSION = 'choices-bound-project-and-log-load-v3';
-export const READ_ONLY_OVERLAY_VERSIONS = Object.freeze(['choices-data-root-v1', 'choices-and-bound-project-v2', OVERLAY_VERSION]);
+export const OVERLAY_VERSION = 'choices-project-tracker-and-local-data-v4';
+export const READ_ONLY_OVERLAY_VERSIONS = Object.freeze(['choices-data-root-v1', 'choices-and-bound-project-v2', 'choices-bound-project-and-log-load-v3', OVERLAY_VERSION]);
 export const OUTPUT_BASE = fileURLToPath(new URL('../../.scratch/', import.meta.url));
 const defaultManifest = fileURLToPath(new URL('../../docs/research/remote-companion-baseline-2026-11-24.json', import.meta.url));
 const roots = ['prototypes/upstream-port', 'vendor/mattskills-1.8.0-rc.7'];
@@ -55,6 +55,30 @@ export function applyChoicesOverlay(relative, bytes) {
   let text = bytes.toString('utf8');
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
   if (relative === 'prototypes/upstream-port/sidebar-server.mjs') {
+    text = exact(text, 'import { createInterface } from "node:readline";', [
+      'import { createInterface } from "node:readline";',
+      'import path from "node:path";',
+    ].join(eol));
+    text = exact(text, 'import { readFile, writeFile, rename, mkdir, realpath, unlink } from "node:fs/promises";',
+      'import { readFile, writeFile, rename, mkdir, realpath, unlink, lstat } from "node:fs/promises";');
+    text = exact(text, 'const dataRoot = fileURLToPath(new URL("../../.scratch/upstream-sidebar/" + key + "/", import.meta.url));', [
+      'const legacyDataRoot = fileURLToPath(new URL("../../.scratch/upstream-sidebar/" + key + "/", import.meta.url));',
+      'const localDataOverride = process.env.DECK_LOCAL_DATA_ROOT;',
+      'let dataRoot = legacyDataRoot;',
+      'if (localDataOverride !== undefined) {',
+      '  if (!localDataOverride || !path.isAbsolute(localDataOverride) || /[\\u0000-\\u001f\\u007f]/.test(localDataOverride))',
+      '    throw new Error("Use an existing absolute local business-data root");',
+      '  const actual = await realpath(localDataOverride);',
+      '  const pathKey = value => process.platform === "win32" ? path.resolve(value).toLowerCase() : path.resolve(value);',
+      '  if (!(await lstat(localDataOverride)).isDirectory() || pathKey(actual) !== pathKey(localDataOverride))',
+      '    throw new Error("Local business-data root must not redirect");',
+      '  dataRoot = actual;',
+      '}',
+    ].join(eol));
+    text = exact(text, 'const hostContextPath = dataRoot + "host-context-captures.json";',
+      'const hostContextPath = path.join(dataRoot, "host-context-captures.json");');
+    text = exact(text, 'const projectHosts = createProjectHosts(dataRoot + "projects");',
+      'const projectHosts = createProjectHosts(path.join(dataRoot, "projects"));');
     text = exact(text, 'async function handle(request) {', [
       '// Only the local stdio bridge supplies this envelope, after resolving the',
       '// host identity and replacing any same-named remote input. Resolve again',
@@ -74,9 +98,78 @@ export function applyChoicesOverlay(relative, bytes) {
       '          await assertLocalDispatchProject(request, project, !["deck_context", "deck_issue_get", "deck_map_snapshot", "deck_issue_list"].includes(deckTool.name));',
       '          const result = await projectHosts.call(cwd, "__deck_tool_call__", {',
     ].join(eol));
+    text = exact(text, '          return { content: [{ type: "text", text: JSON.stringify(project) }], structuredContent: project };', [
+      '          await assertLocalDispatchProject(request, project, false);',
+      '          return { content: [{ type: "text", text: JSON.stringify(project) }], structuredContent: project };',
+    ].join(eol));
+    text = exact(text, '            context: { cwd, sessionId: project.threadId },',
+      '            context: { cwd, sessionId: project.threadId, localTracker: request._deckLocalDispatch?.tracker },');
     text = exact(text, '        const result = await projectHosts.call(cwd, method, scopedPayload);', [
       '        await assertLocalDispatchProject(request, project, upstreamTool === "deck_upstream_write");',
-      '        const result = await projectHosts.call(cwd, method, scopedPayload);',
+      '        const result = await projectHosts.call(cwd, method, { ...scopedPayload, __deckLocalTracker: request._deckLocalDispatch?.tracker });',
+    ].join(eol));
+  } else if (relative === 'prototypes/upstream-port/node-host.mjs') {
+    text = exact(text, 'export async function createOriginalHost({ dataRoot, workspaceRoot }) {', [
+      'const TRACKER_WRITE_METHODS = new Set(["deck_issue_create", "deck_issue_patch", "deck_map_plan_create", "deck_map_link", "commentIssue", "setLabelColors"]);',
+      'function requireLocalTracker(tracker) {',
+      '  if (!tracker || !["github", "gitlab", "markdown"].includes(tracker.backendId) || typeof tracker.repository !== "string" || !tracker.repository || tracker.repository.length > 4096 || /[\\u0000-\\u001f\\u007f]/.test(tracker.repository))',
+      '    throw new Error("Missing verified local tracker context");',
+      '  if (tracker.backendId === "github" && !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}\\/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/.test(tracker.repository))',
+      '    throw new Error("Invalid verified GitHub repository");',
+      '  return tracker;',
+      '}',
+      'function assertLocalGithubCommand(active, argv) {',
+      '  const tracker = requireLocalTracker(active.localTracker);',
+      '  const program = path.basename(String(argv[0])).replace(/\\.exe$/i, "").toLowerCase();',
+      '  const args = argv.slice(1);',
+      '  let repository;',
+      '  if (program === "gh" && args[0] === "api") repository = /^repos\\/([^/]+\\/[^/]+)(?:\\/|$)/.exec(args[1] ?? "")?.[1];',
+      '  else if (program === "gh" && ["issue", "label"].includes(args[0])) {',
+      '    const index = args.indexOf("--repo");',
+      '    if (index >= 0) repository = args[index + 1];',
+      '  }',
+      '  if (tracker.backendId !== "github" || typeof repository !== "string" || repository.toLowerCase() !== tracker.repository.toLowerCase())',
+      '    throw new Error("GitHub write repository changed before local dispatch");',
+      '}',
+      'export async function createOriginalHost({ dataRoot, workspaceRoot }) {',
+    ].join(eol));
+    text = exact(text, '      const projectFile = projectRelative !== null && PROJECT_WRITE_FILES.has(projectRelative) ? projectRelative : null;', [
+      '      const projectFile = projectRelative !== null && PROJECT_WRITE_FILES.has(projectRelative) ? projectRelative : null;',
+      '      const trackerOperation = operation.getStore();',
+      '      if (TRACKER_WRITE_METHODS.has(trackerOperation?.method)) {',
+      '        const tracker = requireLocalTracker(trackerOperation.localTracker);',
+      '        if (projectFile && tracker.backendId === "github") throw new Error("Tracker backend changed before local project write");',
+      '      }',
+    ].join(eol));
+    text = exact(text, '      const write = read ? null : gitWrite ?? graphWrite ?? classifyWriteCommand(options.argv);', [
+      '      const write = read ? null : gitWrite ?? graphWrite ?? classifyWriteCommand(options.argv);',
+      '      if (write?.category === "external-github-write" && TRACKER_WRITE_METHODS.has(active?.method)) assertLocalGithubCommand(active, options.argv);',
+    ].join(eol));
+    text = exact(text, '    async call(method, payload = {}) {', [
+      '    async call(method, payload = {}) {',
+      '      const { __deckLocalTracker: localTracker, ...businessPayload } = payload;',
+      '      payload = businessPayload;',
+    ].join(eol));
+    text = exact(text, '        const execute = () => operation.run({ method, identity: {} }, () => route(request));',
+      '        const execute = () => operation.run({ method, localTracker, identity: {} }, () => route(request));');
+    text = exact(text, '        if (["deck_issue_create", "deck_map_plan_create", "deck_map_link"].includes(name)) {',
+      '        if (TRACKER_WRITE_METHODS.has(name) || context.localTracker) {');
+    text = exact(text, '          if (selected?.data?.backend?.id === "github") repo = selected.data.repo?.refId;', [
+      '          const tracker = requireLocalTracker(context.localTracker);',
+      '          const backend = selected?.data?.backend?.id;',
+      '          const selectedRepo = selected?.data?.repo?.refId;',
+      '          const repoKey = value => backend === "github" && typeof value === "string" ? value.toLowerCase() : value;',
+      '          if (backend !== tracker.backendId || repoKey(selectedRepo) !== repoKey(tracker.repository)) throw new Error("Tracker selection changed before local tool execution");',
+      '          if (backend === "github") repo = selectedRepo;',
+    ].join(eol));
+    text = exact(text, '        return operation.run({ method: name, repo, issueIds: new Set(), identity: {} }, () => tool.execute(args ?? {}, exec));',
+      '        return operation.run({ method: name, repo, localTracker: context.localTracker, issueIds: new Set(), identity: {} }, () => tool.execute(args ?? {}, exec));');
+  } else if (relative === 'prototypes/upstream-port/read-command.mjs') {
+    text = exact(text, '  if (args[0] === "auth") return args[1] === "status";', [
+      '  if (args[0] === "auth") return args[1] === "status";',
+      '  if (args[0] === "label") return args.length === 8 && args[1] === "list" && args[2] === "--repo" &&',
+      '    /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}\\/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/.test(args[3]) &&',
+      '    args[4] === "--json" && args[5] === "name,color,description" && args[6] === "--limit" && args[7] === "1000";',
     ].join(eol));
   } else if (relative === 'prototypes/upstream-port/project-worker.mjs') {
     text = exact(text, 'identity: createSnapshotCacheIdentity(process.argv[2]),',

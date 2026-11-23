@@ -2,6 +2,8 @@
 
 日期：2026-11-24，Asia/Shanghai。关联[正式实施规格](https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/44)。规格保持 open；当前是可验证的只读连接候选，完整系统未交付。
 
+最新 AFK 检查点：v4 冻结候选450文件，manifest `fc0fd6325f929f6cc03f5deb3071d1ea7621e6f71db554714f6ec510322594f1`，尚未安装生产。根代理全量217/217回归无skip，另caller启动器11/11；两项规格P2已修并实证，详见[双轴复核](remote-checkpoint-review-2026-11-24.md)。18/22写方法已有本机实现，六tracker正在专用私有仓库实测；不等于全部真实宿主写验收。稳定目录已在owned夹具演练v3备份迁入与双v4目录连续读回，未迁移真实main业务。旧固定bf58877只读组件在UTC19:40恢复，19:43真实宿主context暖恢复通过；[自然冷启动仍未证明](remote-cold-start-acceptance-2026-11-24.md)。
+
 ## 前置审查修复
 
 探针审查的 P2 在提交 `d20a3a0` 修复并推送：脱敏插件/marketplace 模板、环境变量认证、生成器及[复现步骤](../../prototypes/remote-compat-probe/REPRODUCE.md)。根代理独立复跑全新 CODEX_HOME 安装认证验收及 9 项原测试全部通过；未改旧探针运行代码/真实配置或重部署旧服务。

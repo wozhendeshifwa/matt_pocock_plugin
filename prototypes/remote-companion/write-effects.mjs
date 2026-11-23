@@ -1,6 +1,8 @@
 import { realpath } from 'node:fs/promises';
 import { createGitWriteEffects } from './write-effects-git.mjs';
 import { createLocalWriteEffects } from './write-effects-local.mjs';
+import { createGithubWriteEffects, GITHUB_EFFECT_METHODS } from './write-effects-github.mjs';
+import { createMarkdownWriteEffects } from './write-effects-markdown.mjs';
 
 const folded = value => process.platform === 'win32' ? value.toLowerCase() : value;
 const business = response => response?.error || response?.result?.isError || response?.result?.structuredContent?.ok === false
@@ -8,9 +10,10 @@ const business = response => response?.error || response?.result?.isError || res
 
 // Constructed by the local launcher with its verified frozen adapter. No MCP
 // parameter can supply an executable, state directory, reader or write ticket.
-export async function createWriteEffects({ adapterPath, env = process.env } = {}) {
-  const [git, local] = await Promise.all([createGitWriteEffects({ env }), createLocalWriteEffects({ adapterPath })]);
+export async function createWriteEffects({ adapterPath, localDataRoot, env = process.env } = {}) {
+  const [git, local] = await Promise.all([createGitWriteEffects({ env }), createLocalWriteEffects({ adapterPath, localDataRoot })]);
   const checks = new Map();
+  let github, markdown;
   const checkKey = (root, thread, id) => JSON.stringify([folded(root), thread, id]);
   async function observeRead({ request, response, projectRoot, threadId }) {
     if (request.params?.name !== 'deck_upstream_read' || request.params.arguments?.method !== 'gitWriteCheck') return;
@@ -24,6 +27,23 @@ export async function createWriteEffects({ adapterPath, env = process.env } = {}
   async function prepare({ method, request, projectRoot, threadId, adapter }) {
     const root = await realpath(projectRoot);
     const parameters = request.params.name === 'deck_upstream_write' ? request.params.arguments?.payload : request.params.arguments;
+    if (method === 'setLabelColors') {
+      // Backend selection is a fresh local read. A failed GitHub preparation
+      // never falls through to a local file write, and request.backendId cannot
+      // choose the verifier. Each verifier independently checks the selection.
+      const selected = business(await adapter.request({ jsonrpc: '2.0', id: 'local-palette-context', method: 'tools/call', params: {
+        name: 'deck_context', arguments: {}, _meta: request.params._meta,
+      } }, { projectRoot: root, threadId }));
+      if (selected?.backend?.id === 'markdown') {
+        markdown ??= createMarkdownWriteEffects({ adapterPath, localDataRoot });
+        return (await markdown).prepare({ method, request, projectRoot: root, threadId, adapter });
+      }
+      if (selected?.backend?.id !== 'github') throw new Error('No supported trusted local palette backend');
+    }
+    if (GITHUB_EFFECT_METHODS.includes(method)) {
+      github ??= createGithubWriteEffects({ adapterPath, env });
+      return (await github).prepare({ method, request, projectRoot: root, threadId, adapter });
+    }
     if (['gitStage', 'gitUnstage', 'gitCommit', 'gitPull', 'gitFetch', 'gitPush'].includes(method)) {
       const trustedTicket = parameters?.ticketId ? checks.get(checkKey(root, threadId, parameters.ticketId)) : undefined;
       if (!['gitStage', 'gitUnstage'].includes(method)) {

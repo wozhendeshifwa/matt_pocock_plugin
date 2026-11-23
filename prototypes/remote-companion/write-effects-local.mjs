@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstat, open, realpath, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { resolveAdapterDataLayout } from './local-data-layout.mjs';
 import { canonical, threadId as requestThreadId } from './protocol.mjs';
 import { readLocalWriteState } from './write-intents.mjs';
 
@@ -18,7 +19,7 @@ const business = response => response?.error || response?.result?.isError || res
 // This factory is local authority. adapterPath must be the exact frozen path
 // already verified by launch, never a tool argument or a per-request choice.
 // It reads existing files only: no worker, command, credentials or network.
-export async function createLocalWriteEffects({ adapterPath } = {}) {
+export async function createLocalWriteEffects({ adapterPath, localDataRoot } = {}) {
   if (typeof adapterPath !== 'string' || !path.isAbsolute(adapterPath)) throw new Error('A trusted absolute frozen adapter path is required');
   const adapterFile = await realpath(adapterPath);
   const adapterRoot = await realpath(path.resolve(path.dirname(adapterFile), '../..'));
@@ -31,8 +32,8 @@ export async function createLocalWriteEffects({ adapterPath } = {}) {
     import(pathToFileURL(path.join(vendor, 'lib/workspaceKey.js')).href),
     import(pathToFileURL(path.join(vendor, 'lib/refresh/sessionTickets.js')).href),
   ]);
-  const sidebarKey = hash(adapterRoot.toLowerCase()).slice(0, 16);
-  const projectBase = path.join(adapterRoot, '.scratch/upstream-sidebar', sidebarKey, 'projects');
+  const layout = await resolveAdapterDataLayout({ adapterPath, localDataRoot });
+  const projectBase = layout.projectBase;
   const canonicalKey = root => workspace.canonicalWorkspaceKey(root, {
     getPlatform: () => ({ os: process.platform, path }),
     // Same metadata probe and platform path rules used by node-host/repoKeys.

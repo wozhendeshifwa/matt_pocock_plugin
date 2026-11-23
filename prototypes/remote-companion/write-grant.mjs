@@ -4,7 +4,8 @@ import { homedir } from 'node:os';
 
 // Deliberately limited acceptance slice, not the final write capability set.
 export const TRIAL_WRITE_METHODS = Object.freeze(['deck_issue_report', 'gitStage', 'gitUnstage', 'gitCommit',
-  'gitFetch', 'gitPull', 'gitPush', 'bind', 'logSetSwitch', 'logClear', 'cancelNewSessionWatcher', 'handoffResolve']);
+  'gitFetch', 'gitPull', 'gitPush', 'bind', 'logSetSwitch', 'logClear', 'cancelNewSessionWatcher', 'handoffResolve',
+  'deck_issue_create', 'deck_issue_patch', 'deck_map_link', 'deck_map_plan_create', 'commentIssue', 'setLabelColors']);
 const methods = new Set(TRIAL_WRITE_METHODS);
 const plainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const samePath = value => process.platform === 'win32' ? path.resolve(value).toLowerCase() : path.resolve(value);

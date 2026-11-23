@@ -9,6 +9,7 @@ import { mkdir } from 'node:fs/promises';
 import { WriteLedger } from './write-ledger.mjs';
 import { installationWriteLedgerFile, normalizeWriteGrant } from './write-grant.mjs';
 import { createWriteEffects } from './write-effects.mjs';
+import { resolveAdapterDataLayout } from './local-data-layout.mjs';
 
 // Config selection is a local CLI action, never an MCP argument. All tokens
 // remain local; the cloud gets neither this file nor the adapter's environment.
@@ -20,6 +21,8 @@ export async function launchPairing(file, { onState = () => {}, writeLedgerFile 
   if (normalize(verified.adapterPath) !== normalize(config.adapterPath)) throw new Error('Adapter is not the locally pinned baseline');
   const grant = config.writeEnabled === true ? normalizeWriteGrant(config.writeGrant) : null;
   if (grant && verified.overlayVersion !== OVERLAY_VERSION) throw new Error('Local writes require the current frozen project-binding overlay; legacy candidates are read-only');
+  if (config.localDataRoot !== undefined && verified.overlayVersion !== OVERLAY_VERSION) throw new Error('Explicit local data root requires the current compatible frozen adapter');
+  const layout = await resolveAdapterDataLayout({ adapterPath: config.adapterPath, localDataRoot: config.localDataRoot });
   let journal, adapter, companion, control, stopping, writes;
   let stopRequested = false;
   async function cleanup() {
@@ -49,8 +52,12 @@ export async function launchPairing(file, { onState = () => {}, writeLedgerFile 
       await mkdir(path.dirname(ledgerFile), { recursive: true });
       writes = new WriteLedger(ledgerFile);
     }
-    adapter = createStdioAdapter(config.adapterPath);
-    const effects = grant ? await createWriteEffects({ adapterPath: config.adapterPath }) : null;
+    const adapterEnv = { ...process.env };
+    for (const key of Object.keys(adapterEnv)) if (key.toUpperCase() === 'DECK_LOCAL_DATA_ROOT') delete adapterEnv[key];
+    if (layout.mode === 'explicit-local') adapterEnv.DECK_LOCAL_DATA_ROOT = layout.root;
+    adapter = createStdioAdapter(config.adapterPath, { env: adapterEnv });
+    const effects = grant ? await createWriteEffects({ adapterPath: config.adapterPath,
+      ...(layout.mode === 'explicit-local' ? { localDataRoot: layout.root } : {}) }) : null;
     const execute = createExecutor({ adapter, journal, resolveProject: resolveSessionProject, pairingId: config.pairingId,
       isReadMethod: (method, payload) => classifyEndpoint(method, payload) === 'read', writeGrant: grant, writeLedger: writes,
       prepareWrite: effects?.prepare, observeRead: effects?.observeRead });

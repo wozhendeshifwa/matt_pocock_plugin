@@ -2,6 +2,20 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import path from 'node:path';
 
+// Values here are supplied by local preparation, never by an MCP argument.
+export function normalizeLocalTracker(value) {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== 'object' || Array.isArray(value) ||
+      Object.keys(value).some(key => !['backendId', 'repository'].includes(key)) ||
+      !['github', 'gitlab', 'markdown'].includes(value.backendId) ||
+      typeof value.repository !== 'string' || !value.repository || value.repository.length > 4096 ||
+      /[\u0000-\u001f\u007f]/.test(value.repository) ||
+      value.backendId === 'github' && !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}\/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/.test(value.repository)) {
+    throw new Error('Invalid trusted local tracker context');
+  }
+  return Object.freeze({ backendId: value.backendId, repository: value.repository });
+}
+
 // A fixed, locally selected adapter. Neither its path, argv nor environment can
 // be supplied by an MCP request. Stdout is protocol-only, stderr stays local.
 export function createStdioAdapter(file, { env = process.env, timeout = 45000, completionTimeout = 300000 } = {}) {
@@ -37,6 +51,8 @@ export function createStdioAdapter(file, { env = process.env, timeout = 45000, c
         throw new Error('Invalid trusted local dispatch context');
       }
       dispatch = { projectRoot: localContext.projectRoot, threadId: localContext.threadId };
+      const tracker = normalizeLocalTracker(localContext.tracker);
+      if (tracker) dispatch.tracker = tracker;
     }
     let resolveCompletion, rejectCompletion;
     const completion = new Promise((resolve, reject) => { resolveCompletion = resolve; rejectCompletion = reject; });

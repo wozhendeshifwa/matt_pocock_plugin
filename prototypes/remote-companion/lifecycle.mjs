@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { bridgeUrl, secret, VERSION } from './protocol.mjs';
 import { normalizeWriteGrant } from './write-grant.mjs';
+import { resolveAdapterDataLayout } from './local-data-layout.mjs';
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const DPAPI_SCRIPT = `$ErrorActionPreference='Stop'
@@ -105,6 +106,7 @@ function validateConfig(config) {
   if (Object.hasOwn(config, 'writeLedgerPath') || Object.hasOwn(config, 'writeLedgerFile')) throw new Error('Invalid local pairing policy: the installation write ledger is not a pairing setting');
   bridgeUrl(config.relayOrigin);
   absolute(config.adapterPath, 'Adapter'); absolute(config.journalPath, 'Journal');
+  if (config.localDataRoot !== undefined) absolute(config.localDataRoot, 'Local data root');
   if (config.baseline !== undefined && (!config.baseline || !path.isAbsolute(config.baseline.directory ?? '') || !/^[a-f0-9]{64}$/.test(config.baseline.manifestSha256 ?? ''))) throw new Error('Invalid pinned baseline');
   if (typeof config.secretDPAPI !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(config.secretDPAPI) || config.secretDPAPI.length > 16384) throw new Error('Invalid encrypted credential');
   return config;
@@ -113,11 +115,12 @@ function publicConfig(config) {
   const { secretDPAPI, deviceToken, ...visible } = config;
   return visible;
 }
-export async function createPairing({ file, relayOrigin, adapterPath, journalPath, deviceToken, baseline, writeEnabled = false, writeGrant }) {
+export async function createPairing({ file, relayOrigin, adapterPath, journalPath, deviceToken, baseline, localDataRoot, writeEnabled = false, writeGrant }) {
   const target = absolute(file, 'Pairing file');
   const adapter = await realpath(absolute(adapterPath, 'Adapter'));
   if (!(await stat(adapter)).isFile()) throw new Error('Adapter must be an existing file');
   const journal = absolute(journalPath, 'Journal');
+  const layout = localDataRoot === undefined ? null : await resolveAdapterDataLayout({ adapterPath: adapter, localDataRoot });
   const origin = bridgeUrl(relayOrigin);
   secret(deviceToken);
   // Protect before opening the new file. Never overwrite an old pairing, even
@@ -126,6 +129,7 @@ export async function createPairing({ file, relayOrigin, adapterPath, journalPat
   const pairingId = randomUUID();
   const config = { protocolVersion: VERSION, pairingId, relayOrigin: origin, adapterPath: adapter, journalPath: journal,
     ...(baseline ? { baseline } : {}),
+    ...(layout ? { localDataRoot: layout.root } : {}),
     secretDPAPI: await protectDeviceToken(deviceToken, pairingId), writeEnabled,
     ...(writeGrant === undefined ? {} : { writeGrant: normalizeWriteGrant(writeGrant) }), revoked: false, createdAt: new Date().toISOString() };
   validateConfig(config);
@@ -137,6 +141,7 @@ export async function createPairing({ file, relayOrigin, adapterPath, journalPat
 export async function loadPairing(file, { decrypt = false, allowRevoked = false } = {}) {
   const target = absolute(file, 'Pairing file');
   const config = validateConfig(await readJson(target));
+  if (config.localDataRoot !== undefined) await resolveAdapterDataLayout({ adapterPath: config.adapterPath, localDataRoot: config.localDataRoot });
   const revoked = config.revoked || await exists(sidecar(target, '.revoked'));
   if (revoked && !allowRevoked) throw new Error('Pairing revoked locally; create a new pairing instead of restoring it');
   if (!decrypt) return { ...config, revoked };
@@ -284,6 +289,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     else if (command === 'revoke') result = await revokePairing(file);
     else if (command === 'pair') result = await createPairing({ file, relayOrigin: process.env.DECK_RELAY_ORIGIN,
       adapterPath: process.env.DECK_LOCAL_ADAPTER, journalPath: process.env.DECK_LOCAL_JOURNAL, deviceToken: process.env.DECK_DEVICE_TOKEN,
+      ...(process.env.DECK_LOCAL_DATA_ROOT === undefined ? {} : { localDataRoot: process.env.DECK_LOCAL_DATA_ROOT }),
       ...(process.env.DECK_FROZEN_DIRECTORY ? { baseline: { directory: process.env.DECK_FROZEN_DIRECTORY, manifestSha256: process.env.DECK_FROZEN_MANIFEST_SHA256 } } : {}) });
     else if (command === 'autostart-plan') result = await planAutostart(file);
     else if (command === 'autostart-install') result = await installAutostart(file, { dryRun: !args.includes('--apply') });

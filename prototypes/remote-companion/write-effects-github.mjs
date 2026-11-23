@@ -7,7 +7,8 @@ import { resolveExecutable } from '../upstream-port/executables.mjs';
 import { prepareWriteIntent } from './write-intents.mjs';
 import { canonical, digest, threadId as identityOf } from './protocol.mjs';
 
-const run = promisify(execFile), METHODS = new Set(['deck_issue_create', 'deck_issue_patch', 'deck_map_link', 'deck_map_plan_create', 'commentIssue', 'setLabelColors']);
+export const GITHUB_EFFECT_METHODS = Object.freeze(['deck_issue_create', 'deck_issue_patch', 'deck_map_link', 'deck_map_plan_create', 'commentIssue', 'setLabelColors']);
+const run = promisify(execFile), METHODS = new Set(GITHUB_EFFECT_METHODS);
 const fold = value => process.platform === 'win32' ? value.toLowerCase() : value;
 const same = (left, right) => canonical(left) === canonical(right);
 const hash = value => digest(canonical(value));
