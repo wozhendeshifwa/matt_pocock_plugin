@@ -1,0 +1,13 @@
+{
+  "name": "deck-remote-compat-probe",
+  "version": "0.1.0",
+  "description": "Read-only remote Codex compatibility probe; does not access local projects.",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Deck Remote Compatibility Probe",
+    "shortDescription": "Remote compatibility checks",
+    "longDescription": "Check remote tools, host identity, theme signals and unsent editable drafts. This is not the complete Deck business plugin.",
+    "developerName": "wozhendeshifwa",
+    "category": "Productivity"
+  }
+}

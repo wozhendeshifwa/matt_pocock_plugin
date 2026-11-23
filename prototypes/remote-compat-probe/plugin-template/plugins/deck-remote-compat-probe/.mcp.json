@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "deck-remote-compat-probe": {
+      "url": "https://deck-compat-probe-43.onrender.com/mcp",
+      "bearer_token_env_var": "DECK_PROBE_ACCESS_TOKEN"
+    }
+  }
+}
