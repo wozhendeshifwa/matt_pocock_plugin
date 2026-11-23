@@ -24,6 +24,27 @@ SDK 只作验收依赖；部署 relay 不需要 npm 包。测试使用新建的�
 
 上述通过不证明实际 Render 或 Codex 中已通过。保留完整规格的真实用户最终验收、写审批、全部业务矩阵、长休眠、更新/回退等前置，不能据此关闭正式实施票。
 
+## 隔离写入切片：尚未在真实配对开放
+
+生产配对仍为 `writeEnabled:false`。独立临时配置只有同时设置 `writeEnabled:true` 和
+`writeGrant:{enabled:true,projectRoots:[<可信绝对项目根>],methods:[<明确方法>]}` 才能写。项目列表、方法列表都不能空；本切片只实现 `deck_issue_report` 与 `gitStage`，其他原本开放的写能力仍待后续实现和验收，不能据此缩减最终规格。
+
+`write-grant.mjs` 只接受本机配置，按真实路径精确匹配项目根。`launch.mjs` 使用固定安装级 `%LOCALAPPDATA%/MattSkillsDeck/RemoteCompanion/write-ledger.sqlite`，不接受配对或 MCP 参数指定库文件。不能每个配对新建空库，也不能通过删库解除未知写入。程序测试可本机注入独立库，不能把该测试 seam 暴露为远程参数。
+
+启用隔离写 grant 时还必须是当前 `choices-and-bound-project-v2` 冻结 overlay：适配器在二次解析聊天后、执行前核对本机钉住的项目和 thread。旧 `choices-data-root-v1` 仅允许只读启动，不会为了接入新代码强行重启当前生产只读组件。stdio 会先删除远端同名 envelope，再注入本机可信 `_deckLocalDispatch`，模型传入的根不是授权来源。
+
+`write-ledger.mjs` 在 SQLite 事务及唯一索引内登记项目未决写：跨聊天、MCP session、配对和进程重开都保留屏障。同 operation id 永不重新执行；不同项目互不阻塞。只保存类型化本机意图/结果引用，不接收认证、任意命令或原始响应。超时及 `isError` 不证明零副作用，保留 unknown；本机核对也不能仅传 `confirmed:true`。核对“未执行”需要实际读回及执行已停止证据，不能把“还没看到结果”当作“以后不会执行”。
+
+`deck_issue_report` 的上游 `ok/status` 甚至 `chain.recorded:true` 都不单独证明写盘成功。本切片会校验工单、工作区及 backend/repo 自洽，但本机持久链文件读回尚未实现，因此该方法执行后仍保守标为 unknown，不宣称“已可靠记链”。它的最终完成判定仍需补齐持久证据。
+
+stdio 的 `beginRequest()` 分离前台响应与本机完成通道。前台超时或 relay 不再等待后，仍跟踪至有界的 300 秒完成窗口；晚到的明确成功会写入安装级记录，状态工具可查询，绝不重发原写。停止组件会等待这些完成通道；超过完成窗口则保留未知屏障。
+
+```powershell
+node --test prototypes/remote-companion/write-ledger-test.mjs prototypes/remote-companion/write-integration-test.mjs
+```
+
+集成测试创建临时 Git 仓库、临时 Codex 索引并复制适配器静态文件到新 runtime，验证实际 `git add`，不操作用户现有工作树、配对或运行中的冻结实例。`DECK_TEST_ADAPTER_ROOT` 仅为本机测试选择待复制的候选源；未指定时使用此检出的适配器。测试还覆盖新 session/另一聊天/另一配对的未知写屏障及迟到结果。原工具 annotations、RPC 和 UI 对话框不增加新确认；这些结构检查不能代替真实客户端对审批次数和取消行为的 HITL 验收。未通过该验收前不得启用真实配对。
+
 ## 部署配置与免费边界
 
 Render 选已确认的 My Workspace，单个 free Web service、Singapore、手动部署。源码为本分支，构建可用 `node --check prototypes/remote-companion/relay.mjs`，启动 `node prototypes/remote-companion/relay.mjs`；Node 需 >=24。实际 source commit 和 deploy ID 必须读回，live 后才做 HTTPS smoke。

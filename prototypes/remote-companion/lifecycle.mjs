@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { bridgeUrl, secret, VERSION } from './protocol.mjs';
+import { normalizeWriteGrant } from './write-grant.mjs';
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const DPAPI_SCRIPT = `$ErrorActionPreference='Stop'
@@ -98,7 +99,10 @@ async function replaceJson(file, value) {
 }
 function validateConfig(config) {
   if (!config || config.protocolVersion !== VERSION) throw new Error('Pairing protocol is incompatible; update manually');
-  if (!UUID.test(config.pairingId ?? '') || config.writeEnabled !== false || typeof config.revoked !== 'boolean') throw new Error('Invalid local pairing policy');
+  if (!UUID.test(config.pairingId ?? '') || typeof config.writeEnabled !== 'boolean' || typeof config.revoked !== 'boolean') throw new Error('Invalid local pairing policy');
+  const grant = normalizeWriteGrant(config.writeGrant);
+  if (config.writeEnabled && !grant) throw new Error('Invalid local pairing policy: an explicit project/method write grant is required');
+  if (Object.hasOwn(config, 'writeLedgerPath') || Object.hasOwn(config, 'writeLedgerFile')) throw new Error('Invalid local pairing policy: the installation write ledger is not a pairing setting');
   bridgeUrl(config.relayOrigin);
   absolute(config.adapterPath, 'Adapter'); absolute(config.journalPath, 'Journal');
   if (config.baseline !== undefined && (!config.baseline || !path.isAbsolute(config.baseline.directory ?? '') || !/^[a-f0-9]{64}$/.test(config.baseline.manifestSha256 ?? ''))) throw new Error('Invalid pinned baseline');
@@ -109,7 +113,7 @@ function publicConfig(config) {
   const { secretDPAPI, deviceToken, ...visible } = config;
   return visible;
 }
-export async function createPairing({ file, relayOrigin, adapterPath, journalPath, deviceToken, baseline }) {
+export async function createPairing({ file, relayOrigin, adapterPath, journalPath, deviceToken, baseline, writeEnabled = false, writeGrant }) {
   const target = absolute(file, 'Pairing file');
   const adapter = await realpath(absolute(adapterPath, 'Adapter'));
   if (!(await stat(adapter)).isFile()) throw new Error('Adapter must be an existing file');
@@ -122,7 +126,8 @@ export async function createPairing({ file, relayOrigin, adapterPath, journalPat
   const pairingId = randomUUID();
   const config = { protocolVersion: VERSION, pairingId, relayOrigin: origin, adapterPath: adapter, journalPath: journal,
     ...(baseline ? { baseline } : {}),
-    secretDPAPI: await protectDeviceToken(deviceToken, pairingId), writeEnabled: false, revoked: false, createdAt: new Date().toISOString() };
+    secretDPAPI: await protectDeviceToken(deviceToken, pairingId), writeEnabled,
+    ...(writeGrant === undefined ? {} : { writeGrant: normalizeWriteGrant(writeGrant) }), revoked: false, createdAt: new Date().toISOString() };
   validateConfig(config);
   await mkdir(path.dirname(target), { recursive: true });
   await mkdir(path.dirname(journal), { recursive: true });
@@ -204,11 +209,16 @@ export async function createRuntimeControl(file, { onStop = async () => {}, onRe
     busy = true;
     try {
       if (!notified && (await exists(sidecar(file, '.revoked')) || (await readJson(file)).revoked)) {
-        notified = true; state = 'revoked'; await publish(); await onRevoke();
+        notified = true; state = 'revoked';
+        // Status is diagnostic. A failed publish must never suppress the
+        // authoritative revoke callback after notified has already been set.
+        try { await publish(); } finally { await onRevoke(); }
       } else if (!notified) {
         let stop = null;
         try { stop = await readJson(sidecar(file, '.stop.json')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
-        if (stop?.pairingId === config.pairingId && stop.instanceId === instanceId) { notified = true; state = 'stopping'; await publish(); await onStop(); }
+        if (stop?.pairingId === config.pairingId && stop.instanceId === instanceId) {
+          notified = true; state = 'stopping'; try { await publish(); } finally { await onStop(); }
+        }
       }
       await publish();
     } catch { if (!notified) { notified = true; await onStop(); } }

@@ -14,12 +14,17 @@
 | `journalPath` | 本机 SQLite 执行记录路径；业务状态留本机 |
 | `baseline` | 冻结目录与本机固定的 manifest SHA-256；启动前逐文件复查，拒绝漂移或另一适配器 |
 | `secretDPAPI` | Windows DPAPI `CurrentUser` 加密的 device token，明文不写配置/插件、不打印 |
-| `writeEnabled` | 必须为 `false`；人为改为 `true` 也会拒绝启动 |
+| `writeEnabled` | 正式配对保持 `false`；隔离写验收须同时有完整 `writeGrant`，只改为 `true` 会拒绝启动 |
+| `writeGrant` | 仅本机的 `enabled:true`、非空绝对 `projectRoots`、非空 `methods`；当前切片只接受 `deck_issue_report` / `gitStage` |
 | `revoked` | 本机撤销状态，另有不可因恢复配置备份而消失的 `.revoked` 标记 |
 
 此处“配对”是本机凭据安装，不宣称已实现交互式云端设备注册/一次性代码。需要预先取得对应 relay 的 **device token**；本工具不生成云端 caller token、不接收 GitHub 凭据、不修改 OpenAI/DeepSeek provider。
 
 DPAPI 把 token 绑定到当前 Windows 用户及 `pairingId`；换用户/换机器不能直接使用密文，必须重新配对。DPAPI 不阻止同一 Windows 用户下已获得执行权限的程序读取其自己的凭据。请将配置、SQLite、备份和状态文件放在用户私有且不进 Git 的目录，不上传这些运行材料。
+
+当前真实配对和后台组件没有启用写。`createPairing()` 的本机程序接口可为全新隔离配置接收 `writeEnabled:true` 与 `writeGrant`，但普通 CLI `pair` 仍默认只读。写验收必须先使用专用临时项目，完成实际宿主审批/取消和确认次数检查；不能把下面的接入示例改为允许整个用户工作区。
+
+写安全记录使用固定安装级 `%LOCALAPPDATA%/MattSkillsDeck/RemoteCompanion/write-ledger.sqlite`，与本配对的响应缓存 `journalPath` 分开。它跨配对、升级和聊天保存未知写屏障；配对 JSON 不允许指定 `writeLedgerPath` / `writeLedgerFile`。只有本机测试代码可通过 `launchPairing(file,{writeLedgerFile})` 注入临时库，此 seam 不能暴露给 MCP。更新、撤销或重配对都不能删除安装级库以恢复写权限。
 
 ## 先运行隔离验收
 
@@ -58,6 +63,8 @@ token 只在进程环境、匿名 stdin 和内存中经过；PowerShell helper �
 
 启动前必须有 `baseline` 固定记录。启动器先校验冻结清单与每个文件的哈希，再取得本机实例所有权；不能通过编辑远程请求选择另一适配器。重建冻结目录和记录摘要的方法见 `freeze-adapter.mjs` 及基线报告。
 
+写 grant 还要求当前 `choices-and-bound-project-v2` 冻结修正，以在适配器二次解析后、实际执行前核对本机钉住的项目/thread。旧 `choices-data-root-v1` 保持只读启动兼容；不能给旧候选翻开写开关来跳过新的绑定闸门，也不自动重启现有生产只读组件。
+
 ```powershell
 node prototypes/remote-companion/launch.mjs --pairing $pairingFile
 # 另一终端中，仍使用同一绝对本机配置路径：
@@ -93,6 +100,6 @@ node prototypes/remote-companion/lifecycle.mjs autostart-remove $pairingFile --a
 
 ## 更新与恢复
 
-当前不自动下载、切换或更新组件。手动更新前先停止本机实例，记录旧源码/Node/协议与构建版本并保留旧目录；核对插件、relay、本机协议都为 `1` 再启动。协议不符或 `writeEnabled` 不是 `false` 时明确拒绝；不能编辑版本号跳过检查。旧版可由已保留目录手动启动，配对与 journal 不复制上云，不用旧整份用户配置覆盖并发修改。备份恢复不应撤销已有撤销状态。
+当前不自动下载、切换或更新组件。手动更新前先停止本机实例，记录旧源码/Node/协议与构建版本并保留旧目录；核对插件、relay、本机协议都为 `1` 再启动。协议不符、写配置不完整或方法/项目不在本机 allowlist 时明确拒绝；不能编辑版本号跳过检查。旧版可由已保留目录手动启动，配对、journal 和安装级写记录不复制上云，不用旧整份用户配置覆盖并发修改。备份恢复不应撤销已有撤销状态或遗忘未决写。
 
 这些文件没有改变 DeepSeek/OpenAI 配置、已安装插件、Git 工作树或 GitHub 凭据。完整的跨版本兼容矩阵、更新失败恢复、真实 Windows 登录、云端配对/撤销及全业务客户端验收仍由正式规格跟踪。

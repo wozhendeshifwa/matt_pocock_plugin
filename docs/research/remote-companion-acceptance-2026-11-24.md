@@ -67,3 +67,17 @@
 ### 下一实现切片
 
 已识别出仅按 MCP session/request id 防重不足：重连或另一聊天会有新 operation id。下一切片为安装级稳定本机 SQLite 的项目写屏障，跨 thread/session/pair 阻止未决写；保存必要类型化目标以便本机核对，迟到完成仍能记账。它不以 `confirmation` 审计字段冒充宿主签名，不把“没有查到结果”当未执行，不提供远程 `confirmed:true` 清屏障。先在隔离项目验证限定写能力，真实配对仍保持只读。
+
+## 安装级写屏障与派发绑定补证
+
+安装级 ledger 已接入本机执行链，限定的本机试验 grant 只含 `gitStage` / `deck_issue_report`，且必须同时明确启用、列出绝对项目根和方法。实际配对未改，仍只读。原始审批 annotations、RPC 读写路由、expectedThreadId 和本机命令/路径门保留，没有新增确认框或生成批准凭证。
+
+真实临时 Git + 假 Codex 索引复现了原链路的竞态：同一聊天在本机授权后移到 B，适配器再次解析聊天，可能暂存 B 却把 A 记成功。修复仅作用于冻结副本和连接层：本机桥剔除远端 `_deckLocalDispatch` 字段，再注入已核实的 realpath 项目根/聊天；冻结适配器在派发 worker 前再次比对。项目变化、缺本机绑定均拒绝，两个项目保持未暂存；远端伪造字段不能替代本机绑定。主工作区原文件未覆盖。
+
+新候选 `.scratch/frozen-adapter-20261124-bound-v2` 仍为450文件、`userAccepted:false`，overlay `choices-and-bound-project-v2`，清单 SHA-256 `6a37acd2c131e26eeb1864517813eb403a7da71cf95f2ba2c55c85ed9ff043fb`。旧 `choices-data-root-v1` 450文件仍完整验证，可继续只读；带写 grant 的启动必须使用 v2，启动前拒绝旧候选且不取得运行所有权/新建安装级库。
+
+stdio 在45秒前台超时后继续跟踪最长300秒的本机结果；HTTP已超时、另一 MCP session、同项目另一聊天或新配对均不能绕过安装级项目屏障。真实临时 Git 的晚到暂存结果最终落库为 completed，不重复执行。异常/部分失败保持 unknown。撤销/停止的状态文件发布失败时，仍执行其停止回调。
+
+根代理独立复跑 **40/40** 检查通过：原SDK/HTTP12、Windows生命周期5、冻结4、ledger9、写集成7、项目绑定3；写集成的源选择为上述 v2。首次默认沙箱32/40通过，8项本机回环 HTTP 被 `connect EACCES 127.0.0.1` 阻断；获准在同一隔离夹具复跑后40/40，无测试跳过，不将环境阻断藏作通过。测试未连接生产relay、未改变真实配对/自启、未写业务 GitHub。
+
+report 的工具 `ok`、内存 `chain.recorded:true` 仍可能伴随磁盘 flush 失败，因此当前不会仅据回包将其记成功；持久链读回正在实现。全部22项既有写能力的[参数、结果与恢复矩阵](remote-write-capability-matrix-2026-11-24.md)已完成源码盘点，不能将2项试验切片或盘点当作22项已开放/验收。正式规格继续 open。

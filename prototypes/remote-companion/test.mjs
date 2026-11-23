@@ -53,7 +53,7 @@ async function localJournal(t) {
   cleanup(t, () => journal.close());
   return { journal, file, directory };
 }
-function executor(journal, adapter, resolveProject = async meta => ({ threadId: meta.threadId, projectRoot: 'C:\\fixture\\project', associated: true }), pairingId = 'test-pair') {
+function executor(journal, adapter, resolveProject = async meta => ({ threadId: meta.threadId, projectRoot: fileURLToPath(new URL('.', import.meta.url)), associated: true }), pairingId = 'test-pair') {
   return createExecutor({ journal, adapter, resolveProject, pairingId, isReadMethod: (method, payload) => classifyEndpoint(method, payload) === 'read' });
 }
 async function running(t, options = {}) {
@@ -119,7 +119,7 @@ test('MCP over HTTP + outbound companion preserves metadata and reuses results w
 
 test('local identity is rechecked before cached results; missing, conflicting and projectless identity fails closed', async t => {
   const { journal } = await localJournal(t); let associated = true, calls = 0;
-  const execute = executor(journal, { async request(req) { calls++; return response(req); } }, async meta => ({ threadId: meta.threadId, projectRoot: associated ? 'local' : null, associated }));
+  const execute = executor(journal, { async request(req) { calls++; return response(req); } }, async meta => ({ threadId: meta.threadId, projectRoot: associated ? fileURLToPath(new URL('.', import.meta.url)) : null, associated }));
   const j = job(request()); assert.ok((await execute(j)).result); associated = false;
   assert.match((await execute(j)).error.message, /No verified/); assert.equal(calls, 1);
   const noIdentity = request(2); delete noIdentity.params._meta;
@@ -142,18 +142,21 @@ test('remote write and conditional write routing cannot bypass local gate; stale
 });
 
 test('moving a thread or changing pairing cannot return cached data from its previous project', async t => {
-  const { journal } = await localJournal(t); let projectRoot = 'C:\\fixture\\project-a', calls = 0;
+  const { journal, directory } = await localJournal(t);
+  const rootA = path.join(directory, 'project-a'), rootB = path.join(directory, 'project-b');
+  await Promise.all([rootA, rootB].map(root => mkdir(root)));
+  let projectRoot = rootA, calls = 0;
   const adapter = { async request(req) { calls++; return { jsonrpc: '2.0', id: req.id, result: { projectRoot } }; } };
   const resolve = async meta => ({ threadId: meta.threadId, projectRoot, associated: true });
   const execute = executor(journal, adapter, resolve);
   const j = job(request());
   assert.equal((await execute(j)).result.projectRoot, projectRoot);
-  projectRoot = 'C:\\fixture\\project-b';
+  projectRoot = rootB;
   assert.ok((await execute(j)).error, 'cached project-a result must be rejected after moving the same thread');
   const movedStatus = await execute(job(request(2, 'deck_remote_operation_status', { operationId: j.operationId })));
   assert.equal(movedStatus.result.structuredContent.state, 'not-found', 'status lookup must have the same project boundary');
   assert.equal(calls, 1);
-  projectRoot = 'C:\\fixture\\project-a';
+  projectRoot = rootA;
   assert.ok((await executor(journal, adapter, resolve, 'different-pair')(j)).error, 'cached result belongs to its pairing');
   assert.equal(calls, 1);
 });

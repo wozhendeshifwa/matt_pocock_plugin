@@ -1,16 +1,48 @@
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { VERSION, MAX_BYTES, bridgeUrl, secret, digest, requestHash, validateRequest, threadId, rpcError } from './protocol.mjs';
+import { realpath } from 'node:fs/promises';
+import { VERSION, MAX_BYTES, bridgeUrl, secret, digest, canonical, requestHash, validateRequest, threadId, rpcError } from './protocol.mjs';
 import { Journal } from './journal.mjs';
 import { createStdioAdapter } from './stdio.mjs';
+import { normalizeWriteGrant, assertWriteGranted } from './write-grant.mjs';
 
 const SAFE_TOOLS = new Set(['open_deck_sidebar_probe', 'deck_context', 'deck_issue_get', 'deck_issue_list', 'deck_map_snapshot', 'deck_current_project', 'deck_rpc_manifest', 'deck_host_context_probe']);
 const statusTool = { name: 'deck_remote_operation_status', description: 'Check an uncertain operation in the local execution journal. Never replays an operation.',
   inputSchema: { type: 'object', required: ['operationId'], additionalProperties: false, properties: { operationId: { type: 'string', pattern: '^[a-f0-9]{64}$' } } }, annotations: { readOnlyHint: true } };
 
-export function createExecutor({ adapter, journal, resolveProject, isReadMethod, pairingId = 'test-pair' }) {
-  return async function execute(job) {
-    let entered = false;
+function knownSuccessfulWrite(method, response, request, scope) {
+  if (response?.error || response?.result?.isError || !response?.result?.structuredContent) return false;
+  const data = response.result.structuredContent;
+  if (method === 'deck_issue_report') {
+    const key = String(request.params.arguments?.key ?? '').trim().replace(/^#/, '').replace(/^0+(?=\d)/, '');
+    const root = data.workspace?.root;
+    const normalize = root => process.platform === 'win32' ? path.resolve(root).toLowerCase() : path.resolve(root);
+    if (data.ok !== true || data.status !== 'ok' || data.tool !== method || data.data?.chain?.recorded !== true ||
+        data.data?.key !== key || !/^\d{1,10}$/.test(key) || typeof root !== 'string' || normalize(root) !== scope.projectRoot ||
+        typeof data.backend?.id !== 'string' || data.data?.backendId !== data.backend.id || data.repo?.backend !== data.backend.id ||
+        typeof data.repo?.refId !== 'string' || !data.repo.refId) return false;
+    // The upstream chain can say recorded:true even if its silent disk flush
+    // failed. Session ownership comes from the trusted dispatch/owner context,
+    // not a nonexistent session field in this response. Until the local durable
+    // chain readback is implemented this route must remain uncertain.
+    return false;
+  }
+  const value = data.value ?? data;
+  return method === 'gitStage' && data.ok !== false && value.ok === true && Array.isArray(value.staged) &&
+    canonical(value.staged) === canonical(request.params.arguments?.payload?.paths);
+}
+
+export function createExecutor({ adapter, journal, resolveProject, isReadMethod, pairingId = 'test-pair', writeGrant, writeLedger }) {
+  const grant = normalizeWriteGrant(writeGrant);
+  if (grant && !writeLedger) throw new Error('An installation-level write ledger is required before enabling a local write grant');
+  const background = new Set();
+  function keep(promise) { background.add(promise); void promise.finally(() => background.delete(promise)).catch(() => {}); return promise; }
+  function writeUnknown(record, reason) {
+    try { writeLedger.markUnknown({ ...record, reason }); } catch { /* Keep the durable running barrier if storage fails. */ }
+    try { journal.uncertain(record.operationId); } catch {}
+  }
+  async function execute(job) {
+    let entered = false, writeRecord = null, adapterStarted = false;
     const request = job?.request;
     try {
       validateRequest(request);
@@ -24,13 +56,15 @@ export function createExecutor({ adapter, journal, resolveProject, isReadMethod,
         if (!project?.projectRoot || project.associated === false || project.threadId !== identity) throw new Error('No verified local project for this host identity');
         // Use the trusted resolver's canonical local root, never a path from
         // tool arguments. Windows roots are case-insensitive.
-        const projectRoot = path.resolve(project.projectRoot);
+        const projectRoot = await realpath(project.projectRoot);
         scope = { pairingId, threadId: identity, projectRoot: process.platform === 'win32' ? projectRoot.toLowerCase() : projectRoot };
+        const projectKey = scope.projectRoot;
         const name = request.params.name;
         if (name === statusTool.name) {
           const operationId = request.params.arguments?.operationId;
           if (!/^[a-f0-9]{64}$/.test(operationId ?? '')) throw new Error('Invalid operation id');
-          const status = journal.status(operationId, scope);
+          const writeStatus = writeLedger?.inspect({ operationId, projectKey, ownerScope: scope });
+          const status = writeStatus?.state !== 'not-found' && writeStatus ? writeStatus : journal.status(operationId, scope);
           return { jsonrpc: '2.0', id: request.id, result: { content: [{ type: 'text', text: JSON.stringify(status) }], structuredContent: status } };
         }
         if (name === 'deck_upstream_read') {
@@ -38,9 +72,24 @@ export function createExecutor({ adapter, journal, resolveProject, isReadMethod,
           if (!isReadMethod(args?.method, args?.payload)) throw new Error('Write/unknown method rejected on remote read route');
           if (args?.payload?.expectedThreadId !== identity) throw new Error('Host thread changed; refresh project');
         } else if (!SAFE_TOOLS.has(name)) {
-          // Production remains closed until host approvals and all existing
-          // local write gates have been validated across this network boundary.
-          throw new Error('Remote writes are not enabled: authorization acceptance is pending');
+          if (!grant) throw new Error('Remote writes are not enabled: authorization acceptance is pending');
+          let method;
+          if (name === 'deck_upstream_write') {
+            const args = request.params.arguments;
+            if (isReadMethod(args?.method, args?.payload)) throw new Error('Read method must use the remote read route');
+            if (args?.payload?.expectedThreadId !== identity) throw new Error('Host thread changed; refresh project');
+            method = args?.method;
+          } else method = name;
+          await assertWriteGranted(grant, projectRoot, method);
+          const intent = { method, parametersSha256: requestHash(request), target: method === 'gitStage'
+            ? { paths: request.params.arguments?.payload?.paths }
+            : { localStateKey: 'session-tickets' } };
+          const record = { operationId: job.operationId, projectKey, ownerScope: scope };
+          const reservation = writeLedger.reserve({ ...record, intent });
+          if (!reservation.reserved) return rpcError(request.id, -32006, 'Write already recorded; inspect its local status instead of executing it again', {
+            operationId: job.operationId, state: reservation.state, reason: reservation.reason,
+          });
+          writeRecord = { ...record, intent, method };
         }
       }
       // Validate identity before returning cached data as project ownership may
@@ -49,30 +98,82 @@ export function createExecutor({ adapter, journal, resolveProject, isReadMethod,
       // effects. Do not persist an entire UI bundle for each page load.
       if (scope) {
         const entry = journal.begin(job.operationId, request, scope);
-        if (!entry.fresh) return { ...entry.response, id: request.id };
+        if (!entry.fresh) {
+          const cached = { ...entry.response, id: request.id };
+          if (writeRecord) {
+            if (knownSuccessfulWrite(writeRecord.method, cached, request, scope)) {
+              writeLedger.complete({ ...writeRecord, outcome: 'succeeded', result: { target: writeRecord.intent.target, resultSha256: digest(canonical(cached)) } });
+            } else writeUnknown(writeRecord, 'operator-uncertain');
+          }
+          return cached;
+        }
         entered = true;
       }
-      const response = await adapter.request(request);
+      if (writeRecord) {
+        adapterStarted = true;
+        const localContext = { projectRoot: scope.projectRoot, threadId: identity };
+        const call = typeof adapter.beginRequest === 'function' ? adapter.beginRequest(request, localContext) : (() => {
+          const completion = adapter.request(request, localContext); return { response: completion, completion };
+        })();
+        const final = keep(Promise.resolve(call.completion).then(response => {
+          if (!response || response.jsonrpc !== '2.0' || (!('result' in response) && !('error' in response))) throw new Error('Invalid local write response');
+          response.id = request.id;
+          if (!knownSuccessfulWrite(writeRecord.method, response, request, scope)) {
+            // A returned error can follow partial side effects. Do not infer
+            // non-execution merely from isError/ok:false or a protocol failure.
+            writeUnknown(writeRecord, 'partial-result');
+            return rpcError(request.id, -32004, 'Local write outcome is uncertain; inspect local evidence before any retry', { operationId: job.operationId, state: 'unknown' });
+          }
+          writeLedger.complete({ ...writeRecord, outcome: 'succeeded', result: { target: writeRecord.intent.target, resultSha256: digest(canonical(response)) } });
+          try { journal.finish(job.operationId, response); } catch { /* Known effect remains recorded in the installation ledger. */ }
+          return response;
+        }).catch(() => {
+          writeUnknown(writeRecord, 'adapter-timeout');
+          return rpcError(request.id, -32004, 'Local write result remains unknown; do not replay', { operationId: job.operationId, state: 'unknown' });
+        }));
+        try { await call.response; return await final; }
+        catch {
+          // The independent completion channel stays registered. It may still
+          // release this barrier with a known late result, including after the
+          // relay/client has stopped waiting. No local write is retried.
+          writeUnknown(writeRecord, 'adapter-timeout');
+          return rpcError(request.id, -32004, 'Local write result unknown; completion is still tracked locally', { operationId: job.operationId, state: 'unknown' });
+        }
+      }
+      const response = await adapter.request(request, scope ? { projectRoot: scope.projectRoot, threadId: identity } : undefined);
       if (!response || response.jsonrpc !== '2.0' || (!('result' in response) && !('error' in response))) throw new Error('Invalid local adapter response');
       response.id = request.id;
       if (request.method === 'tools/list' && response.result?.tools) {
         response.result.tools.push(statusTool);
         for (const tool of response.result.tools) if (tool.annotations?.readOnlyHint !== true && !SAFE_TOOLS.has(tool.name)) {
-          tool.description = 'Remote write access is pending acceptance; this route currently rejects execution. ' + tool.description;
+          const allowed = grant && (grant.methods.includes(tool.name) || (tool.name === 'deck_upstream_write' && grant.methods.includes('gitStage')));
+          tool.description = (allowed ? 'Local trial write grant required for the exact project/method. ' : 'Remote write access is pending acceptance; this route currently rejects execution. ') + tool.description;
         }
       }
       if (request.method === 'tools/call' && request.params.name === 'deck_rpc_manifest' && response.result?.structuredContent) {
-        response.result.structuredContent.remote = { protocol: VERSION, writesEnabled: false };
+        response.result.structuredContent.remote = { protocol: VERSION, writesEnabled: Boolean(grant), allowedWriteMethods: grant?.methods ?? [] };
       }
       if (entered) journal.finish(job.operationId, response);
       return response;
     } catch (error) {
+      if (writeRecord) {
+        if (adapterStarted) writeUnknown(writeRecord, 'operator-uncertain');
+        else {
+          // Reservation/preparation failed before adapter dispatch. This is a
+          // known rejection, unlike an error returned after execution started.
+          try { writeLedger.complete({ ...writeRecord, outcome: 'failed', result: { errorKind: 'rejected' } }); } catch {}
+        }
+      }
       if (entered) journal.uncertain(job.operationId);
       return rpcError(request?.id, entered ? -32004 : -32005,
         entered ? 'Local execution result unknown; inspect journal before retrying' : error.message,
-        { operationId: job?.operationId, state: entered ? 'unknown' : 'not-executed' });
+        { operationId: job?.operationId, state: entered ? 'unknown' : 'not-executed',
+          ...(error.code ? { reason: error.code } : {}),
+          ...(error.blockingOperationId ? { blockingOperationId: error.blockingOperationId, blockingState: error.state } : {}) });
     }
-  };
+  }
+  execute.drain = async () => { while (background.size) await Promise.allSettled([...background]); };
+  return execute;
 }
 
 export function startCompanion({ relayOrigin, deviceToken, execute, allowLoopback = false, concurrency = 4, retryMs = 2000, onState = () => {} }) {
@@ -116,6 +217,7 @@ export function startCompanion({ relayOrigin, deviceToken, execute, allowLoopbac
       }
     }
     await Promise.allSettled(active);
+    await execute.drain?.();
   })();
   return { done, async stop() { stopped = true; controller.abort(); await done; } };
 }

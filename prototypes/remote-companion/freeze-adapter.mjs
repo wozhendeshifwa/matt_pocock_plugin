@@ -4,7 +4,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const BASELINE_MANIFEST_SHA256 = '5390342ff96c94f3d3884853e2631d92f3a56cd0c1cc9aa37a96b83aee4dacef';
-export const OVERLAY_VERSION = 'choices-data-root-v1';
+export const OVERLAY_VERSION = 'choices-and-bound-project-v2';
+export const READ_ONLY_OVERLAY_VERSIONS = Object.freeze(['choices-data-root-v1', OVERLAY_VERSION]);
 export const OUTPUT_BASE = fileURLToPath(new URL('../../.scratch/', import.meta.url));
 const defaultManifest = fileURLToPath(new URL('../../docs/research/remote-companion-baseline-2026-11-24.json', import.meta.url));
 const roots = ['prototypes/upstream-port', 'vendor/mattskills-1.8.0-rc.7'];
@@ -53,7 +54,31 @@ function exact(source, from, to) {
 export function applyChoicesOverlay(relative, bytes) {
   let text = bytes.toString('utf8');
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
-  if (relative === 'prototypes/upstream-port/project-worker.mjs') {
+  if (relative === 'prototypes/upstream-port/sidebar-server.mjs') {
+    text = exact(text, 'async function handle(request) {', [
+      '// Only the local stdio bridge supplies this envelope, after resolving the',
+      '// host identity and replacing any same-named remote input. Resolve again',
+      '// here and reject a project change before a worker receives the request.',
+      'async function assertLocalDispatchProject(request, project, required) {',
+      '  const bound = request._deckLocalDispatch;',
+      '  if (bound == null && !required) return;',
+      '  if (!bound || bound.threadId !== project.threadId || typeof bound.projectRoot !== "string")',
+      '    throw new Error("Missing verified local dispatch project");',
+      '  const [expected, actual] = await Promise.all([realpath(bound.projectRoot), realpath(projectKey(project))]);',
+      '  const key = value => process.platform === "win32" ? value.toLowerCase() : value;',
+      '  if (key(expected) !== key(actual)) throw new Error("Project changed before local dispatch; refresh project");',
+      '}',
+      'async function handle(request) {',
+    ].join(eol));
+    text = exact(text, '          const result = await projectHosts.call(cwd, "__deck_tool_call__", {', [
+      '          await assertLocalDispatchProject(request, project, !["deck_context", "deck_issue_get", "deck_map_snapshot", "deck_issue_list"].includes(deckTool.name));',
+      '          const result = await projectHosts.call(cwd, "__deck_tool_call__", {',
+    ].join(eol));
+    text = exact(text, '        const result = await projectHosts.call(cwd, method, scopedPayload);', [
+      '        await assertLocalDispatchProject(request, project, upstreamTool === "deck_upstream_write");',
+      '        const result = await projectHosts.call(cwd, method, scopedPayload);',
+    ].join(eol));
+  } else if (relative === 'prototypes/upstream-port/project-worker.mjs') {
     text = exact(text, 'identity: createSnapshotCacheIdentity(process.argv[2]),',
       'identity: createSnapshotCacheIdentity(process.argv[2], { dataRoot: process.cwd() }),');
   } else if (relative === 'prototypes/upstream-port/snapshot-cache-identity.mjs') {
@@ -155,7 +180,7 @@ export async function verifyFrozenAdapter({ directory, expectedManifestSha256 } 
   const manifestBytes = await readFile(path.join(root, 'frozen-adapter.json'));
   if (hash(manifestBytes) !== expectedManifestSha256) throw new Error('Frozen manifest SHA-256 mismatch');
   const manifest = JSON.parse(manifestBytes.toString('utf8'));
-  if (manifest.schemaVersion !== 1 || manifest.ready !== true || manifest.overlayVersion !== OVERLAY_VERSION ||
+  if (manifest.schemaVersion !== 1 || manifest.ready !== true || !READ_ONLY_OVERLAY_VERSIONS.includes(manifest.overlayVersion) ||
       manifest.adapterRelativePath !== 'prototypes/upstream-port/sidebar-server.mjs' || !Array.isArray(manifest.files)) throw new Error('Invalid frozen candidate manifest');
   const expected = new Set();
   for (const entry of manifest.files) {

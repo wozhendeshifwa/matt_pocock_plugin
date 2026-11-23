@@ -28,7 +28,7 @@ async function fixture(t) {
   });
   const source = path.join(directory, 'source');
   const entries = [
-    [port + 'sidebar-server.mjs', Buffer.from('// fixture sidebar entrypoint; never executed\n')],
+    [port + 'sidebar-server.mjs', await readFile(path.join(mainRoot, port + 'sidebar-server.mjs'))],
     [port + 'project-worker.mjs', await readFile(path.join(mainRoot, port + 'project-worker.mjs'))],
     [port + 'snapshot-cache-identity.mjs', await readFile(path.join(mainRoot, port + 'snapshot-cache-identity.mjs'))],
     [port + 'executables.mjs', await readFile(path.join(mainRoot, port + 'executables.mjs'))],
@@ -55,7 +55,7 @@ async function fixture(t) {
   return { directory, source, entries, manifest, manifestFile, options, saveManifest };
 }
 
-test('freeze preserves exact static bytes, overlays only two modules and refuses overwrite', async t => {
+test('freeze preserves exact static bytes, overlays three known modules and refuses overwrite', async t => {
   const f = await fixture(t);
   const result = await freezeAdapter(f.options);
   assert.equal(result.fileCount, f.entries.length);
@@ -65,7 +65,7 @@ test('freeze preserves exact static bytes, overlays only two modules and refuses
   assert.equal(candidate.sourceManifestSha256, f.options.expectedManifestSha256);
   assert.equal(candidate.sourceCandidateOnly, true);
   assert.equal(candidate.ready, true);
-  assert.equal(candidate.files.filter(entry => entry.overlay).length, 2);
+  assert.equal(candidate.files.filter(entry => entry.overlay).length, 3);
   for (const entry of candidate.files) {
     const original = await readFile(path.join(f.source, entry.path));
     const frozen = await readFile(path.join(result.directory, entry.path));
