@@ -35,14 +35,18 @@ export function threadId(request) {
 export function rpcError(id, code, message, data) {
   return { jsonrpc: '2.0', id: id ?? null, error: { code, message, ...(data ? { data } : {}) } };
 }
-export async function readJson(response, limit = MAX_BYTES) {
+export async function readJson(response, limit = MAX_BYTES, inspectText) {
   const chunks = []; let size = 0;
   for await (const chunk of response) {
     size += chunk.length;
     if (size > limit) throw Object.assign(new Error('Payload too large'), { status: 413 });
     chunks.push(chunk);
   }
-  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+  const text = Buffer.concat(chunks).toString('utf8');
+  // Optional local admission checks run before JSON.parse can expand a short
+  // wire payload into a much larger object graph. Parsing still owns validity.
+  inspectText?.(text);
+  try { return JSON.parse(text); }
   catch { throw Object.assign(new Error('Invalid JSON'), { status: 400 }); }
 }
 export function bridgeUrl(value, allowLoopback = false) {
