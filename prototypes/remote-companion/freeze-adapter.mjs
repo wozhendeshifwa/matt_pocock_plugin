@@ -4,10 +4,11 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { applyPublicationOverlay } from './publication-overlay.mjs';
 import { apply as applyHostOpenOverlay } from './host-open-overlay.mjs';
+import { applyReadOverlay } from './read-overlay.mjs';
 
 export const BASELINE_MANIFEST_SHA256 = '5390342ff96c94f3d3884853e2631d92f3a56cd0c1cc9aa37a96b83aee4dacef';
-export const OVERLAY_VERSION = 'bound-effects-and-local-data-v5';
-export const LOCAL_DATA_OVERLAY_VERSIONS = Object.freeze(['choices-project-tracker-and-local-data-v4', OVERLAY_VERSION]);
+export const OVERLAY_VERSION = 'bound-effects-and-bundled-docs-v6';
+export const LOCAL_DATA_OVERLAY_VERSIONS = Object.freeze(['choices-project-tracker-and-local-data-v4', 'bound-effects-and-local-data-v5', OVERLAY_VERSION]);
 export const READ_ONLY_OVERLAY_VERSIONS = Object.freeze(['choices-data-root-v1', 'choices-and-bound-project-v2', 'choices-bound-project-and-log-load-v3', ...LOCAL_DATA_OVERLAY_VERSIONS]);
 export const OUTPUT_BASE = fileURLToPath(new URL('../../.scratch/', import.meta.url));
 const defaultManifest = fileURLToPath(new URL('../../docs/research/remote-companion-baseline-2026-11-24.json', import.meta.url));
@@ -202,7 +203,7 @@ export function applyChoicesOverlay(relative, bytes) {
     ].join(eol));
     text = exact(text, "path.join(home, '.dsh/mattskillsdeck/choices.json')",
       "path.join(dataRoot, '.dsh/mattskillsdeck/choices.json')");
-    text = exact(text, "      return hash.digest('hex');", "      hash.update('bound-effects-and-local-data-v5');" + eol + "      return hash.digest('hex');");
+    text = exact(text, "      return hash.digest('hex');", "      hash.update('bound-effects-and-bundled-docs-v6');" + eol + "      return hash.digest('hex');");
   } else if (relative === 'vendor/mattskills-1.8.0-rc.7/lib/logPkg/store.js' || relative === 'vendor/mattskills-1.8.0-rc.7/lib/logStore.js') {
     const semi = relative.includes('/logPkg/') ? ';' : '';
     text = exact(text, '  let switchLoaded = false' + semi, '  let switchLoadPromise = null' + semi);
@@ -224,9 +225,10 @@ export function applyChoicesOverlay(relative, bytes) {
       '    // A late startup read must not overwrite a newly requested switch.',
       '    await loadSwitch()' + semi,
     ].join(eol));
-  } else return bytes;
+  } else if (relative !== 'vendor/mattskills-1.8.0-rc.7/lib/skillDoc.js') return bytes;
   if (relative === 'prototypes/upstream-port/node-host.mjs') text = applyHostOpenOverlay(text, eol);
   text = applyPublicationOverlay(relative, text, eol);
+  text = applyReadOverlay(relative, text, eol);
   return Buffer.from(text);
 }
 

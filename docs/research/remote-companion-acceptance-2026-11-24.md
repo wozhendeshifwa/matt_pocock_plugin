@@ -2,7 +2,9 @@
 
 日期：2026-11-24，Asia/Shanghai。关联[正式实施规格](https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/44)。规格保持 open；当前是可验证的只读连接候选，完整系统未交付。
 
-最新 AFK 检查点：reviewed v5冻结450文件，manifest `c8eefb0f5865bbb6e76b3be47da8341b04f40be1d28027cd4b40eec2e8614ea4`，尚未安装生产。根代理全量**289/289通过，无skip**；本机实现覆盖22项既有写方法。六tracker已在[专用私有GitHub夹具](github-fixture-44-setup.md)实测通过，含部分失败/跨进程同plan不重复；发布/实际OS窗口继续专项验收，不能等同真实Codex审批。独立审查修复、已撤回旧候选和升级20项定向证据见[复核报告](remote-checkpoint-review-2026-11-24.md)。稳定目录已在owned夹具演练v3备份迁入与双v4目录连续读回，未迁移真实main业务。旧固定bf58877只读组件在UTC19:40恢复，19:43真实宿主context暖恢复通过；[自然冷启动仍未证明](remote-cold-start-acceptance-2026-11-24.md)。
+最新AFK候选为reviewed v6，450文件，manifest `dc04813e34b463827667f8bca236ffc6c31ec847959a414c334d4ead9e756e10`，尚未安装生产。在v5完整**289/289无skip**检查点之上，仅补随包技能文档与诚实更新不可用读响应；根7/7定向检查通过，27份技能正文/翻译逐个对照，不再读取worker或HOME的DSH副本。研究40已明确缺少DSH更新依赖并非现有可用能力，未补装/扩开更新安装，不伪造latest/current快照。
+
+22项既有写方法已有本机实现；六tracker在[私有GitHub夹具](github-fixture-44-setup.md)通过，发布两项在[三场景真实夹具](publication-fixture-44-acceptance.md)通过，包含真实环境TLS部分失败、显式只重推、hook部分失败与正常初始化，无unknown。TLS成功使用仅夹具的OpenSSL及系统既有信任的公开根镜像，默认Windows schannel问题仍明确保留；未修改用户Git或系统信任。实际OS窗口专项仍在验收；上述不是实际Codex审批签名。审查修复见[复核报告](remote-checkpoint-review-2026-11-24.md)。稳定目录已在owned夹具演练v3迁入与双v4目录连续读回，未迁移真实main业务。旧固定bf58877只读组件在UTC19:40恢复，19:43真实宿主context暖恢复通过；[自然冷启动仍未证明](remote-cold-start-acceptance-2026-11-24.md)。
 
 日常caller独立DPAPI记录已在本机新建并读回，与device/session分离；从固定提交`9affdae87674b0300704944db0cca069611dcb05`准备的6文件caller入口全hash通过，manifest `e9967f09031bcf9ab224e66a4cb4b41c51821b8597811fe5ff730d590f8eb0d2`。尚未安装真实Desktop/Startup或重开Codex，provider/source凭据文件hash不变。源码与验证方法见[客户端启动器](../../prototypes/remote-companion/CLIENT-LAUNCH.md)。
 

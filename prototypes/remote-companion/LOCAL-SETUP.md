@@ -64,7 +64,7 @@ token 只在进程环境、匿名 stdin 和内存中经过；PowerShell helper �
 
 启动前必须有 `baseline` 固定记录。启动器先校验冻结清单与每个文件的哈希，再取得本机实例所有权；不能通过编辑远程请求选择另一适配器。重建冻结目录和记录摘要的方法见 `freeze-adapter.mjs` 及基线报告。
 
-写 grant 要求当前 `bound-effects-and-local-data-v5` 冻结修正，在二次解析后核对本机项目/thread，把可信 tracker 仓库/主机、publication 与 opener 归属限制传到底层实际命令。旧 v1/v2/v3/v4保持只读启动兼容；只有v4/v5支持显式 `localDataRoot`，更旧候选会拒绝该组合，不能静默忽略目录。不自动重启现有生产只读组件。
+写grant要求当前 `bound-effects-and-bundled-docs-v6` 冻结修正，在二次解析后核对本机项目/thread，把可信tracker仓库/主机、publication与opener限制传到底层实际命令。旧v1–v5保持只读启动兼容；v4起支持显式 `localDataRoot`，更旧候选会拒绝该组合，不能静默忽略目录。不自动重启生产只读组件。
 
 ```powershell
 node prototypes/remote-companion/launch.mjs --pairing $pairingFile

@@ -33,7 +33,9 @@ SDK 只作验收依赖；部署 relay 不需要 npm 包。测试使用新建的�
 
 `write-grant.mjs` 只接受本机配置，按真实路径精确匹配项目根。`launch.mjs` 使用固定安装级 `%LOCALAPPDATA%/MattSkillsDeck/RemoteCompanion/write-ledger.sqlite`，不接受配对或 MCP 参数指定库文件。不能每个配对新建空库，也不能通过删库解除未知写入。程序测试可本机注入独立库，不能把该测试 seam 暴露为远程参数。
 
-启用隔离写 grant 时必须是当前 `bound-effects-and-local-data-v5` 冻结 overlay：二次解析聊天后、派发工具/RPC前核对钉住的项目/thread（包括 `current_project`）；实际 GH 命令还钉住本机仓库与主机。旧 v1/v2/v3/v4只读兼容，v4也支持显式稳定目录；撤回候选的 `INCOMPLETE` 标记会阻止启动。stdio 先删除远端同名 envelope，再注入本机可信 `_deckLocalDispatch`，模型传入的根、tracker、publication、opener数据不是授权来源。日志首次加载修复与 label-list 精确读配方继续保留。
+启用隔离写 grant 时必须是当前 `bound-effects-and-bundled-docs-v6` 冻结 overlay：二次解析聊天后、派发工具/RPC前核对钉住的项目/thread（包括 `current_project`）；实际 GH 命令还钉住本机仓库与主机。旧 v1/v2/v3/v4/v5只读兼容，v4起支持显式稳定目录；撤回候选的 `INCOMPLETE` 标记会阻止启动。stdio先删除远端同名envelope，再注入本机可信上下文；模型传入的根、tracker、publication、opener数据不是授权来源。日志首次加载修复与label-list精确读配方继续保留。
+
+v6使原 `skill.readDoc` 与27项注册表读取同一份随包vendor原文/翻译，保留原formatter与回包，不搜索用户DSH profiles。三个原本缺依赖的更新读只把精确已知内部缺包错误换成诚实的手动更新不可用结果；不造快照、不装DSH updater、不吞其他内部错误。根技能/冻结7/7定向通过，独立31个read RPC矩阵另行保留证据。
 
 D6 的 API reader、原 GH 子进程及 ledger 的 `repositoryHost` 使用同一可信本机 `GH_HOST`（缺省github.com）；无写上下文的普通只读保留原环境语义，不静默把 GHE 改投公共站。企业主机的隔离检查证明路由与 API 归属，不证明真实企业部署/鉴权通过。原发布 handler 仍构造github.com URL，非该主机在任何 Git 改动前明确拒绝，避免异站创建；企业发布尚未验收。
 
