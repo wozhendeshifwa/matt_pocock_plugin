@@ -94,7 +94,7 @@ node adopt-runtime.mjs rollback C:\private\generation\receipt.json "ROLLBACK <ro
 
 回退先精确停新实例并等drain/释放，继续验证lease和ledger；只有文件仍为自己发表的身份才能恢复。stable旧包共享最新数据和journal，不覆盖任何新数据。legacy bf/v1只在完整当前durable catalog、registry及原sources都未变化、ledger未新增时允许；新增项目bucket、unknown、原代码篡改或撤销均block。失败receipt中的已发表CAS也能通过相同恢复闸核对；所有旧/新快照均保留。
 
-尚须真人完成的不是编代码：按#42第四轮Q7–Q8手动更新/恢复门审核目标、正常退出Codex及producer、审核停止后的新plan并明确APPLY/START/ROLLBACK。Q9是基线锁定，不能当作更新同意；Q10的真实宿主工具/界面/登录与审批签名仍需真实聊天验收，SDK fake身份或connected都不能替代。当前正式生产保持原canonical与readonly不动。
+尚须真人完成的事项来自[部署架构、授权与验收边界](https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/42)第四轮Q7–Q8：审核目标、正常退出Codex及producer、审核停止后的新plan并明确APPLY/START/ROLLBACK。Q9是基线锁定，Q10的真实宿主工具/界面/登录与审批签名仍需真实聊天验收，SDK fake身份或connected都不能替代。当前正式生产保持原canonical与readonly不动。
 
 ## 验证
 

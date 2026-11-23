@@ -4,6 +4,12 @@
 
 最新AFK候选为reviewed v6，450文件，manifest `dc04813e34b463827667f8bca236ffc6c31ec847959a414c334d4ead9e756e10`，尚未安装生产。v6根完整回归**297/297无skip**通过，日志见[固定检查点](../../.scratch/checkpoint-v6-full-results.log)；此列表在新增完整runtime adoption测试前捕获，不能覆盖后续安装器新代码。27份随包技能正文/翻译逐个对照，不再读取worker或HOME的DSH副本。研究40已明确缺少DSH更新依赖并非现有可用能力，未补装/扩开更新安装，不伪造latest/current快照。
 
+完整runtime的当前产品源码已固定为`a7c9c55f1bfd78d654c610238d2eeb5a176a0633`，内含同一v6适配器，包manifest `48c40d8403ac97950bba31bb2d6dde9e0e56ea786a937905cf259e6005231ca7`。两次构建、ZIP解压、实际封包SDK及真实19项目只读计划均通过；481项载荷加独立manifest共482个物理文件。完整代码、双源状态、Startup/Desktop及caller切换和回退已实现，见[手动采用说明](../../prototypes/remote-companion/ADOPT-RUNTIME.md)与[最终就绪证据](remote-runtime-final-readiness-2026-11-24.md)。后续测试修正提交`5f9c64a97920bf13237bae0fe9fa756ec5879626`只改测试，未改变产品源码或此固定包。
+
+动态回归曾定位Windows心跳`rename`的原生`EPERM`触发旧控制器自行停止；`1cdb835/9df1`候选已撤回。新代码仅对受限共享错误做有界重试，并核实例/closed；真实1000次读、仍133次原生EPERM、186次成功发表、0意外停止，独立6项故障场景通过。最后完整回归已**312/312通过、0失败/取消/跳过**，423,236.9042ms，日志SHA256 `43056fb701f21eb5cb819cc543b80c5a31d1afdce904a65839d76cf54fb03ef6`；不与旧297/308、此前311/312或局部测试相加。[双审与来源边界](remote-runtime-adoption-review-2026-11-24.md)区分静态结论、动态故障和测试定时修正。
+
+个人外部安装入口已经生成并双审；真实默认PlanOnly完成19项目、selected73/filter46/archive3、无数据冲突blockers，配对/caller/provider哈希不变；运行中`-Apply`负例在`normal-app-exit`拒绝，没有调用安装API、停止或START。缺失全局ledger明确仅在initial-readonly模式允许且未创建空库。实际切换仍须按原决策第四轮Q7–Q8正常退出Codex、取得停止后的新计划并手动确认；Q10真实客户端最终验收未完成。当前生产仍是旧bf58877只读组件，不能把安装入口/计划通过写成已安装。
+
 22项既有写方法已有本机实现；六tracker在[私有GitHub夹具](github-fixture-44-setup.md)通过，发布两项在[三场景真实夹具](publication-fixture-44-acceptance.md)通过，包含空配置fixture的TLS部分失败、显式只重推、hook部分失败与正常初始化，无unknown。TLS成功使用仅夹具的OpenSSL及系统既有信任的公开根镜像；真实主工作区schannel远程只读预检成功，未修改用户Git或系统信任，不从夹具错误推断用户环境故障。实际OS只观察到openFolder新窗口标题，openPath未派发；后续CUA被物理Esc终止，本轮不再继续GUI操作，不能冒称可见路径或完整窗口验收。上述不是实际Codex审批签名。审查修复见[复核报告](remote-checkpoint-review-2026-11-24.md)。稳定目录已在owned夹具演练v3迁入与双v4目录连续读回，未迁移真实main业务。旧固定bf58877只读组件在UTC20:46恢复，Render受控重新部署后真实宿主context恢复通过；[自然冷启动仍未证明](remote-cold-start-acceptance-2026-11-24.md)。
 
 新增完整证据：[全部只读SDK矩阵](remote-readonly-matrix-sdk-2026-11-24.md)、[真实PR及非空评论分页](remote-pr-comments-read-sdk-2026-11-24.md)、[真实Render HTTPS隔离写入](remote-https-write-acceptance-2026-11-24.md)、[Render重新部署恢复](remote-render-redeploy-recovery-2026-11-24.md)。云端实际live源为`70aa02f91dd5670b805c8862fe9e187faf4f8910`、部署`dep-dc2ajucipgvc7389odg0`；本机生产仍为旧bf58877只读组件、无写grant。下方保留各阶段历史，不把早期部署/进程记录当作当前值。

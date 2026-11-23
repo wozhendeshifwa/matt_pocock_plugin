@@ -23,7 +23,7 @@
 ```powershell
 node prototypes/remote-companion/build-runtime-release.mjs build `
   "C:\Users\27263\Desktop\matt_pocock_\.scratch\wayfinder-render-44" `
-  70aa02f91dd5670b805c8862fe9e187faf4f8910 `
+  a7c9c55f1bfd78d654c610238d2eeb5a176a0633 `
   "C:\Users\27263\Desktop\matt_pocock_\.scratch\wayfinder-render-44\.scratch\frozen-adapter-20261124-docs-v6-reviewed" `
   dc04813e34b463827667f8bca236ffc6c31ec847959a414c334d4ead9e756e10 `
   "C:\Users\27263\Desktop\matt_pocock_\.scratch\wayfinder-render-44\.scratch\runtime-releases\new-reviewed-output"
@@ -51,7 +51,7 @@ node prototypes/remote-companion/build-runtime-release.mjs verify `
 
 ## 与现有更新器的区别
 
-现有`local-update.mjs`切换的是配对中adapter baseline及相关受控状态/快照；它不替换companion代码、caller release、Startup目标或整个runtime包。打包器提供完整固定文件集，**不等于“完整runtime更新/回退已实施”**。后续安装、完整版本切换、失败回退和真人宿主验收仍应单独受控完成，保留已有installation ledger、配置和其他provider。
+现有`local-update.mjs`切换的是配对中adapter baseline及相关受控状态/快照；它不替换companion代码、caller release、Startup目标或整个runtime包。打包器提供完整固定文件集；[adopt-runtime](ADOPT-RUNTIME.md)现已实现完整代码/双源状态/入口切换及回退，并在隔离目录验证。真实安装、登录自启与真人宿主验收仍未执行；不能从代码或打包结果推定已迁移，须保留已有installation ledger、配置和其他provider。
 
 ## 验收
 
@@ -63,7 +63,7 @@ node --test prototypes/remote-companion/runtime-release-test.mjs
 
 首个本机`runtime-70aa02f-v6-review`只是审阅阶段产物，其生成器曾被PS语法测试拒绝，已加`INCOMPLETE`撤回且从未安装。后续修正加入生成脚本语法硬检查，最终产物使用另一个新目录，不能把被撤回目录当成最终发布。
 
-## 本次实际固定包
+## 早期固定包记录
 
 5/5隔离测试通过，随后按上述固定commit/candidate在两个新目录各实际打包一次：
 
@@ -73,3 +73,9 @@ node --test prototypes/remote-companion/runtime-release-test.mjs
 两包manifest SHA256完全相同：`10c3befde71d6352b1a6938df4d0338cc52a1f7ec840373f2d053e1c2f64f344`。各479项catalog载荷、8,554,162字节，另有92,890-byte的`client-release.json`，实际目录共480文件。353模块只编译未求值，709相对导入闭包引用和133动态导入配方核对通过，原`verifyClientRelease`及adapter验证也通过。
 
 本机打包工具SHA256为`052397fc45f636c92993e362869e885e9990037895673ed5400900846f5d47f5`；该工具当时尚未进入源commit `70aa02f...`，因此包内源与构建工具证据明确分开。[包外构建证据](../../.scratch/runtime-releases/runtime-70aa02f-v6-build-evidence.json)记录上述结果。当前产物没有执行真实启动或安装；后续SDK读流水线、受控状态迁移和实际版本切换应独立记录，不能从此打包结果推定完成。
+
+## 当前推荐的审阅包
+
+当前固定产品源码为`a7c9c55f1bfd78d654c610238d2eeb5a176a0633`，已经包含打包器、完整adopter与Windows心跳修复。对应两次新构建目录为`runtime-a7c9c55-v6-complete-a/b`，manifest均为`48c40d8403ac97950bba31bb2d6dde9e0e56ea786a937905cf259e6005231ca7`。各481项catalog载荷、8,636,220字节，另93,260-byte manifest，共482个物理文件；29个core模块与固定Git对象一致，355模块仅编译、718相对引用、133动态配方校验通过。打包工具现在属于所选源码，仍核其独立hash。
+
+ZIP为`deck-runtime-v6-a7c9c55-48c40d84.zip`，2,972,511字节，SHA256 `e86358900abdaa3c6e37cc1e26fa461d19fd717d274ca320172d6cbd6978721b`，解压后完整catalog通过。中间`1cdb835/9df1`候选已因动态回归撤回，带`INCOMPLETE/WITHDRAWN`，不能安装；70aa记录是早期打包证据，不作为当前迁移入口。当前推荐包、SDK、真实只读计划及未完成闸门统一见[最终就绪记录](../../docs/research/remote-runtime-final-readiness-2026-11-24.md)。
