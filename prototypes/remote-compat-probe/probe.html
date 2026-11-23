@@ -1,0 +1,14 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="color-scheme" content="light dark"><title>远程兼容性探针</title>
+<style>body{font:14px system-ui;padding:16px}button{margin:6px;padding:8px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<h2>远程插件兼容性探针</h2><p id="status">等待宿主握手…</p>
+<button id="identity" disabled>检查当前聊天身份</button><button id="draft" disabled>生成测试草稿（不发送）</button><pre id="output"></pre>
+<script>
+const out = document.getElementById('output'); const status = document.getElementById('status');
+let sequence = 0; const pending = new Map();
+function rpc(method, params) { return new Promise((resolve,reject) => { const id=++sequence; const timer=setTimeout(()=>{pending.delete(id);reject(new Error('宿主请求超时：'+method));},60000);pending.set(id,{resolve,reject,timer});parent.postMessage({jsonrpc:'2.0',id,method,params},'*'); }); }
+function theme(context={}) { if(['dark','light'].includes(context.theme)) document.documentElement.style.colorScheme=context.theme; }
+window.addEventListener('message',event=>{if(event.source!==parent)return;const msg=event.data;if(msg?.method==='ui/notifications/host-context-changed'){theme(msg.params?.hostContext??msg.params);return;}if(msg?.jsonrpc!=='2.0')return;const item=pending.get(msg.id);if(!item)return;pending.delete(msg.id);clearTimeout(item.timer);msg.error?item.reject(new Error(msg.error.message)):item.resolve(msg.result);});
+document.getElementById('identity').onclick=async()=>{try{const reply=await rpc('tools/call',{name:'remote_compat_identity',arguments:{}});out.textContent=JSON.stringify(reply,null,2);}catch(e){out.textContent=e.message;}};
+document.getElementById('draft').onclick=async()=>{try{await rpc('ui/message',{role:'user',content:[{type:'text',text:'远程插件兼容性测试草稿：请勿发送。'}],_meta:{'openai/message':{target:'active',send:false}}});status.textContent='宿主已响应；请人工确认草稿可编辑且未发送。';}catch(e){status.textContent=e.message;}};
+(async()=>{try{const init=await rpc('ui/initialize',{appInfo:{name:'deck-remote-compat-probe',version:'0.1.0'},appCapabilities:{},protocolVersion:'2026-01-26'});theme(init.hostContext??{});out.textContent=JSON.stringify({hostContextKeys:Object.keys(init.hostContext??{}),capabilityKeys:Object.keys(init.hostCapabilities??{})},null,2);parent.postMessage({jsonrpc:'2.0',method:'ui/notifications/initialized',params:{}},'*');status.textContent='握手完成；这不是全功能验收。';document.querySelectorAll('button').forEach(b=>b.disabled=false);}catch(e){status.textContent=e.message;}})();
+</script></html>

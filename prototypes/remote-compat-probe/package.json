@@ -1,0 +1,1 @@
+{"name":"deck-remote-compat-probe","version":"0.1.0","private":true,"type":"module","scripts":{"start":"node server.mjs","test":"node --test test.mjs"},"engines":{"node":">=24"},"dependencies":{"@modelcontextprotocol/sdk":"1.32.2"}}
