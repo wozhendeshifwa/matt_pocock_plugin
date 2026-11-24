@@ -225,7 +225,24 @@ export async function createRuntimeAdopter(input, local = {}) {
   const controls = local.runtime ?? runtime, inspect = local.processes ?? processes, loadRegistry = local.registry ?? (() => registry(known));
   need(['read', 'stop', 'claim'].every(k => typeof controls[k] === 'function'), 'LOCAL_RUNTIME_SEAM_REQUIRED');
   const plans = new Map(), startOwners = new Map(), markerIds = new Map(), startMarker = o.pairingFile + '.adopt-start.json';
-  const startRecord = async () => await exists(startMarker) ? json(startMarker) : null;
+  const retirementFile = digest => startMarker + '.retired-' + digest + '.json';
+  async function startBlocked(markerIdentity = undefined) {
+    const id = markerIdentity === undefined ? await identity(startMarker, true) : markerIdentity;
+    if (!id) return false;
+    const bytes = await readFile(await safe(startMarker));
+    need(hash(bytes) === id.sha256, 'START_MARKER_CHANGED');
+    const record = JSON.parse(bytes);
+    if (record.status !== 'unknown') return ['dispatching', 'draining'].includes(record.status);
+    const file = retirementFile(id.sha256);
+    if (!await exists(file)) return true;
+    // Recheck the preserved checkpoint and OS events; a sidecar alone is
+    // never evidence that a live maintenance barrier can be released.
+    try {
+      const review = await json(file);
+      const verified = await previousStartReview(review.checkpointFile, id, record);
+      return !same(review, verified);
+    } catch { return true; }
+  }
   async function markerChange(value) {
     const expected = markerIds.has(value.attemptId) ? markerIds.get(value.attemptId) : await identity(startMarker, true);
     const changed = await cas(startMarker, expected, Buffer.from(canonical(value) + '\n')); markerIds.set(value.attemptId, changed.installed); return changed;
@@ -245,7 +262,7 @@ export async function createRuntimeAdopter(input, local = {}) {
     const legacyCore = o.mode === 'initial-readonly-adoption' ? await verifyLegacyCore(o.legacyRuntimePin) : null;
     const cloudState = await cloud(current.value.relayOrigin), blockers = [];
     if (!cloudState.verified || cloudState.protocolVersion !== target.protocolVersion) blockers.push('cloud-protocol-unverified-or-incompatible');
-    if (['dispatching', 'unknown', 'draining'].includes((await startRecord())?.status)) blockers.push('start-outcome-unresolved'); let upgrade, inventories;
+    if (await startBlocked()) blockers.push('start-outcome-unresolved'); let upgrade, inventories;
     if (o.mode === 'initial-readonly-adoption') {
       need(current.value.writeEnabled === false && Array.isArray(o.sources) && o.sources.length === 2 && o.sources[0].id === 'main-local' && o.sources[1].id === 'remote-v1' && fold(o.sources[1].adapterPath) === fold(current.value.adapterPath), 'READONLY_TWO_SOURCES_MAIN_FIRST_REQUIRED');
       upgrade = await planLocalDataUpgrade({ sources: o.sources, activeSourceId: 'main-local', inheritMissingFrom: ['remote-v1'], registeredProjectRoots: registered.roots, stableDataRoot: dataRoot }); inventories = upgrade.sourceInventories;
@@ -364,7 +381,7 @@ export async function createRuntimeAdopter(input, local = {}) {
     need((await identity(receiptFile)).sha256 === receiptSha256, 'RECEIPT_CHANGED'); const r = await json(receiptFile); need(r.kind === 'complete-runtime-adoption-receipt' && ['adopted-stopped', 'blocked-or-failed-preserved'].includes(r.status) && r.changes.length > 0 && same(r.options, o), 'ROLLBACK_RECEIPT_NOT_THIS_CONTROLLER');
     await journalState(r.sourceJournal);
     await checkRevoked(); await safe(ledgerFile, false, true); const authority = await exists(ledgerFile) ? ledger(ledgerFile) : { missing: true, rowsSha256: null, rowCount: 0, unresolved: [] }, blockers = [];
-    if (['dispatching', 'unknown', 'draining'].includes((await startRecord())?.status)) blockers.push('start-outcome-unresolved');
+    if (await startBlocked()) blockers.push('start-outcome-unresolved');
     if (authority.missing && (o.mode !== 'initial-readonly-adoption' || (await json(o.pairingFile)).writeEnabled !== false)) blockers.push('installation-ledger-missing');
     const priorChange = r.changes.find(c => fold(c.file) === fold(o.pairingFile)); need(priorChange?.backup && hash(await readFile(await safe(priorChange.backup))) === priorChange.expected.sha256, 'ROLLBACK_CONFIGURATION_BACKUP_CHANGED');
     const priorConfig = await json(priorChange.backup);
@@ -401,8 +418,8 @@ export async function createRuntimeAdopter(input, local = {}) {
   }
   async function start({ receiptFile, receiptSha256, confirmation } = {}) {
     need(confirmation === 'START ' + receiptSha256 && (await identity(receiptFile)).sha256 === receiptSha256, 'EXPLICIT_LOCAL_START_REQUIRED');
-    const initialMarkerIdentity = await identity(startMarker, true), initialMarker = initialMarkerIdentity ? await json(startMarker) : null;
-    need(!['dispatching', 'unknown', 'draining'].includes(initialMarker?.status), 'START_OUTCOME_UNRESOLVED');
+    const initialMarkerIdentity = await identity(startMarker, true);
+    need(!await startBlocked(initialMarkerIdentity), 'START_OUTCOME_UNRESOLVED');
     const r = await json(receiptFile); need(r.status === 'adopted-stopped' && same(r.options, o), 'START_RECEIPT_MISMATCH'); await checkRevoked(); await journalState(r.sourceJournal);
     for (const c of r.changes) need(same(await identity(c.file, true), c.installed), 'START_CONFIGURATION_OR_SHORTCUT_CHANGED');
     const checked = await verifyRuntimeRelease({ directory: r.versionDirectory, expectedManifestSha256: r.releaseManifestSha256 });
@@ -465,7 +482,90 @@ export async function createRuntimeAdopter(input, local = {}) {
     } else need(child.ended && await child.ended(), 'START_STILL_PENDING_RETAIN_BARRIER');
     attempt.status = 'stopped'; await markerChange(attempt); return { status: 'stopped', exactRuntimeOnly: true, arbitraryPidKilled: false };
   }
-  return { plan, apply, planRollback, rollback, start, drainStart, options: structuredClone(o) };
+  // A pre-restart operator observation pins the bytes of a proofless START.
+  // Retire only its maintenance barrier. Its actual outcome stays unknown.
+  async function previousStartReview(checkpointFile, markerId, attempt) {
+    need((await lstat(await safe(checkpointFile))).size < 65536, 'REBOOT_CHECKPOINT_TOO_LARGE');
+    const witnessId = await identity(checkpointFile);
+    const bytes = await readFile(await safe(checkpointFile));
+    need(bytes.length < 65536 && hash(bytes) === witnessId.sha256, 'REBOOT_CHECKPOINT_CHANGED');
+    const witness = JSON.parse(bytes);
+    need(attempt.status === 'unknown' && !attempt.proof && attempt.errorCode === 'START_PROCESS_IDENTITY_UNAVAILABLE' &&
+      fold(attempt.options.pairingFile) === fold(o.pairingFile) &&
+      witness.attemptStatus === attempt.status && witness.errorCode === attempt.errorCode &&
+      witness.ownerProofPresent === false && witness.runtimePresent === false, 'REBOOT_CHECKPOINT_NOT_PROOFLESS_START');
+    need(fold(witness.attemptFile) === fold(startMarker) && witness.attemptSha256 === markerId.sha256 &&
+      fold(witness.receiptFile) === fold(attempt.receiptFile) && witness.receiptSha256 === attempt.receiptSha256 &&
+      (await identity(attempt.receiptFile)).sha256 === attempt.receiptSha256, 'REBOOT_CHECKPOINT_MISMATCH');
+    need(Number.isSafeInteger(witness.kernelBootEventId) && witness.kernelBootEventId > 0, 'INVALID_BOOT_RECORD_ID');
+    const boot = await (local.bootHistory ?? windowsBootHistory)(witness.kernelBootEventId);
+    const old = Date.parse(boot.previousUtc), current = Date.parse(boot.currentUtc), os = Date.parse(boot.osBootUtc);
+    const observed = Date.parse(witness.observedAt), oldOs = Date.parse(witness.osBootUtc), next = Date.parse(boot.nextUtc);
+    need(boot.previousId === witness.kernelBootEventId && Number.isSafeInteger(boot.currentId) && boot.currentId > boot.previousId &&
+      boot.previousUtc === witness.kernelBootUtc && Math.abs(oldOs - old) < 60000 && Math.abs(os - current) < 60000 &&
+      Number.isSafeInteger(attempt.startedAt) && old <= attempt.startedAt && attempt.startedAt <= observed &&
+      Number.isSafeInteger(boot.nextId) && boot.previousId < boot.nextId && boot.nextId <= boot.currentId &&
+      observed < Math.min(next, os, current) && next <= current && current <= Date.now(), 'DISTINCT_LATER_BOOT_REQUIRED');
+    for (const id of [markerId, witnessId]) {
+      for (const time of [id.ctimeNs, id.mtimeNs]) {
+        const ms = Number(BigInt(time) / 1000000n);
+        need(ms >= old && ms < Math.min(next, os, current), 'CHECKPOINT_NOT_PRESERVED_FROM_PRIOR_BOOT');
+      }
+    }
+    need(same(await identity(startMarker), markerId) && same(await identity(checkpointFile), witnessId), 'REBOOT_CHECKPOINT_CHANGED');
+    return { kind: 'start-retired-after-reboot', operationId: attempt.operationId, attemptId: attempt.attemptId,
+      attemptSha256: markerId.sha256, receiptSha256: attempt.receiptSha256, checkpointSha256: witnessId.sha256,
+      checkpointFile: path.resolve(checkpointFile), previousBoot: boot.previousId, firstLaterBoot: boot.nextId };
+  }
+  async function retirePreviousStart({ checkpointFile, confirmation } = {}) {
+    const markerId = await identity(startMarker), bytes = await readFile(await safe(startMarker));
+    need(hash(bytes) === markerId.sha256, 'START_MARKER_CHANGED');
+    const attempt = JSON.parse(bytes);
+    need(same(attempt.options, o) && attempt.operationId === o.operationId, 'REBOOT_CHECKPOINT_MISMATCH');
+    const review = await previousStartReview(checkpointFile, markerId, attempt);
+    const digest = hash(review), file = retirementFile(markerId.sha256);
+    if (confirmation === undefined) return { status: 'verified-prior-boot', digest, ...review };
+    need(confirmation === 'RETIRE ' + digest, 'EXPLICIT_RETIRE_REQUIRED');
+    if (!await exists(file)) {
+      try { await cas(file, null, Buffer.from(canonical(review) + '\n')); }
+      catch (error) { if (!await exists(file)) throw error; }
+    }
+    need(same(await json(file), review), 'CONFLICTING_RETIREMENT');
+    need(same(await identity(startMarker), markerId), 'START_MARKER_CHANGED');
+    return { status: 'retired-after-reboot', originalOutcome: 'unknown', digest, runtimeStopped: false };
+  }
+  async function checkpointStart(outputFile) {
+    await safe(outputFile, false, true);
+    const boot = await (local.bootHistory ?? windowsBootHistory)(null);
+    const id = await identity(startMarker), attempt = await json(startMarker);
+    need(same(attempt.options, o) && attempt.status === 'unknown' && !attempt.proof &&
+      attempt.errorCode === 'START_PROCESS_IDENTITY_UNAVAILABLE', 'REBOOT_CHECKPOINT_NOT_PROOFLESS_START');
+    const current = Date.parse(boot.currentUtc), observed = Date.now();
+    need(Number.isSafeInteger(boot.currentId) && boot.currentId > 0 && Math.abs(current - Date.parse(boot.osBootUtc)) < 60000 &&
+      Number.isSafeInteger(attempt.startedAt) && current <= attempt.startedAt && attempt.startedAt <= observed,
+    'CHECKPOINT_MUST_BE_CAPTURED_IN_START_BOOT');
+    need(!await controls.read(o.pairingFile), 'START_RUNTIME_ALREADY_EXISTS');
+    const receipt = await identity(attempt.receiptFile);
+    need(receipt.sha256 === attempt.receiptSha256 && same(await identity(startMarker), id), 'REBOOT_CHECKPOINT_CHANGED');
+    await writeJson(outputFile, { observedAt: new Date(observed).toISOString(), kernelBootEventId: boot.currentId,
+      kernelBootUtc: boot.currentUtc, osBootUtc: boot.osBootUtc, attemptFile: startMarker, attemptSha256: id.sha256,
+      receiptFile: attempt.receiptFile, receiptSha256: receipt.sha256, attemptStatus: attempt.status,
+      errorCode: attempt.errorCode, ownerProofPresent: false, runtimePresent: false });
+    return { status: 'checkpoint-saved', barrierRetained: true };
+  }
+  return { plan, apply, planRollback, rollback, start, drainStart, checkpointStart, retirePreviousStart, options: structuredClone(o) };
+}
+
+async function windowsBootHistory(previousId) {
+  const command = `$ErrorActionPreference='Stop'
+$id=[long]([Console]::In.ReadToEnd()|ConvertFrom-Json).previousId
+$current=Get-WinEvent -FilterHashtable @{LogName='System';ProviderName='Microsoft-Windows-Kernel-General';Id=12} -MaxEvents 1
+$old=if($id){Get-WinEvent -LogName System -FilterXPath ("*[System[(EventRecordID="+$id+")]]") -MaxEvents 1}else{$current}
+if($old.Id -ne 12 -or $old.ProviderName -ne 'Microsoft-Windows-Kernel-General'){throw 'Boot event required'}
+$next=if($current.RecordId -gt $old.RecordId){Get-WinEvent -LogName System -FilterXPath ("*[System[Provider[@Name='Microsoft-Windows-Kernel-General'] and EventID=12 and EventRecordID > "+$old.RecordId+"]]") -Oldest -MaxEvents 1}
+$os=Get-CimInstance Win32_OperatingSystem
+@{previousId=$old.RecordId;previousUtc=$old.TimeCreated.ToUniversalTime().ToString('o');nextId=$next.RecordId;nextUtc=if($next){$next.TimeCreated.ToUniversalTime().ToString('o')};currentId=$current.RecordId;currentUtc=$current.TimeCreated.ToUniversalTime().ToString('o');osBootUtc=$os.LastBootUpTime.ToUniversalTime().ToString('o')}|ConvertTo-Json -Compress`;
+  return JSON.parse(await ps(command, { previousId }));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -473,11 +573,24 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (command === 'plan') { const a = await createRuntimeAdopter(await json(path.resolve(file))), p = await a.plan(), output = path.resolve(file) + '.plan-' + p.planDigest + '.json'; await writeJson(output, p); console.log(JSON.stringify({ ...p.publicPlan, privatePlanFile: output })); }
     else if (command === 'apply') { const saved = await json(path.resolve(file)), a = await createRuntimeAdopter(saved.privatePlan.options), p = await a.plan(); need(p.planDigest === saved.planDigest, 'SAVED_PLAN_CHANGED'); console.log(JSON.stringify(await a.apply({ planDigest: p.planDigest, confirmation }))); }
     else if (command === 'drain-start') { const attemptFile = path.resolve(file), record = await json(attemptFile), a = await createRuntimeAdopter(record.options); console.log(JSON.stringify(await a.drainStart({ attemptFile, attemptSha256: (await identity(attemptFile)).sha256, confirmation }))); }
+    else if (command === 'checkpoint-start') {
+      need(file && confirmation, 'USAGE');
+      const record = await json(path.resolve(file)), a = await createRuntimeAdopter(record.options);
+      need(fold(file) === fold(record.options.pairingFile + '.adopt-start.json'), 'START_MARKER_CHANGED');
+      console.log(JSON.stringify(await a.checkpointStart(path.resolve(confirmation))));
+    } else if (command === 'retire-start') {
+      need(file, 'USAGE');
+      const checkpointFile = path.resolve(file);
+      need((await lstat(await safe(checkpointFile))).size < 65536, 'REBOOT_CHECKPOINT_TOO_LARGE');
+      const witness = await json(checkpointFile), record = await json(witness.attemptFile);
+      const a = await createRuntimeAdopter(record.options);
+      console.log(JSON.stringify(await a.retirePreviousStart({ checkpointFile, confirmation })));
+    }
     else if (['rollback-plan', 'rollback', 'start'].includes(command)) {
       const receiptFile = path.resolve(file), receiptSha256 = (await identity(receiptFile)).sha256, receipt = await json(receiptFile), a = await createRuntimeAdopter(receipt.options);
       if (command === 'rollback-plan') { const p = await a.planRollback({ receiptFile, receiptSha256 }); console.log(JSON.stringify({ ...p, confirmation: 'ROLLBACK ' + p.planDigest })); }
       else if (command === 'rollback') { const p = await a.planRollback({ receiptFile, receiptSha256 }); console.log(JSON.stringify(await a.rollback({ receiptFile, receiptSha256, planDigest: p.planDigest, confirmation }))); }
       else console.log(JSON.stringify(await a.start({ receiptFile, receiptSha256, confirmation })));
-    } else throw Object.assign(new Error('Usage: adopt-runtime.mjs plan <private-options.json>; apply <private-plan.json> "APPLY <digest>"; rollback-plan|rollback|start <receipt> [confirmation]'), { code: 'USAGE' });
+    } else throw Object.assign(new Error('Expected plan, apply, rollback-plan, rollback, start, drain-start, checkpoint-start or retire-start. See ADOPT-RUNTIME.md.'), { code: 'USAGE' });
   } catch (e) { console.error(JSON.stringify({ code: e.code ?? 'ADOPTION_FAILED', recoveryRequired: e.recoveryRequired === true, startAttemptFile: e.startAttemptFile, startAttemptSha256: e.startAttemptSha256, startOutcome: e.startOutcome, noSecretsPrinted: true })); process.exitCode = 1; }
 }

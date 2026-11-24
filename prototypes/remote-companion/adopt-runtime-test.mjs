@@ -76,6 +76,48 @@ async function fixture(t, { stable = false, withLedger = false, launchSource } =
 }
 async function apply(f, extra = {}) { const a = await createRuntimeAdopter(f.options, { ...f.local, ...extra }), p = await a.plan(); assert.deepEqual(p.publicPlan.blockers, []); return { a, p, result: await a.apply({ planDigest: p.planDigest, confirmation: 'APPLY ' + p.planDigest }) }; }
 
+test('retire-start requires a preserved pre-reboot checkpoint, keeps unknown evidence and never stops the new instance', win, async t => {
+  const f = await fixture(t);
+  const previousUtc = new Date(Date.now() - 3600000).toISOString();
+  let boot = { previousId: 90, previousUtc, currentId: 90, currentUtc: previousUtc, osBootUtc: previousUtc };
+  const { a, result } = await apply(f, {
+    bootHistory: async () => boot,
+    startPinned: async () => { throw Object.assign(new Error('Fixture lost ownership proof'), { code: 'START_PROCESS_IDENTITY_UNAVAILABLE' }); },
+  });
+  await assert.rejects(a.start({ ...result, confirmation: 'START ' + result.receiptSha256 }), { startOutcome: 'unknown' });
+  const marker = f.pairingFile + '.adopt-start.json', original = await readFile(marker);
+  const checkpointFile = path.join(f.root, 'pre-restart.json');
+  await a.checkpointStart(checkpointFile);
+  const witness = JSON.parse(await readFile(checkpointFile));
+  await assert.rejects(a.retirePreviousStart({ checkpointFile }), { code: 'DISTINCT_LATER_BOOT_REQUIRED' });
+  const blocked = async () => (await a.planRollback(result)).blockers.includes('start-outcome-unresolved');
+  assert.equal(await blocked(), true);
+  const alias = path.join(f.root, 'rewritten.json');
+  await writeFile(alias, JSON.stringify({ ...witness, attemptSha256: '0'.repeat(64) }));
+  await assert.rejects(a.retirePreviousStart({ checkpointFile: alias }), { code: 'REBOOT_CHECKPOINT_MISMATCH' });
+  const now = new Date().toISOString();
+  boot = { ...boot, nextId: 100, nextUtc: now, currentId: 100, currentUtc: now, osBootUtc: now };
+  await assert.rejects(a.checkpointStart(path.join(f.root, 'late.json')), { code: 'CHECKPOINT_MUST_BE_CAPTURED_IN_START_BOOT' });
+  const live = await f.startOldControl(); t.after(() => live.close());
+  const plan = await a.retirePreviousStart({ checkpointFile });
+  assert.equal(await blocked(), true);
+  await assert.rejects(a.retirePreviousStart({ checkpointFile, confirmation: 'RETIRE wrong' }), { code: 'EXPLICIT_RETIRE_REQUIRED' });
+  const confirm = { checkpointFile, confirmation: 'RETIRE ' + plan.digest };
+  assert.equal((await a.retirePreviousStart(confirm)).status, 'retired-after-reboot');
+  assert.equal((await a.retirePreviousStart(confirm)).runtimeStopped, false);
+  assert.equal(await blocked(), false);
+  assert.equal((await readAdoptionRuntime(f.pairingFile)).instanceId, live.instanceId);
+  assert.deepEqual(await readFile(marker), original);
+  await writeFile(alias, JSON.stringify(witness));
+  await assert.rejects(a.retirePreviousStart({ checkpointFile: alias }), { code: 'CHECKPOINT_NOT_PRESERVED_FROM_PRIOR_BOOT' });
+  const later = new Date().toISOString();
+  boot = { ...boot, currentId: 110, currentUtc: later, osBootUtc: later };
+  assert.equal((await a.retirePreviousStart({ checkpointFile })).digest, plan.digest);
+  await assert.rejects(a.retirePreviousStart({ checkpointFile: alias }), { code: 'CHECKPOINT_NOT_PRESERVED_FROM_PRIOR_BOOT' });
+  await writeFile(checkpointFile, JSON.stringify({ ...witness, receiptSha256: '0'.repeat(64) }));
+  assert.equal(await blocked(), true, 'modified witness invalidates a published retirement');
+});
+
 test('two-source readonly adoption exact-stops old runtime, snapshots both, copies DPAPI/SQLite history, switches real temporary links and safely rolls back', win, async t => {
   const f = await fixture(t); await f.startOldControl(); const originalPair = await readFile(f.pairingFile), originalCaller = await readFile(f.callerFile);
   const { a, result } = await apply(f); assert.equal(result.status, 'adopted-stopped'); const receipt = JSON.parse(await readFile(result.receiptFile)); assert.equal(receipt.snapshots.length, 2);
@@ -302,8 +344,25 @@ test('closing during a heartbeat retry neither publishes late nor removes a fore
 });
 
 test('legacy rollback blocks new durable state; stable full-code rollback keeps latest shared business and fixed existing ledger', win, async t => {
-  const f = await fixture(t), applied = await apply(f), config = JSON.parse(await readFile(f.pairingFile)); await writeFile(path.join(config.localDataRoot, f.business), '{"rev":2}\n');
-  const blocked = await applied.a.planRollback(applied.result); assert.ok(blocked.blockers.includes('legacy-rollback-new-business'));
+  const f = await fixture(t);
+  const projectFolder = path.posix.dirname(path.posix.dirname(path.posix.dirname(f.business)));
+  const log = path.posix.join(projectFolder, '.dsh-mattskillsdeck-cache/logs/fixture.log');
+  await put(f.data, log, 'baseline\n');
+  const applied = await apply(f), config = JSON.parse(await readFile(f.pairingFile));
+  await put(config.localDataRoot, log, 'baseline\nstable event\n');
+  await put(f.data, log, 'baseline\nlegacy event\n');
+  await put(f.data, f.business, '{"rev":2}\n');
+  const connected = await f.startOldControl();
+  const blocked = await applied.a.planRollback(applied.result);
+  assert.deepEqual(blocked.blockers.sort(), ['legacy-rollback-new-business', 'legacy-source-changed']);
+  await assert.rejects(applied.a.rollback({ ...applied.result, planDigest: blocked.planDigest, confirmation: 'ROLLBACK ' + blocked.planDigest }), { code: 'EXPLICIT_UNBLOCKED_ROLLBACK_REQUIRED' });
+  assert.equal((await readAdoptionRuntime(f.pairingFile)).instanceId, connected.instanceId);
+  assert.equal(await readFile(path.join(config.localDataRoot, log), 'utf8'), 'baseline\nstable event\n');
+  assert.equal(await readFile(path.join(f.data, log), 'utf8'), 'baseline\nlegacy event\n');
+  assert.deepEqual(JSON.parse(await readFile(path.join(f.data, f.business))), { rev: 2 });
+  const receipt = JSON.parse(await readFile(applied.result.receiptFile)), snapshot = receipt.snapshots.find(s => s.id === 'main-local');
+  assert.equal(await readFile(path.join(snapshot.directory, 'data', log), 'utf8'), 'baseline\n');
+  await connected.close();
   const g = await fixture(t, { stable: true, withLedger: true }), original = JSON.parse(await readFile(g.pairingFile)), updated = await apply(g);
   await writeFile(path.join(g.data, g.business), '{"rev":3,"keepLatest":true}\n'); const rollback = await updated.a.planRollback(updated.result); assert.deepEqual(rollback.blockers, []);
   await updated.a.rollback({ ...updated.result, planDigest: rollback.planDigest, confirmation: 'ROLLBACK ' + rollback.planDigest }); assert.equal(JSON.parse(await readFile(g.pairingFile)).localDataRoot, original.localDataRoot); assert.match(await readFile(path.join(g.data, g.business), 'utf8'), /keepLatest/);

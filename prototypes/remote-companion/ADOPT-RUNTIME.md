@@ -1,6 +1,6 @@
 # 完整本机 runtime 的手动采用、启动与回退
 
-`adopt-runtime.mjs`是本机CLI/库，不是MCP工具，不下载代码、不在线升级、不启动Codex。所有真实路径目前只做只读plan；本文所述apply/START/rollback仅在隔离测试目录验收，**没有修改生产配对、Startup、Desktop或业务状态**。
+`adopt-runtime.mjs` 是本机维护命令，可预览并手动确认固定包的安装、启动和回退。2026 年 11 月 24 日已完成生产只读安装与 Windows 登录自启。首次手动 START 的未知结果及其后续处理见[实际安装记录](../../docs/research/remote-runtime-windows-cutover-2026-11-24.md)。生产回退仍有阻塞。
 
 ## 模式与权限边界
 
@@ -85,6 +85,23 @@ node adopt-runtime.mjs drain-start C:\private\canonical-pairing.json.adopt-start
 
 DRAIN只处理持久记录对应的晚到owned实例；没有owner证明、spawn仍初始化或进程身份变化则继续block，保留诊断，不盲重试START。不会用任意PID kill消除屏障。
 
+### Windows 重启前没有取得进程归属证明时
+
+仅当正式启动记录为 `unknown`、原因为 `START_PROCESS_IDENTITY_UNAVAILABLE`、本机还没有该配对的运行实例时，可在同一次 Windows 开机期间保存检查点。选择本机私有目录中的新文件。检查点包含本机路径，请保留原件。
+
+```powershell
+node adopt-runtime.mjs checkpoint-start C:\private\canonical-pairing.json.adopt-start.json C:\private\pre-restart.json
+```
+
+Windows 正常重启后先预览。工具交叉核对原启动记录、安装回执、检查点哈希和文件时间，以及 Windows 的首次后续内核开机事件和当前系统开机时间。只有这些证据都通过时才返回确认摘要。
+
+```powershell
+node adopt-runtime.mjs retire-start C:\private\pre-restart.json
+node adopt-runtime.mjs retire-start C:\private\pre-restart.json "RETIRE <上一步的 digest>"
+```
+
+确认会为该启动记录新增一份独立核验凭据。相同确认可以重复执行。原始启动结果保留为 `unknown`，在线实例继续工作。维护工具每次做计划都复核原件。在同一次开机中、检查点系重启后复制、或事件及原件已缺失时，屏障继续生效。请继续通过 `rollback-plan` 核对其他阻塞。已安装的旧维护工具仍遵循该固定版本原有规则。
+
 ## 回退与剩余真人门
 
 ```powershell
@@ -94,7 +111,7 @@ node adopt-runtime.mjs rollback C:\private\generation\receipt.json "ROLLBACK <ro
 
 回退先精确停新实例并等drain/释放，继续验证lease和ledger；只有文件仍为自己发表的身份才能恢复。stable旧包共享最新数据和journal，不覆盖任何新数据。legacy bf/v1只在完整当前durable catalog、registry及原sources都未变化、ledger未新增时允许；新增项目bucket、unknown、原代码篡改或撤销均block。失败receipt中的已发表CAS也能通过相同恢复闸核对；所有旧/新快照均保留。
 
-尚须真人完成的事项来自[部署架构、授权与验收边界](https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/42)第四轮Q7–Q8：审核目标、正常退出Codex及producer、审核停止后的新plan并明确APPLY/START/ROLLBACK。Q9是基线锁定，Q10的真实宿主工具/界面/登录与审批签名仍需真实聊天验收，SDK fake身份或connected都不能替代。当前正式生产保持原canonical与readonly不动。
+手动更新和回退遵循 Q7–Q8。审核目标，正常退出 Codex 及相关进程，再核对停止后的新计划与对应的 APPLY、START 或 ROLLBACK 确认。Q9 固定基线，Q10 由用户在真实宿主完成最终验收。[部署架构、授权与验收边界](https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/42)
 
 ## 验证
 
