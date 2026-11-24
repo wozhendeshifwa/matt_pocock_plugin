@@ -21,4 +21,6 @@
 | 本地 stdio | MattSkillsDeck | 默认图标 |
 | 远程 HTTPS | 远程版 · MattSkillsDeck | 蓝青底白云，内嵌 64×64 PNG |
 
-两次读回的 PNG 均与发布资产一致，SHA-256 为 `e45f6de7aaa08cdd634b9277b947b82a0f7c77987819bbb3729d6e0acc06c7d4`。已从当前会话调用远程侧栏入口。当前窗口的菜单画面仍待目视确认。
+两次读回的 PNG 均与发布资产一致，SHA-256 为 `e45f6de7aaa08cdd634b9277b947b82a0f7c77987819bbb3729d6e0acc06c7d4`。当时已从当前会话调用远程侧栏入口，菜单画面尚待目视确认。
+
+随后用户提供的实际菜单截图仍有两个同名入口和两个相同的黑色图标。确认其余聊天已空闲后，于北京时间 13:15 正常退出 Codex，从已安装的远程版桌面快捷方式重新打开。当前窗口已显示「远程版 · MattSkillsDeck」，用户随后人工确认图标已经可见。出现同样情况时，先保存好进行中的工作，从远程版桌面快捷方式正常重开 Codex，再在右侧栏检查名称和图标。[正式规格](https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/44)
