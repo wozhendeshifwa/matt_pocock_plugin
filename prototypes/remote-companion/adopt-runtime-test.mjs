@@ -27,11 +27,11 @@ async function frozen(root, overlay = OVERLAY_VERSION) {
   const manifest = Buffer.from(JSON.stringify({ schemaVersion: 1, ready: true, overlayVersion: overlay, adapterRelativePath: 'prototypes/upstream-port/sidebar-server.mjs', files: [...files].map(([name, value]) => ({ path: name, bytes: Buffer.byteLength(value), sha256: sha(value) })) }));
   await put(root, 'frozen-adapter.json', manifest); return { adapterPath: path.join(root, 'prototypes/upstream-port/sidebar-server.mjs'), pin: sha(manifest), files };
 }
-async function release(root) {
+async function release(root, launchSource = '// fixture, never executed\n') {
   const f = await frozen(root), files = new Map(f.files);
   files.set('frozen-adapter.json', await readFile(path.join(root, 'frozen-adapter.json')));
   const runtime = { 'protocol.mjs': 'export const VERSION = 1;\n', 'freeze-adapter.mjs': "export const OVERLAY_VERSION = '" + OVERLAY_VERSION + "';\n",
-    'client-launch.mjs': 'export const CLIENT_LAUNCH_TEMPLATE = String.raw`' + CLIENT_LAUNCH_TEMPLATE + '`;\n', 'launch.mjs': '// fixture, never executed\n',
+    'client-launch.mjs': 'export const CLIENT_LAUNCH_TEMPLATE = String.raw`' + CLIENT_LAUNCH_TEMPLATE + '`;\n', 'launch.mjs': launchSource,
     'write-grant.mjs': "export const TRIAL_WRITE_METHODS = Object.freeze(['bind']);\n" };
   for (const [name, value] of Object.entries(runtime)) { await put(root, 'prototypes/remote-companion/' + name, value); files.set('prototypes/remote-companion/' + name, value); }
   files.set('start-companion.ps1', companionLaunchScript()); await put(root, 'start-companion.ps1', files.get('start-companion.ps1'));
@@ -40,13 +40,13 @@ async function release(root) {
     files: [...files].map(([name, bytes]) => ({ path: name, bytes: Buffer.byteLength(bytes), sha256: sha(bytes) })) }));
   await put(root, 'client-release.json', manifest); return { directory: root, expectedManifestSha256: sha(manifest), adapterPin: f.pin };
 }
-async function fixture(t, { stable = false, withLedger = false } = {}) {
+async function fixture(t, { stable = false, withLedger = false, launchSource } = {}) {
   await mkdir(scratch, { recursive: true }); const root = await mkdtemp(path.join(scratch, 'adopt runtime test ')); let control;
   t.after(async () => { await control?.close(); assert.equal(path.dirname(root), scratch.replace(/[\\/]$/, '')); assert.ok(path.basename(root).startsWith('adopt runtime test ')); assert.ok((await lstat(root)).isDirectory()); await rm(root, { recursive: true, force: true, maxRetries: 5 }); });
   const known = { localAppData: path.join(root, 'fake LocalAppData'), startup: path.join(root, 'temporary Startup'), desktop: path.join(root, 'temporary Desktop'), userProfile: path.join(root, 'fake profile') };
   for (const d of Object.values(known)) await mkdir(d);
   const project = path.join(root, 'registered project'); await mkdir(project); const bucket = (await registeredProjectDataBucket(project)).bucket;
-  const target = await release(path.join(root, 'fixed target package')), old = stable ? { adapterPath: path.join(target.directory, 'prototypes/upstream-port/sidebar-server.mjs'), pin: target.adapterPin } : await frozen(path.join(root, 'old remote runtime'), 'choices-data-root-v1');
+  const target = await release(path.join(root, 'fixed target package'), launchSource), old = stable ? { adapterPath: path.join(target.directory, 'prototypes/upstream-port/sidebar-server.mjs'), pin: target.adapterPin } : await frozen(path.join(root, 'old remote runtime'), 'choices-data-root-v1');
   const mainAdapter = await put(root, 'main runtime/prototypes/upstream-port/sidebar-server.mjs', '// main fixture, never run\n'), main = await legacyAdapterDataRoot(mainAdapter), remote = await legacyAdapterDataRoot(old.adapterPath);
   const data = stable ? path.join(root, 'existing stable data') : main.dataRoot; await mkdir(data, { recursive: true }); await mkdir(remote.dataRoot, { recursive: true });
   const business = 'projects/' + bucket + '/.dsh/mattskillsdeck/choices.json'; await put(data, business, '{"rev":1,"fixture":"main"}\n');
@@ -156,6 +156,31 @@ test('legacy rollback checks new registered buckets; full-code rollback rechecks
 test('redirected installation ancestors are rejected before any adoption writes', win, async t => {
   const f = await fixture(t), base = path.join(f.known.localAppData, 'MattSkillsDeck/RemoteCompanion'), redirected = path.join(f.root, 'junction target'); await mkdir(base, { recursive: true }); await mkdir(redirected);
   await symlink(redirected, path.join(base, 'generations'), 'junction'); await assert.rejects(createRuntimeAdopter(f.options, f.local), { code: 'REDIRECTED_LOCAL_PATH' }); assert.deepEqual(await readdir(redirected), []);
+});
+
+test('native Windows START runs the pinned PowerShell script and verifies the Node child it launched', win, async t => {
+  const launchSource = `
+    import { createRuntimeControl } from ${JSON.stringify(new URL('./lifecycle.mjs', import.meta.url).href)};
+    const control = await createRuntimeControl(process.argv[3], { intervalMs: 100, onStop: stop });
+    const timeout = setTimeout(stop, 30000);
+    async function stop() { clearTimeout(timeout); await control.close(); }
+    await control.setState('connected');
+  `;
+  const f = await fixture(t, { launchSource });
+  const { a, result } = await apply(f);
+  const connected = await a.start({ ...result, confirmation: 'START ' + result.receiptSha256 });
+  assert.equal(connected.status, 'connected');
+  const owner = await readAdoptionRuntime(f.pairingFile);
+  assert.equal(owner.instanceId, connected.instanceId);
+  assert.notEqual(owner.pid, process.pid);
+  const attempt = JSON.parse(await readFile(f.pairingFile + '.adopt-start.json', 'utf8'));
+  assert.equal(attempt.spawnedPid, attempt.proof.pid);
+  assert.equal((await requestAdoptionStop(f.pairingFile, connected.instanceId)).requested, true);
+  const deadline = Date.now() + 10000;
+  while (await readAdoptionRuntime(f.pairingFile)) {
+    assert.ok(Date.now() < deadline, 'fixture child must release its own runtime');
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
 });
 
 test('explicit START observes owned connected state; failed secondary read exact-stops owned instance and late start keeps a drainable unknown barrier', win, async t => {

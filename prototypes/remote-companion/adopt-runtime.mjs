@@ -414,9 +414,12 @@ export async function createRuntimeAdopter(input, local = {}) {
     try {
       if (local.startPinned) child = await local.startPinned({ pairingFile: o.pairingFile, releaseDirectory: r.versionDirectory, manifestSha256: checked.manifestSha256 });
       else {
+      // Windows PowerShell can exit before reading -File with DETACHED_PROCESS.
+      // Ignored stdio and unref() below let this hidden process outlive the CLI.
       const spawned = spawn(psExe(), ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-File', path.join(r.versionDirectory, 'start-companion.ps1'), '-PairingFile', o.pairingFile, '-ReleaseDirectory', r.versionDirectory,
-        '-ManifestSha256', checked.manifestSha256, '-NodeExe', process.execPath], { env: { ...process.env, LOCALAPPDATA: known.localAppData }, windowsHide: true, detached: true, stdio: 'ignore' });
+        '-ManifestSha256', checked.manifestSha256, '-NodeExe', process.execPath], { env: { ...process.env, LOCALAPPDATA: known.localAppData }, windowsHide: true, stdio: 'ignore' });
       let exited = false; spawned.once('exit', () => { exited = true; }); await new Promise((resolve, reject) => { spawned.once('spawn', resolve); spawned.once('error', reject); }); spawned.unref();
+      attempt.spawnedPid = spawned.pid; // Diagnostics only. DRAIN still needs the complete ownership proof.
       const parent = await processRecord(spawned.pid); need(parent && typeof parent.command === 'string', 'START_PROCESS_IDENTITY_UNAVAILABLE');
       child = proofOwner({ pid: spawned.pid, created: parent.created, commandSha256: hash(parent.command) }, r.versionDirectory); child.ended = async () => exited && await child.noPendingNode();
       }
