@@ -1,7 +1,26 @@
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { VERSION, MAX_BYTES, secret, equal, mac, requestHash, validateRequest, rpcError, readJson } from './protocol.mjs';
+
+// Thread navigation uses the MCP tool's title and icons, independently of the plugin manifest.
+const sidebarIcon = {
+  src: 'data:image/png;base64,' + readFileSync(new URL('./remote-cloud.png', import.meta.url)).toString('base64'),
+  mimeType: 'image/png',
+  sizes: ['64x64'],
+};
+
+function remoteSidebarMetadata(method, response) {
+  if (method !== 'tools/list' || !Array.isArray(response.result?.tools)) return response;
+  const tools = response.result.tools.map(tool => tool?.name === 'open_deck_sidebar_probe' ? {
+    ...tool,
+    title: '远程版 · MattSkillsDeck',
+    description: 'Open the remote MattSkillsDeck sidebar through Deck Remote Companion.',
+    icons: [sidebarIcon],
+  } : tool);
+  return { ...response, result: { ...response.result, tools } };
+}
 
 // Only bounded, in-memory requests. No disk, database, request-body logging or
 // GitHub/local-machine credentials are used in this process.
@@ -167,7 +186,7 @@ export async function createRelay({ callerToken, deviceToken, sessionSecret, ori
           { operationId, state: job.delivered ? 'unknown' : 'not-executed' })), requestTimeout);
         retainedBytes += bodyWeight; jobs.set(operationId, job); wake();
       });
-      reply(res, 200, response, { 'mcp-session-id': sessionId }, rpcError(body.id, -32004,
+      reply(res, 200, remoteSidebarMetadata(body.method, response), { 'mcp-session-id': sessionId }, rpcError(body.id, -32004,
         'Relay response budget is busy; inspect local journal before retrying', { operationId, state: 'unknown' }));
     } catch (error) {
       reply(res, error.status ?? 400, { status: error.status === 413 ? 'too-large' : 'invalid-request' });
