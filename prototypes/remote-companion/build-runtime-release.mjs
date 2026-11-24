@@ -27,6 +27,7 @@ async function ordinary(file, directory = false) {
   return actual;
 }
 function sourceFile(name) {
+  if (name === 'prototypes/remote-companion/remote-cloud.png') return true;
   return /^prototypes\/remote-companion\/[^/]+\.mjs$/.test(name) && !/(?:^|[-.])(?:test|spec|benchmark|bench)(?:[-.]|$)/i.test(path.posix.basename(name)) &&
     !/^(?:measure-|benchmark-|bench-|credentials?\.|secrets?\.|\.env)/i.test(path.posix.basename(name));
 }

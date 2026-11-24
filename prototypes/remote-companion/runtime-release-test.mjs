@@ -29,6 +29,7 @@ async function fixture(t, { missing = false, protocol = 1, overlay = OVERLAY_VER
     'client-launch.mjs': 'export const CLIENT_LAUNCH_TEMPLATE = String.raw`' + CLIENT_LAUNCH_TEMPLATE + '`;\n',
     'launch.mjs': "import './protocol.mjs'; import './" + (missing ? 'absent.mjs' : 'helper.mjs') + "'; import {writeFileSync} from 'node:fs'; writeFileSync(" + JSON.stringify(evaluated) + ",'must never run');\n",
     'helper.mjs': 'export const fixed = 1;\n', 'test.mjs': 'TEST MUST NOT SHIP', 'other-test.mjs': 'TEST MUST NOT SHIP', 'measure-size.mjs': 'BENCH MUST NOT SHIP', 'credentials.mjs': 'CREDENTIAL MUST NOT SHIP', 'private.json': 'STATE MUST NOT SHIP' };
+  source['remote-cloud.png'] = await readFile(new URL('./remote-cloud.png', import.meta.url));
   for (const [name, bytes] of Object.entries(source)) await put(repo, 'prototypes/remote-companion/' + name, bytes);
   await git(['init', '--quiet']); await git(['add', '.']); await git(['commit', '--quiet', '-m', 'Fixed release fixture']); const commit = await git(['rev-parse', 'HEAD']);
   assert.equal(await git(['remote']), '', 'fixtures have no network remote');
@@ -51,6 +52,7 @@ test('fixed Git objects ignore dirty/untracked source; complete output is reprod
   const first = await buildRuntimeRelease(f.options('release with spaces')), second = await buildRuntimeRelease(f.options('second immutable release'));
   assert.equal(first.manifestSha256, second.manifestSha256); assert.equal(first.installed, false); assert.equal(first.sourceCommit, f.commit);
   assert.equal((await readFile(path.join(first.directory, 'prototypes/remote-companion/helper.mjs'), 'utf8')), f.source['helper.mjs']);
+  assert.deepEqual(await readFile(path.join(first.directory, 'prototypes/remote-companion/remote-cloud.png')), f.source['remote-cloud.png']);
   assert.equal(await lstat(f.evaluated).then(() => true, () => false), false);
   const names = JSON.parse(await readFile(path.join(first.directory, CLIENT_RELEASE_MANIFEST))).files.map(row => row.path);
   assert.equal(names.some(name => /(?:test|measure-|credentials|private\.json|untracked)/.test(name)), false);

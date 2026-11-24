@@ -9,3 +9,16 @@
 此项只更新客户端显示包；已验收完整runtime的a7c9c55源码、48c40d84包及外部手动安装入口未改变，远程写授权未开启，正式规格仍open。当前已核安装记录及图标文件，尚未把客户端当前内存界面的图标刷新认定为已观察；本地插件重新加载/下次重开后读取新发布元数据。
 
 本机证据在.scratch/icon-update-44/installed-result.json和live-backup；隔离重装证据在.scratch/icon-cli-check-OD4NAF/result.json。备份与原始私有配置不上传Git。
+
+## 会话右侧栏入口
+
+用户随后在桌面看到了两个同名的 `MattSkillsDeck`。包内 SVG 服务于插件展示。会话右侧栏从 `tools/list` 中读取入口工具自己的 `title` 和 `icons`。两个服务此前都直接返回同一份本地入口信息。[入口规范](https://github.com/openai/mcp-extensions/blob/main/docs/spec.md#entrypoint-icons)
+
+免费服务 `deck-relay-44` 已部署提交 `101bc6470de8d67fb6b0278f5001ba6ed60a4e2e`，部署 `dep-dc2hb47lk1mc73a08k7g` 已进入 `live`。在线 MCP SDK 和本机 Codex 独立进程的 `mcpServerStatus/list` 均读回下列入口。
+
+| 连接 | 右侧栏标题 | 入口图标 |
+| --- | --- | --- |
+| 本地 stdio | MattSkillsDeck | 默认图标 |
+| 远程 HTTPS | 远程版 · MattSkillsDeck | 蓝青底白云，内嵌 64×64 PNG |
+
+两次读回的 PNG 均与发布资产一致，SHA-256 为 `e45f6de7aaa08cdd634b9277b947b82a0f7c77987819bbb3729d6e0acc06c7d4`。已从当前会话调用远程侧栏入口。当前窗口的菜单画面仍待目视确认。
