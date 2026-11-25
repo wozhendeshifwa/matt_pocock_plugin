@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>沙箱任务 · 交互流程原型</title>
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#f6f7f6,#141615);--paper:light-dark(#fff,#1b1e1c);--text:light-dark(#232923,#e2e9e2);--muted:light-dark(#687168,#a1aca1);--line:light-dark(#e0e6e0,#343d34);--accent:light-dark(#246443,#88c6a1);--soft:light-dark(#edf5ef,#24392c);--warn:light-dark(#755526,#d9bd8b);--warnbg:light-dark(#faf3e7,#382e20)}
+*{box-sizing:border-box}body{font:14px/1.65 system-ui,"Microsoft YaHei",sans-serif;margin:0;background:var(--bg);color:var(--text)}button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer;border:1px solid var(--line);background:var(--paper);border-radius:7px;padding:7px 11px}button:hover{border-color:var(--accent)}button:disabled{cursor:default;opacity:.45}button.primary{background:var(--accent);color:light-dark(#fff,#14291d);border-color:var(--accent)}button.small{font-size:12px;padding:4px 8px}button.link{border:0;background:transparent;padding:0;color:var(--accent)}button.active{border-color:var(--accent);background:var(--soft);color:var(--accent)}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}input,textarea,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--paper)}input[type=checkbox]{width:auto;accent-color:var(--accent)}textarea{min-height:86px;resize:vertical}label{display:block}label>span{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}h1,h2,h3,p{margin:0}h1{font-size:25px;font-weight:620;letter-spacing:-.5px}h2{font-size:17px;font-weight:620}h3{font-size:14px;font-weight:650}small,.muted{color:var(--muted)}small{font-size:12px}a{color:var(--accent)}code{font:12px/1.6 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}.wrap{max-width:1200px;margin:auto;padding:28px 26px 48px}.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.between{justify-content:space-between}.stack>*+*{margin-top:14px}.intro{max-width:790px;margin:10px 0 20px;color:var(--muted)}.eyebrow{color:var(--accent);font-size:11px;font-weight:700;letter-spacing:1.2px;margin-bottom:4px}.card{border:1px solid var(--line);border-radius:11px;background:var(--paper);padding:18px}.chip{display:inline-block;padding:2px 8px;font-size:11px;border-radius:5px;background:var(--soft);color:var(--accent);white-space:nowrap}.chip.plain{background:var(--bg);color:var(--muted)}.notice{border-left:3px solid var(--accent);padding:10px 13px;background:var(--soft);border-radius:3px}.warning{background:var(--warnbg);color:var(--warn);border-left-color:var(--warn)}.banner{margin:12px 0}.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}.fact{min-width:0}.fact small{display:block}.fact b{display:block;font-weight:550;overflow-wrap:anywhere}.toolbar{padding:10px 0 0}.workspace{display:grid;grid-template-columns:270px minmax(0,1fr);border:1px solid var(--line);border-radius:11px;background:var(--paper);overflow:hidden;margin-top:16px;min-height:415px}.tasklist{border-right:1px solid var(--line);padding:13px;background:var(--bg)}.tasklist h3{margin:2px 4px 12px}.task{display:block;width:100%;text-align:left;margin-bottom:8px;padding:11px;background:var(--paper)}.task strong{display:block;font-size:13px;font-weight:550;margin:5px 0}.task small{display:block}.task.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.detail{padding:22px;min-width:0}.empty{padding:45px 10px;text-align:center;color:var(--muted)}.empty h2{color:var(--text);margin-bottom:9px}.detail .facts{grid-template-columns:repeat(3,minmax(0,1fr));padding:14px 0;border-bottom:1px solid var(--line)}.tabs{margin:18px 0 13px;display:flex;gap:6px;flex-wrap:wrap}.tabs button{font-size:12px}.log{font:12px/1.85 ui-monospace,Consolas,monospace;white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);padding:13px;border-radius:7px;max-height:230px;overflow:auto}.diff{white-space:pre-wrap;background:var(--bg);padding:12px;border-radius:7px;font:12px/1.9 ui-monospace,Consolas,monospace}.plus{color:var(--accent)}.minus{color:var(--warn)}.actions{margin-top:16px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}.sheet{border-top:3px solid var(--accent)}.sheet h2{margin-bottom:7px}.check{display:flex;align-items:flex-start;gap:8px;font-size:13px}.check input{margin-top:5px}.check span{display:inline;margin:0;color:inherit;font-size:inherit}.guide{margin-top:20px}.guide button{white-space:normal}.walk{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px}.walk button{max-width:250px;text-align:left;font-size:12px}.walk button.done{color:var(--muted)}.free{margin-top:18px}.free summary{cursor:pointer;font-weight:600}.controls{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}.group{padding:10px 0;border-bottom:1px solid var(--line)}.group:last-child{border:0}.group small{display:block;margin-bottom:6px}.foot{margin-top:18px;font-size:12px;color:var(--muted)}.close-panel{padding:38px 22px;text-align:center}.close-panel p{margin:12px}.minifield{width:170px}.status-note{font-size:12px;margin-top:6px;color:var(--muted)}.summary-line{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)}.summary-line span:last-child{text-align:right}.confirmbox{border:1px solid var(--line);padding:13px;border-radius:7px;margin-top:14px}.trace{max-height:110px;overflow:auto}.trace div{font-size:12px;color:var(--muted);padding:3px 0}
+@media(max-width:850px){.wrap{padding:18px 14px}.workspace{grid-template-columns:1fr}.tasklist{border-right:0;border-bottom:1px solid var(--line);display:flex;gap:8px;overflow-x:auto}.tasklist h3{display:none}.task{min-width:190px;margin:0}.facts{grid-template-columns:1fr 1fr}.detail{padding:16px}.detail .facts{grid-template-columns:1fr 1fr}.formgrid{grid-template-columns:1fr}.full{grid-column:auto}.minifield{width:130px}}
+</style>
+<div class="wrap">
+ <div class="row between"><div><div class="eyebrow">MATTSKILLSDECK · SANDCASTLE</div><h1>沙箱任务</h1></div><span class="chip plain">可丢弃交互原型 · 全部为模拟数据</span></div>
+ <p class="intro">这份演示用来确认：从预览启动，到查看后台状态、审阅代码结果，操作是否清楚？请特别试试断线、取消与完成撞在一起、以及重启后的任务。所有数据只在页面内存中，刷新即重置；不会运行命令、登录、联网或改动文件。</p>
+ <section id="state" class="card" aria-label="当前完整状态"></section>
+ <div id="notice" class="notice banner" role="status" aria-live="polite"></div>
+ <section class="card guide" aria-label="场景演练">
+  <div class="row between"><div><h2>场景演练</h2><small>切换场景会重置全部模拟数据；按顺序点击按钮，也可以使用下方自由操作。</small></div><button id="reset" class="small">重置当前场景</button></div>
+  <nav id="scenarios" class="tabs" aria-label="演练场景"></nav><p id="guide-copy" class="muted"></p><div id="steps" class="walk"></div>
+ </section>
+ <section id="app" aria-label="插件中的交互草案"></section>
+ <details class="card free"><summary>自由操作 · 模拟后台事件和异常</summary><p class="muted">这里的按钮用于推动演示，正式插件不会出现这些模拟控制。非法操作会解释原因，不会偷偷改状态。</p><div id="free"></div></details>
+ <details class="card free"><summary>刚才发生了什么</summary><div id="trace" class="trace"></div></details>
+ <p class="foot">依据：<a href="https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/49#issuecomment-7170123785" target="_blank" rel="noreferrer">已确认的本地接入方案</a> · 本原型验证交互，不证明 Docker、ChatGPT 认证或真实任务执行可用。</p>
+</div>
+<script>
+/* Portable in-memory state model. No DOM, I/O, timers, or persistence. */
+const SandboxModel = (() => {
+ const live = t => ['preparing','running','stopping'].includes(t.status);
+ const terminal = t => ['completed','failed','cancelled','interrupted'].includes(t.status);
+ const initial = () => ({project:'matt_pocock_',chat:'聊天 A',connected:true,component:true,panel:true,docker:true,auth:true,modelOK:true,limit:2,head:'a1b2c3d',sourceDirty:3,targetDirty:false,conflict:false,next:1,selected:null,tasks:[],draft:null,merge:null,cleanup:null,tab:'summary',choices:{},event:0,trace:[],notice:'请从“新建沙箱任务”开始，或选择上方场景演练。'});
+ const selected = s => s.tasks.find(t=>t.id===s.selected && t.project===s.project);
+ const say = (s,msg) => {s.notice=msg;s.trace.unshift(`${s.event}. ${msg}`);s.trace=s.trace.slice(0,24);};
+ const log = (s,t,msg) => t.logs.push(`[演示 ${s.event}] ${msg}`);
+ const gate = s => !s.component?'本机组件未运行。':!s.connected?'本机连接已中断，先恢复连接。':!s.docker?'Docker 未就绪，不能启动任务。':!s.auth?'沙箱侧登录已失效，先完成登录验证。':!s.modelOK?'所选模型在沙箱中不可用，请明确重新选择。':'';
+ const schedule = s => {if(gate(s))return;let slots=s.limit-s.tasks.filter(live).length;for(const t of s.tasks){if(slots<=0)break;if(t.status==='queued'&&!t.paused){t.status='preparing';log(s,t,'开始准备独立分支与工作目录（模拟）。');slots--;}}};
+ function reduce(old,a){
+  const s=structuredClone(old);s.event++;let t=selected(s);
+  if(a.type==='NEW'||a.type==='RERUN'){
+   if(a.type==='RERUN'&&(!t||!terminal(t)||t.reconcile)){say(s,'请先核实并结束原执行，再重新运行；不会重复启动未知任务。');return s;}
+   const pref=s.choices[s.project]||{model:'当前配置（模拟）',effort:'标准'};
+   s.draft={stage:'edit',source:a.type==='RERUN'?t.source:'issue',description:a.type==='RERUN'?t.description:'修复任务列表筛选后数量未更新的问题，并执行相关检查。',model:a.type==='RERUN'?t.model:pref.model,effort:a.type==='RERUN'?t.effort:pref.effort,minutes:a.type==='RERUN'?t.minutes:60,base:a.type==='RERUN'?t.base:s.head,baseMode:'original',project:s.project,from:a.type==='RERUN'?t.id:null};s.merge=null;s.cleanup=null;say(s,a.type==='RERUN'?'已复制原描述和任务基线；确认后将创建新记录、新分支。':'请编辑任务，再进入启动预览。');return s;
+  }
+  if(a.type==='PREVIEW'){
+   if(!s.draft){say(s,'先新建任务或选择重新运行。');return s;}
+   const d={...s.draft,...a.fields};d.minutes=Number(d.minutes);if(!d.description.trim()||!Number.isFinite(d.minutes)||d.minutes<1){say(s,'请填写任务描述和大于0的运行时限。');return s;}
+   if(d.baseMode==='latest')d.base=s.head;d.stage='preview';s.draft=d;say(s,'请核对项目、固定代码版本、模型和排除的未提交改动。');return s;
+  }
+  if(a.type==='BACK'&&s.draft){s.draft.stage='edit';return s;}
+  if(a.type==='CLOSE_SHEET'){s.draft=null;s.merge=null;s.cleanup=null;say(s,'已返回任务列表，后台任务未受影响。');return s;}
+  if(a.type==='START'||a.type==='DEMO_ADD'){
+   if(a.type==='DEMO_ADD'){const pref=s.choices[s.project]||{model:'当前配置（模拟）',effort:'标准'};s.draft={stage:'preview',source:'manual',description:`示例任务 ${s.next}：补充筛选功能与检查。`,base:s.head,model:pref.model,effort:pref.effort,minutes:60,project:s.project,from:null};}
+   if(!s.draft||s.draft.stage!=='preview'){say(s,'本次启动预览已处理；不会再次创建任务。');return s;}
+   const blocked=gate(s);if(blocked){say(s,blocked+' 不会切换到其他运行或付费路径。');return s;}
+   if(s.draft.project!==s.project){say(s,'当前项目已切换，请重新预览。');return s;}
+   if(s.sourceDirty&&!a.ack){say(s,'请确认：主工作区的未提交内容不会进入任务。');return s;}
+   const d=s.draft,id=s.next++;t={id,project:s.project,source:d.source,description:d.description,base:d.base,model:d.model,effort:d.effort,minutes:d.minutes,from:d.from,branch:`sandbox/demo-${id}`,status:'queued',paused:false,reconcile:false,logs:[],checks:'notrun',changes:false,adoption:'待审阅',reason:'',cleaned:false};log(s,t,'启动已记录；输入基线固定，不带入主工作区未提交内容。');s.tasks.push(t);s.selected=id;s.choices[s.project]={model:d.model,effort:d.effort};s.draft=null;s.tab='summary';schedule(s);say(s,`任务 ${id} 已创建，状态为${t.status==='queued'?'排队':'准备'}；之后按同一任务记录查询。`);return s;
+  }
+  if(a.type==='SELECT'){s.selected=a.id;s.draft=null;s.merge=null;s.cleanup=null;s.tab='summary';say(s,'已选择任务，后台状态未改变。');return s;}
+  if(a.type==='TAB'){s.tab=a.tab;return s;}
+  if(a.type==='PROJECT'){s.project=s.project==='matt_pocock_'?'示例项目':'matt_pocock_';s.selected=s.tasks.find(x=>x.project===s.project)?.id??null;s.draft=null;s.merge=null;s.cleanup=null;say(s,'仅切换查看的项目；原项目任务继续执行。');return s;}
+  if(a.type==='CHAT'){s.chat=s.chat==='聊天 A'?'聊天 B':'聊天 A';say(s,'同项目切换聊天：仍查看相同任务和固定基线。');return s;}
+  if(a.type==='PANEL'){s.panel=!s.panel;say(s,s.panel?'已重新打开侧栏，读取原任务状态。':'侧栏已关闭，后台任务仍保留；可在演示控制中继续推进。');return s;}
+  if(a.type==='HEAD'){s.head=s.head==='a1b2c3d'?'d4e5f6a':'a1b2c3d';say(s,'主分支出现新提交；已有任务和排队任务仍使用原基线。');return s;}
+  if(a.type==='DISCONNECT'){s.connected=false;for(const x of s.tasks.filter(live))x.reconcile=true;say(s,'连接中断，执行状态待核实；不判失败、不自动重跑。');return s;}
+  if(a.type==='CONNECT'){if(!s.component){say(s,'先启动本机组件，再恢复连接。');return s;}s.connected=true;say(s,'连接恢复；遗留执行仍需核实，恢复连接不会创建新任务。');return s;}
+  if(a.type==='RESTART'){s.component=true;s.connected=true;for(const x of s.tasks){if(live(x))x.reconcile=true;if(x.status==='queued')x.paused=true;}say(s,'组件已重启（模拟）：运行任务待核实，原排队任务暂停，均未重新启动。');return s;}
+  if(a.type==='LIMIT'){s.limit=s.limit===2?1:2;schedule(s);say(s,`整机并发上限改为${s.limit}；不会强停已有任务。`);return s;}
+  if(a.type==='ENV'){s[a.key]=!s[a.key];say(s,'已切换模拟环境条件；只有全部验证就绪才能启动新任务。');return s;}
+  if(a.type==='TARGET_DIRTY'){s.targetDirty=!s.targetDirty;say(s,s.targetDirty?'目标工作区存在未提交改动，合入被阻止。':'目标工作区已清理（模拟），可重新预览合入。');return s;}
+  if(a.type==='CONFLICT'){s.conflict=!s.conflict;say(s,s.conflict?'已设置模拟合入冲突。':'模拟冲突已解除；仍需用户确认合入。');return s;}
+  if(!t){say(s,'请先选择当前项目的一项任务。');return s;}
+  if(a.type==='VERIFY_RUNNING'||a.type==='VERIFY_STOPPED'){
+   if(!s.connected||!s.component){say(s,'本机尚未连通，不能核实执行结果。');return s;}
+   if(!t.reconcile){say(s,'该任务没有待核实的遗留执行。');return s;}
+   t.reconcile=false;if(a.type==='VERIFY_STOPPED'){t.status='interrupted';t.reason='已核实执行结束，记录为中断';log(s,t,'遗留执行已结束，日志和已有改动保留。');schedule(s);}say(s,a.type==='VERIFY_RUNNING'?'已核实原执行仍在运行；没有启动第二份。':'已核实执行结束，标记中断；可显式重新运行。');return s;
+  }
+  if(a.type==='RESUME_QUEUE'){if(t.status!=='queued'||!t.paused){say(s,'请选择重启后暂停的排队任务。');return s;}if(gate(s)){say(s,gate(s));return s;}t.paused=false;schedule(s);say(s,'用户已确认恢复这项排队任务；继续按原基线调度。');return s;}
+  if(a.type==='MERGE_OPEN'){
+   if(t.status!=='completed'||t.reconcile||!t.changes){say(s,'请先选择已完成且有代码改动的任务；失败现场可以查看，不能直接冒充完整结果合入。');return s;}
+   s.merge={id:t.id,target:'main（示例）'};s.draft=null;s.cleanup=null;say(s,'请审阅差异、检查证据和目标分支；此时尚未合入。');return s;
+  }
+  if(a.type==='MERGE_CONFIRM'){
+   if(!s.merge||s.merge.id!==t.id){say(s,'请先预览合入。');return s;}
+   if(!s.component||!s.connected){say(s,'先恢复本机连接，才能核对并合入代码。');return s;}if(s.targetDirty){say(s,'目标工作区有未提交改动，停止合入，原工作区保持不变。');return s;}
+   if(t.checks!=='passed'&&!a.ack){say(s,'检查失败或未运行，需要你单独确认后才可合入。');return s;}
+   if(s.conflict){t.adoption='冲突，尚未合入';say(s,'合入冲突：保留任务结果，不自动解冲突、不推送。');return s;}
+   t.adoption=`已合入 ${a.target||s.merge.target}`;s.merge=null;log(s,t,'用户确认后合入目标分支（模拟），未推送。');say(s,'结果已合入（模拟），运行状态仍为完成；没有推送。');return s;
+  }
+  if(a.type==='CLEAN_OPEN'){if(!terminal(t)||t.reconcile){say(s,'运行中或状态待核实的任务不能清理。');return s;}s.cleanup=t.id;s.merge=null;s.draft=null;say(s,'请核对清理范围；点击确认之前不会移除任何记录。');return s;}
+  if(a.type==='CLEAN_CONFIRM'){if(s.cleanup!==t.id||!terminal(t)||t.reconcile){say(s,'请选择已结束任务并先预览清理范围。');return s;}s.tasks=s.tasks.filter(x=>x.id!==t.id);s.selected=s.tasks.find(x=>x.project===s.project)?.id??null;s.cleanup=null;say(s,'已清理该任务的模拟记录、日志与结果分支；主工作区未改变。');return s;}
+  if(!s.component||!s.connected||t.reconcile){say(s,'执行状态待核实：不能盲目操作或重新发起；已有日志与上次状态仍可查看。');return s;}
+  if(a.type==='READY'){if(t.status!=='preparing'){say(s,'只有准备中的任务能进入运行。');return s;}t.status='running';log(s,t,'隔离环境准备完成，代理开始执行（模拟）。');say(s,'任务开始运行，可切换到日志查看。');return s;}
+  if(a.type==='LOG'){if(t.status!=='running'){say(s,'请选择运行中的任务追加模拟日志。');return s;}t.changes=true;log(s,t,'已修改筛选计数逻辑，接下来执行检查（模拟事件）。');say(s,'新增一条运行事件；代码改动只位于任务工作目录。');return s;}
+  if(a.type==='COMPLETE'){if(!['running','stopping'].includes(t.status)){say(s,'只有已开始执行或停止中的任务能收到完成结果；不覆盖已有终态。');return s;}t.status='completed';t.checks=a.checks||'passed';t.changes=true;log(s,t,`执行完成；检查${t.checks==='passed'?'通过':t.checks==='failed'?'失败':'未运行'}（模拟退出记录）。`);schedule(s);say(s,'执行完成，检查结果独立展示；代码尚未合入。');return s;}
+  if(a.type==='FAIL'){if(!live(t)){say(s,'任务已经结束。');return s;}t.status='failed';t.reason='代理退出异常（模拟）';log(s,t,'执行失败，已有改动、日志与工作目录保留。');schedule(s);say(s,'任务失败；已有现场保留，可以查看或重新运行。');return s;}
+  if(a.type==='CANCEL'||a.type==='TIMEOUT'){
+   if(t.status==='queued'){t.status='cancelled';t.paused=false;log(s,t,'排队任务已取消，未启动代理。');say(s,'已从排队中取消，不会启动。');return s;}
+   if(!live(t)){say(s,'任务已结束，保留原结果，不把完成改成取消。');return s;}t.status='stopping';t.reason=a.type==='TIMEOUT'?'运行超时':'用户取消';log(s,t,`${t.reason}，已请求停止，等待结束确认。`);say(s,'停止中：尚未确认执行结束，不能宣称取消成功。');return s;
+  }
+  if(a.type==='STOP_ACK'){if(t.status!=='stopping'){say(s,'任务已完成或不在停止中，不覆盖已有结果。');return s;}t.status=t.reason==='运行超时'?'failed':'cancelled';log(s,t,'已确认执行结束，保留日志与已有改动。');schedule(s);say(s,t.status==='failed'?'已确认超时停止，标为失败并保留原因。':'已确认取消，现场保留。');return s;}
+  say(s,'这项操作当前不可用。');return s;
+ }
+ return {initial,reduce,selected,live,terminal,gate};
+})();
+</script>
+<script>
+/* Thin, disposable page shell. All domain transitions go through reduce(). */
+const $=q=>document.querySelector(q),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let state=SandboxModel.initial(),scenario=0,step=0;
+const names={queued:'排队',preparing:'准备中',running:'运行中',stopping:'停止中',completed:'完成',failed:'失败',cancelled:'已取消',interrupted:'已中断'};
+const checkNames={notrun:'未运行',passed:'通过',failed:'失败'};
+const B=(text,type,args={},cls='')=>`<button class="${cls}" data-action="${type}" data-args="${esc(JSON.stringify(args))}">${text}</button>`;
+const fact=(k,v)=>`<div class="fact"><small>${k}</small><b>${esc(v)}</b></div>`;
+const add={type:'DEMO_ADD',ack:true},run={type:'READY'},done={type:'COMPLETE',checks:'passed'};
+const scenarios=[
+ {name:'启动与合入',copy:'看清代码版本和未提交内容的排除提示；完成以后仍要单独审阅、确认合入。',steps:[['编辑任务',{type:'NEW'}],['查看启动预览',{type:'PREVIEW'}],['确认排除改动并启动',{type:'START',ack:true}],['模拟准备完成',run],['产生代码与日志',{type:'LOG'}],['执行与检查完成',done],['预览合入',{type:'MERGE_OPEN'}],['确认合入 main',{type:'MERGE_CONFIRM',ack:true}]]},
+ {name:'并行与排队',copy:'整机只占用两个执行名额；第三个任务排队。主分支前进也不会悄悄替换排队任务的输入。',steps:[['启动第一个任务',add],['启动第二个任务',add],['提交第三个任务',add],['主分支产生新提交',{type:'HEAD'}],['选第一个任务',{type:'SELECT',id:1}],['第一个开始执行',run],['第一个完成释放名额',done],['查看第三个任务的基线',{type:'SELECT',id:3}]]},
+ {name:'断线待核实',copy:'断线后仍看到上次状态和已有日志，但没有把它当成当前事实；恢复连接不会启动第二份任务。',steps:[['创建并确认任务',add],['开始执行',run],['已有代码与日志',{type:'LOG'}],['模拟连接中断',{type:'DISCONNECT'}],['尝试重新运行（应拒绝）',{type:'RERUN'}],['恢复本机连接',{type:'CONNECT'}],['核实原执行仍在运行',{type:'VERIFY_RUNNING'}],['原执行正常完成',done]]},
+ {name:'取消竞态',copy:'“已请求停止”和“已取消”是两回事。如果原执行先完成，迟到的停止确认不能覆盖完成结果。',steps:[['创建并确认任务',add],['开始执行',run],['请求取消',{type:'CANCEL'}],['完成消息先到达',done],['停止确认晚到（不覆盖）',{type:'STOP_ACK'}],['查看保留的结果',{type:'TAB',tab:'diff'}]]},
+ {name:'重启恢复',copy:'这里的“重启”只改变模拟状态：原运行任务待核实，排队任务暂停；确认后才恢复调度。',steps:[['启动第一个任务',add],['启动第二个任务',add],['第三个进入排队',add],['模拟组件重启',{type:'RESTART'}],['查看原运行任务',{type:'SELECT',id:1}],['核实已结束，标中断',{type:'VERIFY_STOPPED'}],['查看暂停的第三个',{type:'SELECT',id:3}],['用户确认恢复排队',{type:'RESUME_QUEUE'}]]},
+ {name:'检查与冲突',copy:'执行完成不等于检查通过。未通过检查需要单独确认；工作区有改动或发生冲突，都不会强行合入。',steps:[['创建并确认任务',add],['开始执行',run],['执行完成但检查失败',{type:'COMPLETE',checks:'failed'}],['预览合入',{type:'MERGE_OPEN'}],['不确认检查风险（应拒绝）',{type:'MERGE_CONFIRM',ack:false}],['模拟目标工作区有改动',{type:'TARGET_DIRTY'}],['确认后仍被阻止',{type:'MERGE_CONFIRM',ack:true}],['模拟目标工作区已清理',{type:'TARGET_DIRTY'}],['设置合入冲突',{type:'CONFLICT'}],['尝试合入，保留冲突结果',{type:'MERGE_CONFIRM',ack:true}]]},
+ {name:'失败与重跑',copy:'失败日志和代码改动会留下。重新运行先回到预览，默认保留原描述和基线，确认后才生成新任务。',steps:[['创建并确认任务',add],['开始执行',run],['留下代码改动',{type:'LOG'}],['执行异常退出',{type:'FAIL'}],['查看失败日志',{type:'TAB',tab:'logs'}],['主分支产生新提交',{type:'HEAD'}],['重新运行，沿用原基线',{type:'RERUN'}],['预览新执行',{type:'PREVIEW'}],['确认创建新任务',{type:'START',ack:true}]]},
+ {name:'环境门槛',copy:'环境和登录没有通过验证时，预览可见，但不能真的启动；这里的“就绪”仅是模拟条件。',steps:[['模拟 Docker 未就绪',{type:'ENV',key:'docker'}],['编辑任务',{type:'NEW'}],['查看启动预览',{type:'PREVIEW'}],['尝试启动（应拒绝）',{type:'START',ack:true}],['模拟登录失效',{type:'ENV',key:'auth'}],['模拟 Docker 验证通过',{type:'ENV',key:'docker'}],['仍因登录失效拒绝',{type:'START',ack:true}],['模拟登录验证通过',{type:'ENV',key:'auth'}],['确认启动',{type:'START',ack:true}]]}
+];
+function dispatch(a){state=SandboxModel.reduce(state,a);render();}
+function status(t){return t.reconcile?`状态待核实（上次：${names[t.status]}）`:names[t.status]+(t.paused?' · 已暂停':'');}
+function diff(t){return t?.changes?`<div class="diff">示例文件：src/filter.ts<br><span class="minus">− total: items.length</span><br><span class="plus">+ total: filteredItems.length</span><br><br>任务基线 ${esc(t.base)} → 结果分支 ${esc(t.branch)}<br>仅演示差异，没有修改真实文件。</div>`:'<p class="muted">尚未记录代码改动。已有现场会保留，不假定失败前一定产生了结果。</p>';}
+function draftView(d){
+ if(d.stage==='edit')return `<section class="sheet stack"><h2>${d.from?'重新运行 · 新执行':'新建沙箱任务'}</h2><p class="muted">先编辑，再确认。当前项目：${esc(d.project)}</p><form id="draft-form" class="formgrid"><label><span>任务来源</span><select name="source"><option value="issue" ${d.source==='issue'?'selected':''}>当前 Issue · 示例筛选问题</option><option value="manual" ${d.source==='manual'?'selected':''}>手填描述</option></select></label><label><span>代码版本</span><select name="baseMode"><option value="original">${d.from?'沿用原任务基线':'当前已提交版本'} · ${esc(d.base)}</option><option value="latest" ${d.baseMode==='latest'?'selected':''}>明确改用最新提交 · ${esc(state.head)}</option></select></label><label class="full"><span>任务描述（可编辑）</span><textarea name="description" required>${esc(d.description)}</textarea></label><label><span>Codex 模型</span><select name="model"><option ${d.model==='当前配置（模拟）'?'selected':''}>当前配置（模拟）</option><option ${d.model==='另一个可用模型（模拟）'?'selected':''}>另一个可用模型（模拟）</option></select></label><label><span>推理强度</span><select name="effort">${['低','标准','高'].map(x=>`<option ${d.effort===x?'selected':''}>${x}</option>`).join('')}</select></label><label><span>运行时限（分钟，不含排队）</span><input name="minutes" type="number" min="1" value="${d.minutes}" required></label><div class="full row"><button type="submit" class="primary">预览启动</button>${B('返回列表','CLOSE_SHEET')}</div></form></section>`;
+ return `<section class="sheet stack"><div class="row between"><h2>确认启动</h2><span class="chip">尚未创建执行</span></div><p>${esc(d.description)}</p><div>${[['项目',d.project],['任务来源',d.source==='issue'?'当前 Issue（示例）':'手填描述'],['固定代码版本',d.base],['模型 / 强度',`${d.model} / ${d.effort}`],['运行时限',`${d.minutes} 分钟；排队不计时`],['执行位置','本机 Docker · 独立分支与工作目录']].map(([k,v])=>`<div class="summary-line"><small>${k}</small><span>${esc(v)}</span></div>`).join('')}</div><div class="notice warning">主工作区有 ${state.sourceDirty} 个未提交改动（模拟），不会进入这次任务。原文件和暂存区保持原样。</div><p class="muted">确认后，代理可在任务沙箱内编辑、运行命令和检查，并联网访问模型/获取依赖。不会自动合入或推送。</p><label class="check"><input id="excluded-ack" type="checkbox"><span>我已了解：使用上面的已提交版本，排除未提交内容。</span></label>${SandboxModel.gate(state)?`<div class="notice warning">${esc(SandboxModel.gate(state))} 启动暂不可用。</div>`:''}<div class="row">${B('确认并启动','START',{},'primary')}${B('返回编辑','BACK')}${B('放弃这次预览','CLOSE_SHEET')}</div><small>上面的运行环境和模型信息都是模拟值，不代表本机已安装或验证。</small></section>`;
+}
+function mergeView(t){return `<section class="sheet stack"><h2>审阅并合入结果</h2><p class="muted">执行状态：${status(t)} · 检查：${checkNames[t.checks]} · 结果：${esc(t.adoption)}</p>${diff(t)}<label><span>确认目标分支（示例）</span><select id="merge-target"><option>main（示例）</option><option>feature/review（示例）</option></select></label>${state.targetDirty?'<div class="notice warning">目标工作区有未提交改动，合入被阻止。请返回后处理，再重新预览。</div>':''}${t.checks!=='passed'?`<div class="confirmbox"><p>检查${checkNames[t.checks]}。这不会被当作“全部检查通过”。</p><label class="check"><input id="checks-ack" type="checkbox"><span>我已查看检查记录，仍决定将这些改动合入所选分支。</span></label></div>`:'<div class="notice">检查通过（仅模拟执行证据）。合入仍需你单独确认。</div>'}<div class="row">${B('确认合入（不推送）','MERGE_CONFIRM',{},'primary')}${B('返回结果','CLOSE_SHEET')}</div></section>`;}
+function taskView(t){
+ const summary=`<div class="stack"><h3>${t.status==='completed'?'执行已完成，结果仍由你审阅':t.status==='failed'?'本次执行失败，现场已保留':t.status==='interrupted'?'已核实中断，可显式重新运行':t.status==='cancelled'?'执行已取消，已有现场保留':'任务正在由本机组件管理'}</h3><p class="muted">${esc(t.reason||'关闭侧栏或切换聊天不会终止任务。执行状态、检查结果和是否合入分别显示。')}</p><div class="summary-line"><small>检查结果</small><span>${checkNames[t.checks]}</span></div><div class="summary-line"><small>代码结果</small><span>${esc(t.adoption)}</span></div><div class="summary-line"><small>已有改动</small><span>${t.changes?'已保留在任务工作目录':'尚无改动记录'}</span></div><div class="summary-line"><small>重新运行来源</small><span>${t.from?'任务 '+t.from:'首次执行'}</span></div></div>`;
+ const checks=`<div class="stack"><h3>检查：${checkNames[t.checks]}</h3><div class="log">${t.checks==='passed'?'[模拟执行证据] npm run check\n退出码：0\n相关检查通过':t.checks==='failed'?'[模拟执行证据] npm run check\n退出码：1\n筛选结果为空时，计数断言失败':'未运行检查；不能从代理摘要推断检查通过。'}</div><small>正式功能应记录实际检查命令、结果和证据；这里没有执行命令。</small></div>`;
+ const content=state.tab==='logs'?`<div class="log">${esc(t.logs.join('\n'))}</div>`:state.tab==='diff'?diff(t):state.tab==='checks'?checks:summary;
+ return `<div class="row between"><h2>任务 ${t.id}</h2><span class="chip">${status(t)}</span></div><p style="margin-top:8px">${esc(t.description)}</p><div class="facts">${fact('项目',t.project)}${fact('固定任务基线',t.base)}${fact('独立结果分支',t.branch)}${fact('模型 / 强度',t.model+' / '+t.effort)}${fact('运行时限',t.minutes+' 分钟，不含排队')}${fact('执行 / 结果',names[t.status]+' / '+t.adoption)}</div>${t.reconcile?'<div class="notice warning banner">显示上次已知状态。原执行尚待核实，不会在这里一键重跑。</div>':''}<div class="tabs">${[['summary','摘要'],['logs','实时日志'],['diff','代码差异'],['checks','检查证据']].map(([key,title])=>B(title,'TAB',{tab:key},state.tab===key?'active':'')).join('')}</div>${content}<div class="row actions">${B('请求取消','CANCEL')}${B('重新运行…','RERUN')}${B('预览合入…','MERGE_OPEN')}${B('清理…','CLEAN_OPEN')}</div><p class="status-note">不可用操作会说明原因；运行中、停止中和待核实任务不能清理。</p>`;
+}
+function render(){
+ const t=SandboxModel.selected(state),all=state.tasks.filter(SandboxModel.live).length,items=state.tasks.filter(x=>x.project===state.project);
+ $('#state').innerHTML=`<div class="row between"><h2>当前状态</h2><span class="chip">本地接入 · 无远程中继</span></div><div class="facts">${fact('当前项目 / 聊天',state.project+' / '+state.chat)}${fact('本机组件 / 连接',`${state.component?'运行中':'未运行'} / ${state.connected?'已连接':'已断开'}`)}${fact('沙箱环境（模拟）',`${state.docker?'Docker 就绪':'Docker 未就绪'} · ${state.auth?'登录有效':'登录失效'} · ${state.modelOK?'模型可用':'模型不可用'}`)}${fact('整机执行名额',`${all} / ${state.limit} · 当前项目 ${items.length} 项任务`)}${fact('主分支最新提交',state.head)}${fact('未提交输入 / 合入目标',`${state.sourceDirty} 项不带入 / ${state.targetDirty?'有改动，阻止合入':'干净（模拟）'}`)}${fact('侧栏 / 数据',`${state.panel?'已打开':'已关闭'} / 仅页面内存`)}${fact('结果与日志留存','手动清理，刷新页面全部重置')}</div><div class="row toolbar">${B('切换项目','PROJECT',{},'small')}${B('同项目切换聊天','CHAT',{},'small')}${B(state.panel?'模拟关闭侧栏':'重新打开侧栏','PANEL',{},'small')}${B(`并发上限：${state.limit}（点击切换）`,'LIMIT',{},'small')}</div>`;
+ $('#notice').textContent=state.notice;
+ $('#scenarios').innerHTML=scenarios.map((x,i)=>`<button data-scenario="${i}" class="${i===scenario?'active':''}" aria-pressed="${i===scenario}">${x.name}</button>`).join('');
+ $('#guide-copy').textContent=scenarios[scenario].copy;
+ $('#steps').innerHTML=scenarios[scenario].steps.map(([title],i)=>`<button data-step="${i}" ${i!==step?'disabled':''} class="${i<step?'done':i===step?'primary':''}">${i<step?'✓':i+1} ${title}</button>`).join('')+(step===scenarios[scenario].steps.length?'<span class="chip">本场景已走完，可自由继续操作</span>':'');
+ let detail='';
+ if(!state.panel)detail=`<div class="close-panel"><h2>侧栏已关闭（模拟）</h2><p class="muted">本机后台状态仍在上方显示。可用下方模拟事件继续推进任务，再重新打开。</p>${B('重新打开侧栏','PANEL',{},'primary')}</div>`;
+ else if(state.draft)detail=draftView(state.draft);
+ else if(state.merge&&t)detail=mergeView(t);
+ else if(state.cleanup&&t)detail=`<section class="sheet stack"><h2>确认清理任务 ${t.id}</h2><p>将移除以下模拟内容：</p><ul><li>本次任务的历史记录</li><li>任务日志和保留的工作目录</li><li>结果分支 <code>${esc(t.branch)}</code></li></ul><p class="muted">不会影响主工作区。正式功能需要按此范围执行；这里仅删除内存数据。</p><div class="row">${B('确认清理','CLEAN_CONFIRM')}${B('保留并返回','CLOSE_SHEET')}</div></section>`;
+ else if(t)detail=taskView(t);
+ else detail=`<div class="empty"><h2>${items.length?'选择一项任务':'从一个明确的任务开始'}</h2><p>启动前可以编辑来源、描述、模型和运行时限。</p><p>任务执行与代码结果接纳分别确认。</p></div>`;
+ $('#app').innerHTML=`<div class="row between" style="margin-top:20px"><div><h2>沙箱任务 · ${esc(state.project)}</h2><small>以下是插件内拟呈现的操作流程</small></div>${B('＋ 新建沙箱任务','NEW',{},'primary')}</div><div class="workspace"><aside class="tasklist"><h3>任务列表</h3>${items.length?items.map(x=>`<button data-action="SELECT" data-args='{"id":${x.id}}' class="task ${x.id===state.selected?'selected':''}"><small>任务 ${x.id} · ${x.source==='issue'?'Issue':'手填'}</small><strong>${esc(x.description.slice(0,38))}</strong><span class="chip">${status(x)}</span><small style="margin-top:6px">基线 ${esc(x.base)} · 检查${checkNames[x.checks]}</small></button>`).join(''):'<p class="muted">当前项目还没有任务。</p>'}</aside><div class="detail">${detail}</div></div>`;
+ const controls=[['任务推进',[[ '模拟已确认的新任务','DEMO_ADD',{ack:true}],['准备完成','READY'],['追加代码与日志','LOG'],['完成 · 检查通过','COMPLETE',{checks:'passed'}],['完成 · 检查失败','COMPLETE',{checks:'failed'}],['完成 · 未运行检查','COMPLETE',{checks:'notrun'}],['模拟失败','FAIL']]],['停止与恢复',[[ '请求取消','CANCEL'],['模拟超时','TIMEOUT'],['确认执行已停止','STOP_ACK'],['断开连接','DISCONNECT'],['恢复连接','CONNECT'],['核实原执行仍在','VERIFY_RUNNING'],['核实原执行已结束','VERIFY_STOPPED'],['模拟组件重启','RESTART'],['确认恢复所选排队任务','RESUME_QUEUE']]],['环境与版本',[[ '主分支新增提交','HEAD'],['切换 Docker 就绪状态','ENV',{key:'docker'}],['切换登录有效状态','ENV',{key:'auth'}],['切换模型可用状态','ENV',{key:'modelOK'}],['切换目标工作区干净/有改动','TARGET_DIRTY'],['切换合入冲突','CONFLICT']]]];
+ $('#free').innerHTML=controls.map(([name,rows])=>`<div class="group"><small>${name}</small><div class="controls">${rows.map(([title,type,args])=>B(title,type,args||{},'small')).join('')}</div></div>`).join('');
+ $('#trace').innerHTML=state.trace.length?state.trace.map(x=>`<div>${esc(x)}</div>`).join(''):'<div>还没有操作。</div>';
+}
+document.addEventListener('click',e=>{
+ const scenarioButton=e.target.closest('[data-scenario]');if(scenarioButton){scenario=Number(scenarioButton.dataset.scenario);step=0;state=SandboxModel.initial();render();return;}
+ const stepButton=e.target.closest('[data-step]');if(stepButton){const i=Number(stepButton.dataset.step);if(i!==step)return;state=SandboxModel.reduce(state,scenarios[scenario].steps[i][1]);step++;render();return;}
+ const b=e.target.closest('[data-action]');if(!b)return;e.preventDefault();const a={type:b.dataset.action,...JSON.parse(b.dataset.args||'{}')};if(a.type==='START')a.ack=$('#excluded-ack')?.checked||false;if(a.type==='MERGE_CONFIRM'){a.ack=$('#checks-ack')?.checked||SandboxModel.selected(state)?.checks==='passed';a.target=$('#merge-target')?.value;}dispatch(a);
+});
+document.addEventListener('submit',e=>{if(e.target.id!=='draft-form')return;e.preventDefault();dispatch({type:'PREVIEW',fields:Object.fromEntries(new FormData(e.target))});});
+$('#reset').onclick=()=>{step=0;state=SandboxModel.initial();render();};
+window.sandboxDemo={getState:()=>structuredClone(state),dispatch,reset:()=>{state=SandboxModel.initial();step=0;render();}};
+render();
+</script>
+</html>
