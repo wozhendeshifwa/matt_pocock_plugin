@@ -9,8 +9,8 @@ import { repoRoot } from "./install.mjs";
 import { createTestCodexHome } from "./test-codex-home.mjs";
 
 // This harness replays the real desktop handshake's capability key set. It does
-// not claim native pane placement or visual acceptance: those still require a
-// human in the Codex desktop client.
+// not claim native pane placement or visual acceptance: those require separate
+// observation of the actual desktop client.
 
 const args = process.argv.slice(2);
 const options = { capture: null, issue: 14, help: false };
@@ -184,14 +184,17 @@ try {
   assert.ok(listText.length > 0, "Panel must render repository data");
   row().click();
   await until(() => window.document.body.textContent.includes("返回列表"), "issue detail");
-  for (const [label, target] of [["执行", "active"], ["新会话", "new"]]) {
-    const button = [...window.document.querySelectorAll("button")]
-      .find(element => element.textContent.trim() === label);
-    assert.ok(button, `Action button ${label} must exist`);
+  const toggle = window.document.querySelector('[data-bottom-action-toggle]');
+  assert.ok(toggle, 'the actual built detail offers its action preview');
+  toggle.click();
+  await until(() => window.document.querySelector('[data-issue-action-draft]'), 'visible editable preview');
+  for (const target of ['active', 'new']) {
+    const button = window.document.querySelector(`[data-issue-action-export="${target}"]`);
+    assert.ok(button, `Explicit ${target} output must be discoverable`);
     button.click();
-    await until(() => messages.some(message => message._meta?.["openai/message"]?.target === target),
-      `${label} prefill`);
+    await until(() => /宿主.*可靠|宿主.*不可用/.test(window.document.body.textContent), `${target} refuses unreliable host output`);
   }
+  assert.equal(messages.length, 0, 'native message capability is insufficient to mutate unknown composer content');
   for (const id of ["board", "status", "run"]) {
     assert.ok(window.document.querySelector(`[data-mattskills-tab="${id}"]`), `Panel tab ${id} must render`);
   }
@@ -208,9 +211,9 @@ try {
   assert.deepEqual(errors, []);
   console.log("PASS replayed real desktop capabilities include experimental.openai/message");
   console.log("PASS panel -> real MCP server -> real GitHub list/detail");
-  console.log("PASS 执行 / 新会话 produce send:false composer drafts for active/new targets");
+  console.log("PASS active/new refuse unsupported draft reads/receipts without ui/message; preview remains editable");
   console.log("PASS panel-internal status/run tabs render with real session data");
-  console.log("NOTE native pane placement and visual acceptance still require the desktop user");
+  console.log("NOTE replay is not native draft success or visual acceptance; unsupported native success remains pending");
 } finally {
   if (dom) dom.window.close();
   for (const { timer } of requests.values()) clearTimeout(timer);

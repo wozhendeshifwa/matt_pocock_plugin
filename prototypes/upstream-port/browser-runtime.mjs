@@ -3,6 +3,7 @@ import * as ReactDOM from "react-dom";
 import { createRoot } from "react-dom/client";
 import { summarizeHostContext } from "./host-context.mjs";
 import { namingDisabledText } from "./naming-capability.mjs";
+import { createProtectedDraftOutputs } from "./protected-draft-outputs.mjs";
 import { ManualNaming } from "./manual-naming-view.mjs";
 import { createSandboxTaskView } from "../sandbox-tasks/view.mjs";
 const SandboxTaskView = createSandboxTaskView(React);
@@ -79,6 +80,7 @@ function PanelShell({ Panel, Settings, Status, Run, panelProps, locale, connecti
 // native session IDs, repository bindings, or successful action responses.
 window.MattSkillsCodex = {
   summarizeHostContext,
+  createProtectedDraftOutputs,
   mount(element, hostServices, panelProps = {}) {
     if (!plugin) throw new Error("Original MattSkills client has not loaded");
     const slots = new Map();
