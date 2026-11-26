@@ -49,6 +49,19 @@ try{
   assert.match(drafts[0].text,/https:\/\/github.com\/example\/deck\/issues\/61/);
   assert.match(drafts[0].text,/规格.*实施票|spec.*ticket/i);
   assert.match(drafts[0].text,/范围|scope/i);
+  const oldUrlTemplate=snapshot.value.backendModules[0].links.issueUrlTemplate;
+  const oldIssueUrl=issue.url;
+  for(const plainPath of ['/research/file.md','C:/notes/research/file.md','https://example.com/research/file.md']){
+    snapshot.value.backendModules[0].links.issueUrlTemplate=plainPath;
+    issue.url=plainPath;
+    const beforePrepare=preparations.length,beforeCopy=copies.length;
+    w.document.querySelector('.dsws-stickybar button.ghost').click();
+    await until(()=>copies.length===beforeCopy+1);
+    assert.equal(copies.at(-1),plainPath);
+    assert.equal(preparations.length,beforePrepare,'ordinary URL/file copying must not maintain skills');
+  }
+  snapshot.value.backendModules[0].links.issueUrlTemplate=oldUrlTemplate;
+  issue.url=oldIssueUrl;
   button('新会话').click();await until(()=>drafts.length===2);
   assert.equal(drafts[1].text,drafts[0].text);
   assert.equal(w.localStorage.getItem('dsws.templates'),oldTemplates,'old values remain recoverable, inactive');
