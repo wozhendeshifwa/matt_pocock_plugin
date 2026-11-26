@@ -9,16 +9,23 @@ let disposed=0;
 let lastPayload=null;
 const mounts=[];
 const messages=[];
+const preparations=[];
+let holdPreparation=false;
+let finishPreparation;
 w.setInterval=fn=>{poll=fn;return 1};
 w.MattSkillsCodex={mount(element,services,props){mounts.push({services,props});return ()=>disposed++}};
 w.postMessage=message=>{
  if(!message.id)return;
  if(message.method==='ui/message')messages.push(message.params);
  if(message.params?.name==='deck_upstream_read')lastPayload=message.params.arguments?.payload;
+ if(message.params?.arguments?.method==='skill.prepare')preparations.push(message.params);
  const result=message.method==='ui/initialize'?{hostContext:{},hostCapabilities:{experimental:{'openai/message':true}}}:
  message.params.name==='deck_current_project'?{structuredContent:active}:
+ message.params.arguments?.method==='skill.prepare'?{structuredContent:{ok:true,value:{status:'source-unbound',bindings:[]}}}:
  {structuredContent:{ok:true,value:{}}};
- queueMicrotask(()=>w.dispatchEvent(new w.MessageEvent('message',{source:w,data:{jsonrpc:'2.0',id:message.id,result}})));
+ const respond=()=>w.dispatchEvent(new w.MessageEvent('message',{source:w,data:{jsonrpc:'2.0',id:message.id,result}}));
+ if(holdPreparation&&message.params?.arguments?.method==='skill.prepare')finishPreparation=respond;
+ else queueMicrotask(respond);
 };
 w.eval(await readFile(new URL('sidebar-bridge.js',import.meta.url),'utf8'));
 await new Promise(r=>setTimeout(r,20));
@@ -40,6 +47,16 @@ await mounts[0].services.codexActions.prefill('new','same-project draft');
 assert.equal(messages.length,1);
 assert.equal(messages[0]._meta['openai/message'].target,'new');
 assert.equal(messages[0]._meta['openai/message'].send,false);
+const preparation=await mounts[0].services.skillPreparation.prepare('tdd');
+assert.equal(preparation.status,'source-unbound');
+assert.equal(preparations[0].name,'deck_upstream_write');
+assert.equal(preparations[0].arguments.payload.expectedThreadId,'project-a-2');
+holdPreparation=true;
+const pendingPreparation=mounts[0].services.skillPreparation.prepare('tdd');
+while(!finishPreparation)await new Promise(resolve=>setTimeout(resolve,1));
+const rejectedPreparation=assert.rejects(pendingPreparation,/已切换/);
+active={threadId:'project-a-switched',projectRoot:'C:/a',cwd:'C:/a'};
+finishPreparation();await rejectedPreparation;holdPreparation=false;
 
 // A cwd below the same project root is still the same board.
 active={threadId:'project-a-3',projectRoot:'C:/a',cwd:'C:/a/sub'};

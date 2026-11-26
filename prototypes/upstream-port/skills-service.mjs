@@ -57,7 +57,7 @@ function entryFrom(parsed, file) {
   };
 }
 
-export function createSkillsService({ bundledDir, workspaceRoot, resolveHostSkill, assessRequirements, managedNames = MATT_SKILL_PROBE_NAMES } = {}) {
+export function createSkillsService({ bundledDir, managedBundledDir, workspaceRoot, resolveHostSkill, assessRequirements, managedNames = MATT_SKILL_PROBE_NAMES } = {}) {
   const names = [...new Set(managedNames)].filter(name => SKILL_NAME.test(name));
   const normalize = value => String(value).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n').map(line => line.trimEnd()).join('\n').trim();
   const sameProject = async value => {
@@ -118,7 +118,7 @@ export function createSkillsService({ bundledDir, workspaceRoot, resolveHostSkil
   }
   async function inspect(name) {
     if (!names.includes(name)) return null;
-    const bundled = await load(name, path.join(bundledDir, name, 'SKILL.md'));
+    const bundled = (managedBundledDir && await load(name, path.join(managedBundledDir, name, 'SKILL.md'))) || await load(name, path.join(bundledDir, name, 'SKILL.md'));
     const resolution = await resolveBinding(name);
     const hostResolution = resolveHostSkill ? 'unavailable' : 'unknown';
     const host = resolution && await load(name, resolution.path);
