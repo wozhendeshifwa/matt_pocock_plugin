@@ -6,6 +6,8 @@ import path from "node:path";
 import { adaptCommentPagination } from "./comment-pagination-client.mjs";
 import { adaptSkillPrefixes } from "./skill-prefix-client.mjs";
 import { adaptIssueActions } from "./issue-actions-client.mjs";
+import { adaptContextRequests } from "./context-request-client.mjs";
+import { adaptSkillSourceDisplay } from "./skill-source-client.mjs";
 
 const runtime = await build({
   entryPoints: [new URL("browser-runtime.mjs", import.meta.url).pathname.replace(/^\/(\w:)/, "$1")],
@@ -26,6 +28,8 @@ adapted = adapted.replace(sandboxAnchor, sandboxAnchor + `
 const skillNames = (await readdir(new URL("../../vendor/mattskills-1.8.0-rc.7/bundled-skills/", import.meta.url), { withFileTypes: true }))
   .filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
 adapted = adaptSkillPrefixes(adapted, skillNames);
+adapted = adaptContextRequests(adapted);
+adapted = adaptSkillSourceDisplay(adapted);
 adapted = adaptIssueActions(adapted);
 for (const [anchor, target] of [
   ["const inject = (st, text) => {", "active"],
@@ -35,7 +39,7 @@ for (const [anchor, target] of [
   adapted = adapted.replace(anchor, anchor + `
       const codexActions = ctx.get('codexActions');
       if (codexActions) {
-        Promise.resolve().then(() => codexActions.prefill(${JSON.stringify(target)}, codexSkillText(text)))
+        Promise.resolve().then(() => codexActions.prefill(${JSON.stringify(target)}, text))
           .then(() => flash(st, tr('toast.injected'), 'ok'))
           .catch(error => flash(st, String(error && error.message || error), 'warn'));
         return;
@@ -81,6 +85,6 @@ await writeFile(new URL("manifest.json", output), JSON.stringify({
   upstreamVersion: "1.8.0-rc.7",
   upstreamClientSha256: createHash("sha256").update(original).digest("hex"),
   output: "client.js",
-  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft"],
+  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay"],
 }, null, 2) + "\n");
 console.log("Built original MattSkills client with Codex mounting adapter");

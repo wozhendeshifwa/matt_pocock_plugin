@@ -10,6 +10,8 @@
     "DetailsDock.headerActions",
     "comments.pagination",
     "skills.dollarPrefix",
-    "issueActions.scenarioDraft"
+    "issueActions.scenarioDraft",
+    "context.requests.v2",
+    "skills.sourceDisplay"
   ]
 }
