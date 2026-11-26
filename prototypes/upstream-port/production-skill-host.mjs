@@ -3,11 +3,29 @@ import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { MATT_SKILL_PROBE_NAMES } from '../../vendor/mattskills-1.8.0-rc.7/shared/matt-skills.js';
 import { acquireSkillMaintenanceLock } from './skill-updates.mjs';
 const exec = promisify(execFile);
+function runGit(args) {
+ return new Promise((resolve,reject)=>{
+  const child=spawn('git',args,{windowsHide:true,detached:process.platform!=='win32',stdio:['ignore','pipe','pipe'],env:{...process.env,GIT_NO_LAZY_FETCH:'1'}});
+  const output=[];let size=0,failed=false,stopping;
+  const stop=()=>stopping??=(async()=>{
+   failed=true;
+   if(child.pid) {
+    if(process.platform==='win32') await exec('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,timeout:10000}).catch(()=>child.kill());
+    else {try{process.kill(-child.pid,'SIGKILL');}catch{child.kill();}}
+   }
+  })();
+  const timer=setTimeout(stop,45000);
+  child.stdout.on('data',bytes=>{size+=bytes.length;if(size>10*1024*1024)void stop();else output.push(bytes);});
+  child.stderr.resume();
+  child.once('error',error=>{clearTimeout(timer);reject(error);});
+  child.once('close',async code=>{clearTimeout(timer);await stopping;if(failed||code!==0)reject(Error('git-source-read-failed'));else resolve(Buffer.concat(output));});
+ });
+}
 const APPROVED = Object.freeze({repository:'https://github.com/FeatherHunter/dsh-mattpocock-skills-deck.git',ref:'refs/heads/main',skillPrefix:'package/bundled-skills/',names:MATT_SKILL_PROBE_NAMES});
 const sha = value => createHash('sha256').update(value).digest('hex');
 async function noLink(file) {
@@ -35,17 +53,20 @@ export function createProductionSkillHost({dataRoot,workspaceRoot,source=APPROVE
    if(JSON.stringify(binding)!==JSON.stringify({schema:1,...identity})) throw Error('bound-source-changed');
    let manifestFile=path.join(directory,'unavailable','manifest.json'), sourceError;
    try {
-   const repository=path.join(directory,'repository.git'); await noLink(repository);
-   const git=async args=>(await exec('git',['-c','core.hooksPath='+path.join(directory,'no-hooks'),...args],{timeout:45000,maxBuffer:10*1024*1024,encoding:'buffer',windowsHide:true})).stdout;
-   if(!await fs.stat(repository).catch(()=>null)) await git(['init','--bare',repository]);
-   await git(['--git-dir',repository,'fetch','--no-tags','--depth=1',identity.repository,identity.ref]);
-   const revision=(await git(['--git-dir',repository,'rev-parse','FETCH_HEAD'])).toString().trim();
+   const git=args=>runGit(['-c','core.hooksPath='+path.join(directory,'no-hooks'),...args]);
+   const remote=(await git(['ls-remote','--exit-code',identity.repository,identity.ref])).toString().trim().split(/\s+/);
+   if(remote.length!==2||remote[1]!==identity.ref) throw Error('invalid-source-ref');
+   const revision=remote[0];
    if(!/^[a-f0-9]{40,64}$/.test(revision)) throw Error('invalid-source-revision');
    const snapshot=path.join(directory,revision); await noLink(snapshot);
    manifestFile=path.join(snapshot,'manifest.json');
-   // A successful online fetch is still mandatory before reusing an unchanged snapshot.
+   // Query the approved online ref every time. Unchanged snapshots need no fetch/blobs.
    if(!await fs.stat(manifestFile).catch(()=>null)) {
     const staging=path.join(directory,'stage-'+randomUUID()); await fs.mkdir(staging);
+    // Interrupted fetch repositories are recovery material, never reused or unlocked.
+    const repository=path.join(staging,'repository.git');
+    await git(['init','--bare',repository]);
+    await git(['--git-dir',repository,'fetch','--no-tags','--depth=1','--filter=blob:limit=200001',identity.repository,revision]);
     const tree=(await git(['--git-dir',repository,'ls-tree','-r','-l','-z',revision,'--',identity.skillPrefix])).toString('utf8').split('\0').filter(Boolean);
     if(tree.length>4096) throw Error('source-tree-size-limit');
     const skills=new Map(); let total=0;
@@ -68,8 +89,10 @@ export function createProductionSkillHost({dataRoot,workspaceRoot,source=APPROVE
     }
     if(skills.size!==identity.names.length) throw Error('missing-managed-skill');
     for(const files of skills.values()) if(!files.some(f=>f.path==='SKILL.md')) throw Error('missing-skill-document');
-    await atomic(path.join(staging,'manifest.json'),{sourceId,revision,skills:[...skills].map(([name,files])=>({name,files}))});
-    await fs.rename(staging,snapshot);
+    const filesRoot=path.join(staging,'files'); await fs.mkdir(filesRoot);
+    for(const name of skills.keys()) await fs.rename(path.join(staging,name),path.join(filesRoot,name));
+    await atomic(path.join(filesRoot,'manifest.json'),{sourceId,revision,skills:[...skills].map(([name,files])=>({name,files}))});
+    await fs.rename(filesRoot,snapshot);
    }
    } catch {sourceError='source-refresh-failed';}
    return [{id:'approved-plugin-reference',sourceId,kind:'bundled',projectRoot:await fs.realpath(workspaceRoot),manifestUrl:pathToFileURL(manifestFile).href,...(sourceError?{sourceError}:{})}];

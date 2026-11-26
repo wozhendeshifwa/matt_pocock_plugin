@@ -11,7 +11,7 @@ child.stderr.on('data',()=>{});
 child.on('message',message=>{const entry=pending.get(message.id);if(entry){pending.delete(message.id);message.error?entry.reject(Error(message.error)):entry.resolve(message.result);}});
 child.on('exit',()=>{for(const item of pending.values())item.reject(Error('worker-exited'));});
 function call(method,payload={}){return new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});child.send({id,method,payload});});}
-const timer=setTimeout(()=>child.kill(),120000);
+const timer=setTimeout(()=>child.kill(),180000);
 try {
  const first=(await call('skill.prepare',{name:'tdd'})).value;
  const second=(await call('skill.prepare',{name:'tdd'})).value;

@@ -4,7 +4,7 @@
 
 生产 project-worker 注入 createProductionSkillHost。固定上游为 FeatherHunter/dsh-mattpocock-skills-deck.git 的 main，仅接收 package/bundled-skills 下既定27项；上游内容只以git树和blob读取，不checkout或执行。插件数据目录保存首次绑定及原始备份，后续不一致/损坏拒绝；普通RPC无法选择源、目标或项目。
 
-每次先在线浅fetch取得真实revision，成功且revision未变时复用有界文件快照；无变化不重新读取blob或下载技能正文。离线返回source-refresh-failed而不是拿旧缓存声称最新。变更快照转换成原更新器的完整文件hash清单，目标仍只为dataRoot/skill-library，原来的备份、锁、阶段恢复与失败保留继续使用。源快照锁复用同一PID/token锁，崩溃可回收。合法绑定的网络失败仍进入原更新器恢复阶段，之后才报告失败。
+每次先在线ls-remote取得真实revision，成功且revision未变时复用有界文件快照，不fetch或重新读取blob。新revision用独立stage-UUID裸仓库，以depth=1和blob:limit=200001过滤取得固定SHA；GIT_NO_LAZY_FETCH禁止隐式补下超大blob。仅完整技能快照成功后发布，旧中断stage及repository.git/shallow.lock保留、不解锁且不再使用。每个Git命令限制45秒；超时按本次spawn拥有的PID清理整棵Git进程树，不先杀wrapper留下后代。离线返回source-refresh-failed而不是拿旧缓存声称最新。变更快照转换成原更新器的完整文件hash清单，目标仍只为dataRoot/skill-library，原来的备份、锁、阶段恢复与失败保留继续使用。源快照锁复用同一PID/token锁，崩溃可回收。合法绑定的网络失败仍进入原更新器恢复阶段，之后才报告失败。
 
 维护前置与执行前置分开：参考副本维护核验完整文件及引用、git源读取；Agent技能使用的工具核验仍未知，保持execution.allowed=false/actualLoad=unknown，不伪造宿主加载或用户目录解析。首次绑定是本轮用户授权，不宣称此前已有用户目录绑定。
 

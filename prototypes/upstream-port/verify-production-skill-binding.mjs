@@ -24,10 +24,16 @@ try {
  const manager = createSkillUpdateManager({dataRoot:data,workspaceRoot:root,getBindings:host.getUpdateBindings,assessMaintenanceRequirements:host.assessMaintenanceRequirements});
  assert.equal((await manager.prepare({reason:'startup'})).latest,true);
  assert.match(await fs.readFile(path.join(data,'skill-library/tdd/SKILL.md'),'utf8'),/first/);
+ await fs.mkdir(path.join(data,'skill-source/repository.git'),{recursive:true});
+ await fs.writeFile(path.join(data,'skill-source/repository.git/shallow.lock'),'unfinished fetch; preserve');
+ await fs.mkdir(path.join(data,'skill-source/stage-interrupted/repository.git'),{recursive:true});
+ await fs.writeFile(path.join(data,'skill-source/stage-interrupted/repository.git/shallow.lock'),'unfinished isolated fetch');
  assert.equal((await manager.prepare({name:'tdd'})).bindings[0].downloadedFiles,0);
  await publish('second');
  const update = await manager.prepare({name:'tdd'});
  assert.equal(update.bindings[0].status,'updated');
+ assert.equal(await fs.readFile(path.join(data,'skill-source/repository.git/shallow.lock'),'utf8'),'unfinished fetch; preserve');
+ assert.equal(await fs.readFile(path.join(data,'skill-source/stage-interrupted/repository.git/shallow.lock'),'utf8'),'unfinished isolated fetch');
  assert.match(await fs.readFile(path.join(data,'skill-library/.mattskills-maintenance',update.bindings[0].backupId,'backup/tdd/SKILL.md'),'utf8'),/first/);
  await fs.rename(source,source+'.offline');
  const journalId=randomUUID(), control=path.join(data,'skill-library/.mattskills-maintenance');
