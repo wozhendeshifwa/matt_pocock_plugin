@@ -1,0 +1,99 @@
+{
+  "first": {
+    "status": "checked",
+    "latest": true,
+    "checkedAt": "2026-11-26T16:04:04.939Z",
+    "actualLoad": "unknown",
+    "bindings": [
+      {
+        "id": "approved-plugin-reference",
+        "sourceId": "git:https://github.com/FeatherHunter/dsh-mattpocock-skills-deck.git#refs/heads/main",
+        "latest": true,
+        "downloadedFiles": 0,
+        "status": "up-to-date",
+        "actualLoad": "unknown",
+        "revision": "ec47e0c7b0c11d9af5d2a9bda515546e854e19ff",
+        "availability": [
+          {
+            "name": "tdd",
+            "targetReadable": true,
+            "fallbackReadable": true,
+            "usable": false,
+            "mode": "prerequisites-unverified"
+          }
+        ],
+        "readable": true,
+        "usable": false
+      }
+    ]
+  },
+  "second": {
+    "status": "checked",
+    "latest": true,
+    "checkedAt": "2026-11-26T16:04:06.087Z",
+    "actualLoad": "unknown",
+    "bindings": [
+      {
+        "id": "approved-plugin-reference",
+        "sourceId": "git:https://github.com/FeatherHunter/dsh-mattpocock-skills-deck.git#refs/heads/main",
+        "latest": true,
+        "downloadedFiles": 0,
+        "status": "up-to-date",
+        "actualLoad": "unknown",
+        "revision": "ec47e0c7b0c11d9af5d2a9bda515546e854e19ff",
+        "availability": [
+          {
+            "name": "tdd",
+            "targetReadable": true,
+            "fallbackReadable": true,
+            "usable": false,
+            "mode": "prerequisites-unverified"
+          }
+        ],
+        "readable": true,
+        "usable": false
+      }
+    ]
+  },
+  "document": {
+    "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\.scratch\\upstream-sidebar\\7d8bf528a0966464\\projects\\69ff8ad74a90d870f3affc8196532e95b9863667df15dd0a8d2dd44ff6f623b4\\skill-library\\tdd\\SKILL.md",
+    "source": {
+      "kind": "bundled-reference",
+      "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\.scratch\\upstream-sidebar\\7d8bf528a0966464\\projects\\69ff8ad74a90d870f3affc8196532e95b9863667df15dd0a8d2dd44ff6f623b4\\skill-library\\tdd\\SKILL.md",
+      "hostResolution": "unknown",
+      "actualLoad": "unknown",
+      "difference": {
+        "kind": "unavailable"
+      },
+      "sourceId": null,
+      "binding": null,
+      "hostPath": null
+    },
+    "execution": {
+      "allowed": false,
+      "reasons": [
+        "工具及其他必要资料要求未核验；先查证，暂停依赖步骤。"
+      ],
+      "files": [
+        "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\.scratch\\upstream-sidebar\\7d8bf528a0966464\\projects\\69ff8ad74a90d870f3affc8196532e95b9863667df15dd0a8d2dd44ff6f623b4\\skill-library\\tdd\\SKILL.md",
+        "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\.scratch\\upstream-sidebar\\7d8bf528a0966464\\projects\\69ff8ad74a90d870f3affc8196532e95b9863667df15dd0a8d2dd44ff6f623b4\\skill-library\\tdd\\tests.md",
+        "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\.scratch\\upstream-sidebar\\7d8bf528a0966464\\projects\\69ff8ad74a90d870f3affc8196532e95b9863667df15dd0a8d2dd44ff6f623b4\\skill-library\\tdd\\mocking.md"
+      ],
+      "documentDigests": [
+        {
+          "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\.scratch\\upstream-sidebar\\7d8bf528a0966464\\projects\\69ff8ad74a90d870f3affc8196532e95b9863667df15dd0a8d2dd44ff6f623b4\\skill-library\\tdd\\mocking.md",
+          "sha256": "4bce7d1d2602ac3783f86fa544c3de31f4537a27212a05d525b994373e290419"
+        },
+        {
+          "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\.scratch\\upstream-sidebar\\7d8bf528a0966464\\projects\\69ff8ad74a90d870f3affc8196532e95b9863667df15dd0a8d2dd44ff6f623b4\\skill-library\\tdd\\SKILL.md",
+          "sha256": "7e9335aad6aaf5b006ad995e6158fbe9b7d7d2dcf2540c2211ef44f8609da2ca"
+        },
+        {
+          "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\.scratch\\upstream-sidebar\\7d8bf528a0966464\\projects\\69ff8ad74a90d870f3affc8196532e95b9863667df15dd0a8d2dd44ff6f623b4\\skill-library\\tdd\\tests.md",
+          "sha256": "2f3406f3b39339f019c38ee833588c74c7b2e23ddaef5718cc68463b3425b8ad"
+        }
+      ],
+      "mode": "bundled-readonly"
+    }
+  }
+}

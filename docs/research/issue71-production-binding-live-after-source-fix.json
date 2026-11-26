@@ -1,0 +1,99 @@
+{
+  "first": {
+    "status": "attention",
+    "latest": false,
+    "checkedAt": "2026-11-26T16:00:34.957Z",
+    "actualLoad": "unknown",
+    "bindings": [
+      {
+        "id": "approved-plugin-reference",
+        "sourceId": "git:https://github.com/FeatherHunter/dsh-mattpocock-skills-deck.git#refs/heads/main",
+        "latest": false,
+        "downloadedFiles": 0,
+        "status": "install-failed-no-usable-source",
+        "actualLoad": "unknown",
+        "errorKind": "source-refresh-failed",
+        "availability": [
+          {
+            "name": "tdd",
+            "targetReadable": false,
+            "fallbackReadable": true,
+            "usable": false,
+            "mode": "prerequisites-unverified"
+          }
+        ],
+        "readable": true,
+        "usable": false
+      }
+    ]
+  },
+  "second": {
+    "status": "attention",
+    "latest": false,
+    "checkedAt": "2026-11-26T16:00:36.067Z",
+    "actualLoad": "unknown",
+    "bindings": [
+      {
+        "id": "approved-plugin-reference",
+        "sourceId": "git:https://github.com/FeatherHunter/dsh-mattpocock-skills-deck.git#refs/heads/main",
+        "latest": false,
+        "downloadedFiles": 0,
+        "status": "install-failed-no-usable-source",
+        "actualLoad": "unknown",
+        "errorKind": "source-refresh-failed",
+        "availability": [
+          {
+            "name": "tdd",
+            "targetReadable": false,
+            "fallbackReadable": true,
+            "usable": false,
+            "mode": "prerequisites-unverified"
+          }
+        ],
+        "readable": true,
+        "usable": false
+      }
+    ]
+  },
+  "document": {
+    "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\tdd\\SKILL.md",
+    "source": {
+      "kind": "bundled-reference",
+      "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\tdd\\SKILL.md",
+      "hostResolution": "unknown",
+      "actualLoad": "unknown",
+      "difference": {
+        "kind": "unavailable"
+      },
+      "sourceId": null,
+      "binding": null,
+      "hostPath": null
+    },
+    "execution": {
+      "allowed": false,
+      "reasons": [
+        "工具及其他必要资料要求未核验；先查证，暂停依赖步骤。"
+      ],
+      "files": [
+        "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\tdd\\SKILL.md",
+        "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\tdd\\tests.md",
+        "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\tdd\\mocking.md"
+      ],
+      "documentDigests": [
+        {
+          "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\tdd\\mocking.md",
+          "sha256": "4bce7d1d2602ac3783f86fa544c3de31f4537a27212a05d525b994373e290419"
+        },
+        {
+          "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\tdd\\SKILL.md",
+          "sha256": "94598e7f02213f4fa9617318170a73af3d2b90352dac3abcf5f4cfeedffc5c96"
+        },
+        {
+          "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\tdd\\tests.md",
+          "sha256": "2f3406f3b39339f019c38ee833588c74c7b2e23ddaef5718cc68463b3425b8ad"
+        }
+      ],
+      "mode": "bundled-readonly"
+    }
+  }
+}
