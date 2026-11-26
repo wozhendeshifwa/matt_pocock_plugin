@@ -24,6 +24,8 @@ window.__ModuleLoader__ = {
 // are unchanged, and the settings page is the same SettingsPage the host's
 // settings.plugins.tab / settings.section slots would have carried.
 const DEFAULT_LABELS = { board: "看板", settings: "设置", status: "状态", run: "运行" };
+// Panel-session memory survives project remounts, never a page reload/restart.
+const actionDrafts = new Map();
 
 function PanelShell({ Panel, Settings, Status, Run, panelProps, locale, connection, labels = DEFAULT_LABELS }) {
   const language = React.useSyncExternalStore(
@@ -85,6 +87,7 @@ window.MattSkillsCodex = {
     const disposers = [];
     const services = {
       ...hostServices,
+      actionDrafts,
       slots: {
         inject(name, factory) { factory(); },
         register(options, component) {

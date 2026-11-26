@@ -6,6 +6,7 @@ const client = await readFile(new URL('dist/client.js', import.meta.url), 'utf8'
 async function scenario(labels, expected, detail = false, exercise = null, fixtureTitle = 'Action fixture', mapStats = null) {
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://actions.invalid', runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;
+  w.confirm = () => false;
   w.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
   const row = { key: '10', number: 10, type: 'issue', title: fixtureTitle, state: 'OPEN', labels, assignees: [], blockedBy: [], url: 'https://github.com/fixture/repo/issues/10' };
   if (mapStats) row.type = 'map';
