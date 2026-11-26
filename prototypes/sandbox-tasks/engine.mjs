@@ -9,12 +9,14 @@ export function atomicJson(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const temp = `${file}.${randomUUID()}.tmp`;
   fs.writeFileSync(temp, JSON.stringify(value, null, 2), { mode: 0o600 });
+  const deadline = performance.now() + 2000;
   try {
-    for (let attempt = 0; ; attempt++) {
+    for (;;) {
       try { fs.renameSync(temp, file); break; }
       catch (error) {
-        if (!['EPERM', 'EBUSY', 'EACCES'].includes(error.code) || attempt >= 10) throw error;
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+        const remaining = deadline - performance.now();
+        if (!['EPERM', 'EBUSY', 'EACCES'].includes(error.code) || remaining <= 0) throw error;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.min(20, remaining));
       }
     }
   } finally { if (fs.existsSync(temp)) fs.unlinkSync(temp); }
