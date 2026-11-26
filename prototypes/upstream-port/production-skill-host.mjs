@@ -69,6 +69,7 @@ export function createProductionSkillHost({dataRoot,workspaceRoot,source=APPROVE
     // Only transient Git objects use the OS temp root; binding/files stay in dataRoot.
     const temporaryRoot=await fs.realpath(os.tmpdir());
     const repository=await fs.mkdtemp(path.join(temporaryRoot,'mattskills-source-'));
+    const ownedRepository=await fs.realpath(repository);
     await atomic(path.join(staging,'source-repository.json'),{repository});
     await git(['init','--bare',repository]);
     await git(['--git-dir',repository,'fetch','--no-tags','--depth=1','--filter=blob:limit=200001',identity.repository,revision]);
@@ -98,8 +99,9 @@ export function createProductionSkillHost({dataRoot,workspaceRoot,source=APPROVE
     for(const name of skills.keys()) await fs.rename(path.join(staging,name),path.join(filesRoot,name));
     await atomic(path.join(filesRoot,'manifest.json'),{sourceId,revision,skills:[...skills].map(([name,files])=>({name,files}))});
     await fs.rename(filesRoot,snapshot);
+    await noLink(repository);
     const resolvedRepository=await fs.realpath(repository);
-    if(path.dirname(resolvedRepository)!==temporaryRoot||!path.basename(resolvedRepository).startsWith('mattskills-source-')) throw Error('temporary-repository-outside-root');
+    if(resolvedRepository!==ownedRepository||path.dirname(resolvedRepository)!==temporaryRoot||!path.basename(resolvedRepository).startsWith('mattskills-source-')) throw Error('temporary-repository-outside-root');
     await fs.rm(resolvedRepository,{recursive:true,force:true});
    }
    } catch {sourceError='source-refresh-failed';}
