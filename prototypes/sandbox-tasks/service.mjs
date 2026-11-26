@@ -25,6 +25,7 @@ export async function callService(project, method, input = {}, file) {
     let buffer = '';
     const timer = setTimeout(() => { socket.destroy(); reject(new Error('本机沙箱后台连接超时，任务状态待核实，请勿重复启动。')); }, 55000);
     socket.on('error', () => { clearTimeout(timer); reject(new Error('本机沙箱后台未连接。请启动后台后重试；不会自动重新执行任务。')); });
+    socket.once('close', () => { clearTimeout(timer); reject(new Error('本机后台连接中断，任务状态待核实，请查询原任务，勿重复启动。')); });
     socket.on('connect', () => socket.write(JSON.stringify({ token: config.token, project, method, input }) + '\n'));
     socket.on('data', bytes => {
       buffer += bytes;
@@ -35,7 +36,7 @@ export async function callService(project, method, input = {}, file) {
     });
   });
 }
-export async function serve(config, { engine = new TaskEngine(config) } = {}) {
+export async function serve(config, { engine = new TaskEngine(config), faults } = {}) {
   let manager;
   const server = net.createServer(socket => {
     let buffer = '', used = false;
@@ -48,13 +49,14 @@ export async function serve(config, { engine = new TaskEngine(config) } = {}) {
       if (!buffer.includes('\n')) return;
       used = true;
       void (async () => {
-        let reply;
+        let reply, faultRequest;
         try {
           const request = JSON.parse(buffer.split('\n')[0]);
           if (!authorized(request.token, config.token)) throw new Error('本机后台授权失败。');
           if (!manager) throw new Error('后台正在恢复状态，请稍后重试。');
           const project = fs.realpathSync(request.project);
           const input = request.input ?? {};
+          faultRequest = { project, method: request.method, input };
           let value;
           switch (request.method) {
             case 'list': value = { ...manager.list(project), models: config.models, modelEfforts: config.modelEfforts, defaultModel: config.defaultModel }; break;
@@ -86,7 +88,8 @@ export async function serve(config, { engine = new TaskEngine(config) } = {}) {
           }
           reply = { value };
         } catch (error) { reply = { error: error.message }; }
-        socket.end(JSON.stringify(reply) + '\n');
+        if (!reply.error && faults?.dropReply(faultRequest, reply.value)) socket.destroy();
+        else socket.end(JSON.stringify(reply) + '\n');
       })();
     });
   });
@@ -94,6 +97,8 @@ export async function serve(config, { engine = new TaskEngine(config) } = {}) {
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(endpoint(config), resolve); });
   manager = new TaskManager({ directory: config.directory, engine });
   await manager.recover();
+  if (faults) server.once('close', () => faults.close());
+  console.log(JSON.stringify({ event: 'sandbox-service-ready', faultInjection: faults?.status() ?? { enabled: false } }));
   return { manager, server, async close({ stop = false } = {}) {
     if (stop) {
       for (const task of manager.rows()) if (task.status === 'queued') manager.save({ ...task, paused: true });

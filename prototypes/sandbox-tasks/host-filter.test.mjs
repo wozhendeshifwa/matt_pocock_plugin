@@ -38,5 +38,3 @@ test('host status, SDK execFile and spawn cannot run task clean or process filte
     }
   } finally { fs.rmSync(directory, { recursive: true }); }
 });
-
-
