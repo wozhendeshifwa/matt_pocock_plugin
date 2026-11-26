@@ -4,6 +4,7 @@
 // No directory priority, profile scanning or provider/source switching occurs.
 import * as fs from "node:fs/promises";
 import path from "node:path";
+import { createHash } from 'node:crypto';
 import { MATT_SKILL_PROBE_NAMES } from '../../vendor/mattskills-1.8.0-rc.7/shared/matt-skills.js';
 
 const SKILL_NAME = /^[\p{L}0-9]+(?:-[\p{L}0-9]+)*$/u;
@@ -114,7 +115,10 @@ export function createSkillsService({ bundledDir, managedBundledDir, workspaceRo
     if (assessment?.complete !== true || !Array.isArray(assessment.tools)) reasons.push('工具及其他必要资料要求未核验；先查证，暂停依赖步骤。');
     for (const tool of Array.isArray(assessment?.tools) ? assessment.tools : []) if (tool?.available !== true) reasons.push('必要工具不可用或未核验：' + String(tool?.name));
     for (const missing of Array.isArray(assessment?.missing) ? assessment.missing : []) reasons.push('必要资料缺失：' + String(missing));
-    return { allowed: reasons.length === 0, reasons, files: documents.map(doc => doc.path) };
+    return { allowed: reasons.length === 0, reasons, files: documents.map(doc => doc.path),
+      documentDigests: documents.map(doc => ({ path:doc.path, sha256:createHash('sha256').update(normalize(doc.content)).digest('hex') }))
+        .sort((a,b)=>a.path.localeCompare(b.path)),
+    };
   }
   async function inspect(name) {
     if (!names.includes(name)) return null;
