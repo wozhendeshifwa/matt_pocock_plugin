@@ -48,12 +48,11 @@ export function createDraftReview({preparation,panel,editor,note,state,getGenera
         if(!panel.isConnected || editor.value!==before){note.textContent='草稿或目标已变化，请重新审阅；出口已停止。';return false;}
         if(result.allowed===true && result.status==='unchanged')return true;
         const accepted=await review.refresh();
-        // A changed candidate is visible first; a later explicit outlet click
-        // acknowledges it. An identical restored draft can rebind its snapshot.
+        // Even unchanged display text cannot approve changed source facts.
+        // A later explicit outlet click acknowledges the reviewed observation.
         if(!accepted)return false;
-        if(editor.value!==before){note.textContent+=' 技能状态已变化，请审阅更新后的预览，再次选择出口。';return false;}
-        const rebound=await preparation.check({draftId,text:editor.value});
-        return rebound.allowed===true && rebound.status==='unchanged' && panel.isConnected && editor.value===before;
+        note.textContent+=' 技能状态已变化，请审阅当前预览，再次选择出口。';
+        return false;
       }catch(error){note.textContent='来源复核失败：'+String(error.message || error)+'；草稿已保留，出口已停止。';return false;}
     },
   };

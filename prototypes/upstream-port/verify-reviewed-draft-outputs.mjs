@@ -6,7 +6,7 @@ for(const detail of [false,true]){
   const dom=new JSDOM('<main id="root"></main>',{url:'https://reviewed.invalid',runScripts:'outside-only',pretendToBeVisual:true});
   const w=dom.window;
   w.ResizeObserver=class{observe(){}unobserve(){}disconnect(){}};
-  let answer=false,version='A',receipt='valid';
+  let answer=false,version='A',receipt='valid',bodyRevision=1;
   w.confirm=()=>answer;
   const writes=[],copies=[];
   Object.defineProperty(w.navigator,'clipboard',{value:{async writeText(text){copies.push(text);}}});
@@ -22,7 +22,7 @@ for(const detail of [false,true]){
       if(['snapshot','refresh'].includes(r.method))return snapshot;
       if(r.method==='cwd')return {ok:true,value:{ok:true,cwd:session.cwd,workspaceRoot:session.cwd}};
       if(r.method==='issueDetail')return {ok:true,value:{ok:true,issue:{...row,body:'Original issue'}}};
-      if(r.method==='skill.readDoc')return {ok:true,value:{ok:true,path:'/rules/'+version+'/'+r.payload.name+'.md',md:'# '+version,source:{kind:'host-resolved',hostResolution:'resolved'},execution:{allowed:true}}};
+      if(r.method==='skill.readDoc')return {ok:true,value:{ok:true,path:'/rules/'+version+'/'+r.payload.name+'.md',md:'# '+version+' revision '+bodyRevision,source:{kind:'host-resolved',hostResolution:'resolved'},execution:{allowed:true}}};
       return {ok:true,value:{ok:false}};
     }}},
   },{sessionId:session.id,session,useSessions:select=>typeof select==='function'?select(sessions):sessions});
@@ -36,7 +36,7 @@ for(const detail of [false,true]){
     await until(()=>w.document.querySelector('[data-issue-action-draft]'));
     const editor=w.document.querySelector('[data-issue-action-draft]');
     await until(()=>editor.value.includes('/rules/A/'));
-    editor.value+='\nManual refinement';editor.dispatchEvent(new w.Event('input',{bubbles:true}));
+    editor.value='Manual refinement\n'+editor.value;editor.dispatchEvent(new w.Event('input',{bubbles:true}));
     const click=target=>w.document.querySelector('[data-issue-action-export="'+target+'"]').click();
     click('active');await until(()=>writes.length===1);
     await until(()=>w.document.body.textContent.includes('已填入当前聊天'));
@@ -49,6 +49,9 @@ for(const detail of [false,true]){
     receipt='wrong';click('new');await until(()=>writes.length===4);
     await until(()=>w.document.querySelector('[data-issue-action-preview]').textContent.includes('目标'));
     assert.equal(editor.value,final);
+    bodyRevision=2;
+    click('copy');await new Promise(r=>setTimeout(r,30));
+    assert.equal(copies.length,0,'a changed source body must stop the old outlet even if its path and note are unchanged');
     version='B';
     for(const target of ['copy','active','new']){
       const beforeWrites=writes.length,beforeCopies=copies.length;
@@ -69,6 +72,15 @@ for(const detail of [false,true]){
     click('new');await until(()=>writes.length===6);
     assert.equal(copies[0],accepted);assert.equal(writes.at(-1).text,accepted);assert.equal(writes.at(-2).text,accepted);
     assert.equal(editor.value,accepted);
+    if(!detail){
+      click('close');
+      w.document.querySelector('[aria-label="#10 Reviewed outputs"]').click();
+      await until(()=>w.document.querySelector('[data-bottom-action-toggle]'));
+      const toggle=w.document.querySelector('[data-bottom-action-toggle]');
+      if(toggle.getAttribute('aria-expanded')==='false')toggle.click();
+      await until(()=>w.document.querySelector('[data-issue-action-source]')?.getAttribute('data-source-state')==='ready');
+      assert.equal(w.document.querySelector('[data-issue-action-draft]').value,accepted,'list and detail previews share the same unsent issue draft');
+    }
     if(detail){
       dispose();version='C';answer=false;dispose=mount();
       await until(()=>w.document.querySelector('[aria-label="#10 Reviewed outputs"]'));

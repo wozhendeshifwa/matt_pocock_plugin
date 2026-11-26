@@ -50,7 +50,7 @@ export function adaptBottomActionBar(source) {
     review.refresh();`);
   const preview = 'const previewIssueAction = (st, issue) => showIssueActionDraft(';
   once(preview, "const previewIssueAction = (st, issue) => {\n      const bottom = bottomActionControllers.get(st);\n      if (bottom) return bottom.open();\n      return showIssueActionDraft(");
-  once('(target, finalText) => sendIssueActionDraft(st, target, finalText));', '(target, finalText) => sendIssueActionDraft(st, target, finalText));\n    };');
+  once('(target, finalText) => sendIssueActionDraft(st, target, finalText));', "(target, finalText) => sendIssueActionDraft(st, target, finalText), { state: actionDraftState(st, issue.number, issue.effortId || '') });\n    };");
   const component = `
     const bottomActionControllers = new WeakMap();
     const actionDraftKey = function (st, number, effortId) {
@@ -60,14 +60,17 @@ export function adaptBottomActionBar(source) {
       const repository = snapshot.repository || {};
       return JSON.stringify([projectKey, snapshot.selection?.backendId || repository.backend || '', repository.refId || repository.name || repoStr(st), effortId || '', String(number)]);
     };
+    const actionDraftState = function (st, number, effortId) {
+      const drafts = ctx.get('actionDrafts');
+      const key = actionDraftKey(st, number, effortId);
+      if (!drafts.has(key)) drafts.set(key, {});
+      return drafts.get(key);
+    };
     const BottomActionBar = function (props) {
       const st = props.st;
       const content = React.useRef(null);
       const mounted = React.useRef(null);
-      const draftKey = actionDraftKey(st, props.issue.number, props.effortId);
-      const drafts = ctx.get('actionDrafts');
-      let state = drafts.get(draftKey);
-      if (!state) { state = {}; drafts.set(draftKey, state); }
+      const state = actionDraftState(st, props.issue.number, props.effortId);
       const [open, setOpen] = React.useState(!!state.expanded);
       const setExpanded = function (value) { state.expanded = value; setOpen(value); };
       const request = issueActionRequest(props.issue, issueUrlFor(st, props.issue.number, props.effortId));
