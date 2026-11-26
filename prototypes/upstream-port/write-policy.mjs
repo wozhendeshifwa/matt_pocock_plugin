@@ -11,6 +11,7 @@ export const WRITE_AUDIT_FILE = "write-audit.jsonl";
 // log clear, and opening a folder/file that already lives under an allowed
 // root). #9 opens the Git write/publication family. Other endpoints fail closed.
 export const ENABLED_WRITE_ENDPOINTS = Object.freeze([
+  "skill.prepare",
   "commentIssue",
   "setLabelColors",
   "bind",
@@ -24,6 +25,7 @@ export const ENABLED_WRITE_ENDPOINTS = Object.freeze([
 ]);
 
 export const CATEGORIES = Object.freeze([
+  "skill-maintenance",
   "project-write",
   "external-github-write",
   "git-write",
@@ -38,12 +40,19 @@ export const CONFIRMATION = Object.freeze({
   toolApproval: "codex-tool-approval",
   explicitPath: "explicit-path",
   none: "none",
+  automaticLibrary: "automatic-library-policy",
   unsupported: "unsupported",
 });
 
 const GIT_PREFIX = "git --no-optional-locks --literal-pathspecs -c push.followTags=false -c push.default=nothing -c core.quotepath=false -c color.ui=false -c i18n.logOutputEncoding=UTF-8";
 
 export const WRITE_POLICY = Object.freeze({
+  'skill.prepare': {
+    category: 'skill-maintenance', confirmation: CONFIRMATION.automaticLibrary, destructive: false,
+    commands: [], fsTargets: ['<trusted-bound-skill-root>/{one-of-27-skills}', '<trusted-bound-skill-root>/.mattskills-maintenance', '<data-root>/skill-library'],
+    audit: true,
+    notes: 'Automatic maintenance is authorized for the fixed plugin library. Ordinary RPC payloads cannot select a source or write target; old versions are retained as recoverable backups.',
+  },
   commentIssue: {
     category: "external-github-write",
     confirmation: CONFIRMATION.upstreamDialog,

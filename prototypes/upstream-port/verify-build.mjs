@@ -22,7 +22,7 @@ const useSessions = selector => {
   return typeof selector === "function" ? selector(snapshot) : snapshot;
 };
 const dispose = window.MattSkillsCodex.mount(window.document.getElementById("root"), {
-  codexActions: { async prefill(target, text) { actions.push({ target, text }); } },
+  codexActions: { capabilities: { reliableDraft: true }, async prefill(target, text) { actions.push({ target, text }); return { status: "filled", target }; } },
   sessions: process.env.DECK_TEST_NO_SESSION ? undefined : {
     list: { getSnapshot: () => ({ current: session.id, byId: { [session.id]: session }, items: [session] }), subscribe: () => () => {} },
     get: id => id === session.id ? session : undefined,
@@ -60,6 +60,8 @@ try {
     const button = [...window.document.querySelectorAll("button")].find(element => element.textContent.trim() === label);
     assert.ok(button, "Original action button missing " + label);
     button.click();
+    await until(() => window.document.querySelector('[data-issue-action-draft]'));
+    window.document.querySelector(`[data-issue-action-export="${target}"]`).click();
     await until(() => actions.some(action => action.target === target));
   }
   assert.equal(actions[0].text, actions[1].text, "Original action prompt must be preserved across targets");

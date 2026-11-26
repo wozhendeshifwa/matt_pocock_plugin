@@ -75,23 +75,47 @@ try {
   const resolved = chain?.resolved ?? {};
   for (const name of ["wayfinder", "setup-matt-pocock-skills", "ask-matt"]) {
     const check = resolved["skill:" + name];
-    assert.equal(check?.status, "pass", "chain skill check must pass: " + name + " -> " + JSON.stringify(check));
-    assert.match(String(check.detail), /bundled-skills/, "chain detail points at the vendored skills");
+    assert.equal(check?.status, "pending", "readable reference does not prove host skill availability: " + name);
+    assert.match(check.detail, /随包参考/);
+    assert.match(String(check.detail), /bundled-skills|skill-library/, "chain detail points at a plugin reference copy");
   }
-  assert.equal(chain?.snapshot?.chainState, "allDone", "chain completes when skills resolve");
-  console.log("PASS check chain reports the vendored skills as installed (6/6)");
+  assert.notEqual(chain?.snapshot?.chainState, "allDone", "unknown host skill source must stay pending");
+  console.log("PASS check chain distinguishes readable references from host skills");
+
+  const deniedPrepare = await rpc('tools/call', {
+    name: 'deck_upstream_read', arguments: { method: 'skill.prepare', payload: { name: 'tdd', expectedThreadId: threadId } }, _meta: metadata,
+  });
+  assert.equal(deniedPrepare.isError, true, 'maintenance must not run through read-only RPC');
+  const prepared = await rpc('tools/call', {
+    name: 'deck_upstream_write', arguments: { method: 'skill.prepare', payload: { name: 'tdd', expectedThreadId: threadId } }, _meta: metadata,
+  });
+  assert.ok(!prepared.isError);
+  const prepareValue = prepared.structuredContent?.value ?? prepared.structuredContent;
+  assert.ok(['checked', 'attention'].includes(prepareValue.status), 'production must report the approved binding check honestly');
+  assert.equal(prepareValue.bindings.length, 1, 'production has exactly one approved plugin binding');
+  assert.equal(prepareValue.latest, prepareValue.status === 'checked');
+  const injectedTarget = await rpc('tools/call', {
+    name: 'deck_upstream_write', arguments: { method: 'skill.prepare', payload: { name: 'tdd', targetRoot: projectRoot, expectedThreadId: threadId } }, _meta: metadata,
+  });
+  assert.equal(injectedTarget.isError, true, 'ordinary UI cannot select a maintenance target');
+  console.log('PASS skill.prepare is a write, rejects arbitrary targets and reports the approved production binding');
 
   // --- 2. the doc endpoint returns the vendored body, not a copy
   for (const name of ["wayfinder", "tdd", "writing-for-agents"]) {
     const doc = await upstream("skill.readDoc", { name });
     assert.equal(doc?.ok, true, "skill.readDoc must find " + name);
-    const vendorText = await readFile(path.join(bundledDir, name, "SKILL.md"), "utf8");
-    const parsed = parseSkillMarkdown(vendorText);
+    const selectedText = await readFile(doc.path, "utf8");
+    const parsed = parseSkillMarkdown(selectedText);
     assert.ok(parsed, "vendored SKILL.md parses: " + name);
-    assert.equal(String(doc.md).trim(), parsed.content.trim(), "doc body is byte-for-byte the vendored body: " + name);
-    assert.ok(String(doc.path || "").includes(path.join("bundled-skills", name)), "doc path is the vendored file: " + name);
+    assert.ok(String(doc.md).endsWith(parsed.content), "detail preserves selected rules: " + name);
+    assert.equal(doc.source.kind, 'bundled-reference');
+    assert.equal(doc.source.actualLoad, 'unknown');
+    assert.equal(doc.execution.allowed, false);
+    assert.match(doc.md, /随包参考/);
+    assert.equal(doc.update.status, prepareValue.status);
+    assert.ok(String(doc.path || "").includes(path.join("bundled-skills", name)) || String(doc.path || "").includes(path.join("skill-library", name)), "doc path is a plugin reference file: " + name);
   }
-  console.log("PASS skill.readDoc returns the vendored body for 3 skills");
+  console.log("PASS skill.readDoc returns the selected reference body for 3 skills without claiming host activation");
 
   // --- 3. the panel shows all 27 and no "not installed" banner
   const resource = await rpc("resources/read", { uri: "ui://deck-sidebar/board.html" });
@@ -142,7 +166,7 @@ try {
 
   // Opening a skill must fetch its doc through the endpoint (not a hardcoded copy).
   const nameElement = [...window.document.querySelectorAll(".pixel-sname")]
-    .find(element => element.textContent.trim() === "/wayfinder");
+    .find(element => element.textContent.trim() === "$wayfinder");
   let row = nameElement?.parentElement ?? null;
   while (row && !(row.querySelector("button") && row.querySelectorAll(".pixel-sname").length === 1)) row = row.parentElement;
   const open = [...(row?.querySelectorAll("button") ?? [])].find(button => /详情|detail/i.test(button.textContent)) ?? row?.querySelector("button") ?? null;
@@ -152,9 +176,7 @@ try {
     await until(() => rootText().includes("A loose idea has arrived"), "skill detail rendered");
     assert.ok(rootText().includes("A loose idea has arrived"), "skill detail shows the vendored body");
     console.log("PASS clicking 详情 opens the vendored doc through skill.readDoc");
-  } else {
-    console.log("SKIP skill click (no row action in this DOM)");
-  }
+  } else assert.fail('Skill detail action must remain reachable');
   assert.deepEqual(errors, []);
   console.log("PASS skills page -> MCP -> vendored bundled-skills");
 } finally {

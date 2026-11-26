@@ -283,19 +283,20 @@
         };
         dispose = window.MattSkillsCodex.mount(document.getElementById("root"), {
           sessions,
-          locale: localeService,
-          codexActions: { async prefill(target, text) {
-            if (!current || current.projectRoot !== mountedProject.projectRoot) throw new Error("项目已切换，旧面板已失效。");
+          skillPreparation: { async prepare(name) {
+            const atCall = current;
             const active = await readProject();
-            if (!active) throw new Error("此聊天不属于 Codex 项目。");
-            if (!current || current.projectRoot !== active.projectRoot) {
-              clearPanel("聊天已切换，正在重新加载项目。");
-              throw new Error("聊天已切换，请在重新加载后操作。");
-            }
-            if (current.threadId !== active.threadId) current = active;
-            if (!initialization.hostCapabilities?.experimental?.["openai/message"]) throw new Error("宿主未提供聊天草稿接口。");
-            return rpc("ui/message", { role: "user", content: [{ type: "text", text: String(text) }], _meta: { "openai/message": { target, send: false } } });
+            if (!atCall || !active || atCall.projectRoot !== mountedProject.projectRoot || active.projectRoot !== atCall.projectRoot || active.threadId !== atCall.threadId) throw new Error('聊天或项目已切换，旧技能准备已停止。');
+            const reply = await rpc('tools/call', { name: 'deck_upstream_write', arguments: { method: 'skill.prepare', payload: { name, expectedThreadId: atCall.threadId } } });
+            const after = await readProject();
+            if (!current || !after || current.threadId !== atCall.threadId || current.projectRoot !== atCall.projectRoot || after.threadId !== atCall.threadId || after.projectRoot !== atCall.projectRoot) throw new Error('聊天或项目已切换，旧技能准备已停止。');
+            if (reply.isError) throw new Error(reply.content?.[0]?.text ?? '技能更新状态无法核验。');
+            const result = reply.structuredContent ?? JSON.parse(reply.content[0].text);
+            return result.value ?? result;
           } },
+          locale: localeService,
+          // The host append API cannot prove a safe, destination-pinned draft.
+          codexActions: window.MattSkillsCodex.createProtectedDraftOutputs(),
           connection: { rpc: { async call(channel, endpoint, request) {
             if (channel !== "/api" || endpoint !== "dsws") throw new Error("Unknown upstream channel");
             const atCall = current;

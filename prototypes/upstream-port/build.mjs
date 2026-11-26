@@ -1,6 +1,13 @@
 import { build } from "esbuild";
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { readFile, mkdir, writeFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
+
+import { adaptSkillPrefixes } from "./skill-prefix-client.mjs";
+import { adaptContextRequests } from "./context-request-client.mjs";
+import { adaptSkillSourceDisplay } from "./skill-source-client.mjs";
+import { adaptIssueActions } from "./issue-actions-client.mjs";
+import { adaptBottomActionBar } from "./bottom-action-bar-client.mjs";
+import { adaptSkillPreparation } from "./skill-preparation-client.mjs";
 
 const runtime = await build({
   entryPoints: [new URL("browser-runtime.mjs", import.meta.url).pathname.replace(/^\/(\w:)/, "$1")],
@@ -9,7 +16,14 @@ const runtime = await build({
   minify: true, legalComments: "inline",
 });
 const original = await readFile(new URL("../../vendor/mattskills-1.8.0-rc.7/lib/client.js", import.meta.url), "utf8");
-let adapted = original;
+let adapted = original.replace(/\r\n/g, '\n');
+const skillNames = (await readdir(new URL('../../vendor/mattskills-1.8.0-rc.7/bundled-skills/', import.meta.url), { withFileTypes: true }))
+  .filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
+adapted = adaptSkillPrefixes(adapted, skillNames);
+adapted = adaptContextRequests(adapted);
+adapted = adaptSkillSourceDisplay(adapted);
+adapted = adaptIssueActions(adapted);
+adapted = adaptBottomActionBar(adapted);
 for (const [anchor, target] of [
   ["const inject = (st, text) => {", "active"],
   ["const openTextInNewSession = function (st, text, title, opts) {", "new"],
@@ -25,15 +39,15 @@ for (const [anchor, target] of [
       }
   `);
 }
+adapted = adaptSkillPreparation(adapted);
 const output = new URL("dist/", import.meta.url);
 await mkdir(output, { recursive: true });
-// Only the two host action boundaries are patched. Source, styles, components,
-// action selection, and prompt generation remain in the unchanged vendor tree.
+// Adapt host actions, reviewed request drafts and skill sources without modifying vendor files.
 await writeFile(new URL("client.js", output), runtime.outputFiles[0].text + "\n;\n" + adapted);
 await writeFile(new URL("manifest.json", output), JSON.stringify({
   upstreamVersion: "1.8.0-rc.7",
   upstreamClientSha256: createHash("sha256").update(original).digest("hex"),
   output: "client.js",
-  adaptedBoundaries: ["inject", "openTextInNewSession"],
+  adaptedBoundaries: ["inject", "openTextInNewSession", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay", "skills.beforeUse", "issueActions.bottomBar"],
 }, null, 2) + "\n");
 console.log("Built original MattSkills client with Codex mounting adapter");
