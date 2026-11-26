@@ -1,3 +1,4 @@
+import { createDraftReview } from './draft-review-client.mjs';
 // Scenario policy is shared by the existing list and detail actions. Labels
 // describe facts; ambiguous combinations are handed to the agent, not ranked.
 const ISSUE_ACTION_COMMON = '先读取最新正文、全部评论、标签、认领、父子与阻塞关系及已有实施记录，已完成先核验，新阻塞先处理；关联地图仅作背景，不扩大本次范围。Issue 操作优先 deck_ 工具，先认领并及时用 deck_issue_report 上报。技能按实际可用来源读取规则，技能名注入不等于已加载。结束前把真实状态及未完成的下一步写入正文；完成才关闭，关闭时在所属地图 Decisions so far 追加票名、链接与一句话结论。';
@@ -67,6 +68,19 @@ export function supplementalActionRequest(skill, request, context) {
   return renderIssueActionRequest({ skill, target: request.target, goal, missing, facts });
 }
 
+export async function sendIssueActionDraft(st, target, finalText) {
+  if (target === 'copy') {
+    await navigator.clipboard.writeText(finalText);
+    return { status: 'copied', target: 'copy' };
+  }
+  const actions = ctx.get('codexActions');
+  if (!actions || !actions.prefill || actions.capabilities?.reliableDraft !== true || actions.capabilities[target] === false) throw new Error('宿主未提供可靠的草稿读取与结果确认，请明确选择复制');
+  const result = await actions.prefill(target, finalText);
+  if (!result || result.status !== 'filled') throw new Error('宿主填入结果无法确认；草稿已保留');
+  if (result.target !== target) throw new Error('宿主返回的目标与所选聊天不一致；草稿已保留');
+  return result;
+}
+
 export function showIssueActionDraft(request, send) {
   const text = request.text;
   document.querySelector('[data-issue-action-preview]')?.remove();
@@ -81,6 +95,9 @@ export function showIssueActionDraft(request, send) {
   editor.value = text;
   editor.style.cssText = 'width:100%;box-sizing:border-box;min-height:180px;flex:1';
   const note = document.createElement('div');
+  note.setAttribute('data-issue-action-status', '');
+  note.setAttribute('role', 'status');
+  note.setAttribute('aria-live', 'polite');
   note.textContent = '检查并编辑草稿，再选择出口；填入聊天后由你发送。';
   panel.append(note, editor);
   const choice = document.createElement('select');
@@ -143,7 +160,7 @@ export function showIssueActionDraft(request, send) {
     button.setAttribute('data-issue-action-export', target);
     button.onclick = async () => {
       if (target === 'close') { panel.remove(); return; }
-      try { await send(target, editor.value); note.textContent = target === 'copy' ? '已复制' : '已请求填入聊天，请核实宿主结果；草稿已保留。'; }
+      try { await send(target, editor.value); note.textContent = target === 'copy' ? '已复制' : target === 'active' ? '已填入当前聊天' : '已填入新聊天'; }
       catch (error) { note.textContent = '操作失败：' + String(error.message || error) + '。草稿已保留。'; }
     };
     panel.append(button);
@@ -164,13 +181,7 @@ export function adaptIssueActions(source) {
   };
   replaceFunction('const rowActionKind = function (x) {', 'const actionColorOf =', 'const rowActionKind = x => issueActionRequest(x, "").kind;');
   replaceFunction('const rowActionText = function (st, x) {', '// v19：共享 —— 行级动作', `const rowActionText = (st, x) => issueActionRequest(x, issueUrlFor(st, x.number) || '#' + x.number).text;
-    const previewIssueAction = (st, issue) => showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), async (target, finalText) => {
-      if (!await codexPrepareSkillUse(st, finalText)) throw new Error('技能状态需核对，旧出口已停止；草稿已保留。');
-      if (target === 'copy') { await navigator.clipboard.writeText(finalText); return; }
-      const actions = ctx.get('codexActions');
-      if (!actions) throw new Error('宿主草稿出口不可用，请选择复制');
-      await actions.prefill(target, finalText);
-    });`);
+    const previewIssueAction = (st, issue) => showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), (target, finalText) => sendIssueActionDraft(st, target, finalText));`);
   replaceOnce('e.stopPropagation(); inject(st, text)', 'e.stopPropagation(); previewIssueAction(st, x)');
   replaceOnce('inject(st, primaryInfo.text)', 'previewIssueAction(st, fakeIssue)');
   replaceOnce('openTextInNewSession(st, text, title, kind ? { kind: kind } : null)', 'previewIssueAction(st, x)');
@@ -178,6 +189,6 @@ export function adaptIssueActions(source) {
   replaceOnce('const mapDone=!!(isMap&&', 'const mapDone=!!(!issueActionRequest(x, "").roleConflict&&isMap&&');
   replaceOnce('const mapEmpty=!!(isMap&&', 'const mapEmpty=!!(!issueActionRequest(x, "").roleConflict&&isMap&&');
   const anchor = '    // 1. 技能目录 + 场景推荐映射';
-  replaceOnce(anchor, 'const ISSUE_ACTION_COMMON = ' + JSON.stringify(ISSUE_ACTION_COMMON) + ';\nconst SUPPLEMENTAL_ACTIONS = ' + JSON.stringify(SUPPLEMENTAL_ACTIONS) + ';\nconst ACTION_CONTEXT_LABELS = ' + JSON.stringify(ACTION_CONTEXT_LABELS) + ';\n' + renderIssueActionRequest.toString() + '\n' + supplementalRequirements.toString() + '\n' + issueActionRequest.toString() + '\n' + supplementalActionRequest.toString() + '\n' + showIssueActionDraft.toString() + '\n' + anchor);
+  replaceOnce(anchor, 'const ISSUE_ACTION_COMMON = ' + JSON.stringify(ISSUE_ACTION_COMMON) + ';\nconst SUPPLEMENTAL_ACTIONS = ' + JSON.stringify(SUPPLEMENTAL_ACTIONS) + ';\nconst ACTION_CONTEXT_LABELS = ' + JSON.stringify(ACTION_CONTEXT_LABELS) + ';\n' + renderIssueActionRequest.toString() + '\n' + supplementalRequirements.toString() + '\n' + issueActionRequest.toString() + '\n' + supplementalActionRequest.toString() + '\n' + sendIssueActionDraft.toString() + '\n' + createDraftReview.toString() + '\n' + showIssueActionDraft.toString() + '\n' + anchor);
   return source;
 }

@@ -34,7 +34,7 @@ async function open(project,number=10,repo='fixture/repo',effortId='',backend='g
   const toggle=w.document.querySelector('[data-bottom-action-toggle]');
   if(toggle.getAttribute('aria-expanded')==='false')toggle.click();
   await until(()=>w.document.querySelector('[data-issue-action-draft]'));
-  await until(()=>w.document.querySelector('[data-issue-action-source]').textContent.includes(project+'/skills/'+sourceVersion+'/SKILL.md'));
+  await until(()=>['ready','review-required'].includes(w.document.querySelector('[data-issue-action-source]').getAttribute('data-source-state')));
   return w.document.querySelector('[data-issue-action-draft]');
 }
 function edit(editor,text){editor.value=text;editor.dispatchEvent(new w.Event('input',{bubbles:true}));}
@@ -72,15 +72,17 @@ try{
   await until(()=>w.document.querySelector('[data-bottom-action-bar]').textContent.includes('copy blocked'));
   assert.equal(editor.value,'Project A handwritten draft','failed outlet preserves edits');
   copyFails=false;
+  const sourceManual='$triage\nProject A handwritten draft';
+  edit(editor,sourceManual);
   sourceVersion='changed';
   const refresh=[...w.document.querySelectorAll('button')].find(button=>button.textContent==='重新核验技能来源');
   refresh.click();
   await until(()=>w.document.querySelector('[data-issue-action-source]').textContent.includes('来源变化尚未写入预览'));
-  assert.equal(editor.value,'Project A handwritten draft','canceling a source candidate preserves exact manual text');
+  assert.equal(editor.value,sourceManual,'canceling a source candidate preserves exact manual text');
   answer=true;
   refresh.click();
   await until(()=>editor.value.includes('/skills/changed/SKILL.md'));
-  assert.notEqual(editor.value,'Project A handwritten draft','confirmed source candidate becomes the visible preview');
+  assert.match(editor.value,/Project A handwritten draft/,'confirmed source candidate retains task edits in the visible preview');
   const clear=w.document.querySelector('[data-issue-action-clear]');
   assert.ok(clear,'users can explicitly clear the draft');
   clear.click();

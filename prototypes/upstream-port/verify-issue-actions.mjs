@@ -19,7 +19,7 @@ async function scenario(labels, expected, detail = false, exercise = null, fixtu
   if (mapStats) snapshot.value.maps.push({ ...row, stats: mapStats, tickets: [], children: [] });
   w.eval(client);
   const dispose = w.MattSkillsCodex.mount(w.document.getElementById('root'), {
-    codexActions: { capabilities: { reliableDraft: true }, async prefill(target, text) { actions.push({ target, text }); } },
+    codexActions: { capabilities: { reliableDraft: true }, async prefill(target, text) { actions.push({ target, text }); return { status: 'filled', target }; } },
     sessions: { list: { getSnapshot: () => state, subscribe: () => () => {} }, get: () => session },
     connection: { rpc: { async call(c, e, r) {
       if (['snapshot', 'refresh'].includes(r.method)) return snapshot;
@@ -40,6 +40,7 @@ async function scenario(labels, expected, detail = false, exercise = null, fixtu
       w.document.querySelector('[data-detail-primary-text]').closest('button').click();
     } else rowElement.querySelector('button').click();
     await until(() => w.document.querySelector('[data-issue-action-draft]'));
+    await until(() => w.document.querySelector('[data-issue-action-source]').getAttribute('data-source-state') === 'ready');
     assert.equal(actions.length, 0, 'choosing an action opens an editable preview');
     const editor = w.document.querySelector('[data-issue-action-draft]');
     for (const pattern of expected) assert.match(editor.value, pattern);
@@ -48,6 +49,7 @@ async function scenario(labels, expected, detail = false, exercise = null, fixtu
     assert.doesNotMatch(editor.value, /不自动执行/, 'UI draft semantics must not cancel the recipient agent task');
     assert.match(editor.value, /https:\/\/github.com\/fixture\/repo\/issues\/10/);
     if (exercise) await exercise(w, editor);
+    await until(() => w.document.querySelector('[data-issue-action-source]').getAttribute('data-source-state') === 'ready');
     editor.value += '\nUser refinement';
     w.document.querySelector('[data-issue-action-export="active"]').click();
     await until(() => actions.length === 1);

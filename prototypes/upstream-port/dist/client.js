@@ -2883,20 +2883,96 @@ function supplementalActionRequest(skill, request, context) {
   const facts = Object.entries(ACTION_CONTEXT_LABELS).map(([name, label]) => [label, String(context[name] || '').trim()]).filter(([, value]) => value).map(([label, value]) => label + '：' + value).join('\n');
   return renderIssueActionRequest({ skill, target: request.target, goal, missing, facts });
 }
+async function sendIssueActionDraft(st, target, finalText) {
+  if (target === 'copy') {
+    await navigator.clipboard.writeText(finalText);
+    return { status: 'copied', target: 'copy' };
+  }
+  const actions = ctx.get('codexActions');
+  if (!actions || !actions.prefill || actions.capabilities?.reliableDraft !== true || actions.capabilities[target] === false) throw new Error('宿主未提供可靠的草稿读取与结果确认，请明确选择复制');
+  const result = await actions.prefill(target, finalText);
+  if (!result || result.status !== 'filled') throw new Error('宿主填入结果无法确认；草稿已保留');
+  if (result.target !== target) throw new Error('宿主返回的目标与所选聊天不一致；草稿已保留');
+  return result;
+}
+function createDraftReview({preparation,panel,editor,note,state,getGenerated,setGenerated,persist}) {
+  let draftId=null, sourceNote=state.sourceNotice || '', generation=0, pending=Promise.resolve(false);
+  const removeNote=(text,previous)=>{
+    if(!previous)return text;
+    const start=text.lastIndexOf(previous);
+    return start<0?text:text.slice(0,start).trimEnd()+text.slice(start+previous.length);
+  };
+  const review={
+    invalidate(){draftId=null;generation++;pending=Promise.resolve(false);},
+    refresh(){
+      const at=++generation;
+      pending=(async()=>{
+        if(!preparation){note.textContent='技能来源准备能力不可用；出口已停止。';return false;}
+        const before=editor.value, baseline=getGenerated();
+        note.setAttribute('data-source-state','checking');
+        try{
+          const candidate=await preparation.prepare({text:removeNote(before,sourceNote)});
+          if(at!==generation || !panel.isConnected)return false;
+          note.textContent=candidate.sourceNote || '最终请求未指定技能；不声称宿主加载。';
+          if(editor.value!==before){note.textContent+=' 编辑已变化，请重新核验并审阅；出口已停止。';note.setAttribute('data-source-state','review-required');return false;}
+          if(candidate.text!==before && before!==baseline && !window.confirm('技能来源状态已变化，更新已编辑的草稿预览？取消保留原文并停止出口。')){
+            note.textContent+=' 来源变化尚未写入预览，请重新审阅；出口已停止。';note.setAttribute('data-source-state','review-required');return false;
+          }
+          const nextBaseline=before===baseline?candidate.text:removeNote(baseline,sourceNote)+(candidate.sourceNote?'\n\n'+candidate.sourceNote:'');
+          editor.value=candidate.text;
+          sourceNote=candidate.sourceNote || '';
+          state.sourceNotice=sourceNote;
+          setGenerated(nextBaseline);
+          draftId=candidate.id;
+          persist();
+          note.setAttribute('data-source-state','ready');
+          return true;
+        }catch(error){
+          if(at!==generation || !panel.isConnected)return false;
+          note.textContent='来源核验失败：'+String(error.message || error)+'；草稿已保留，出口已停止。';note.setAttribute('data-source-state','review-required');return false;
+        }
+      })();
+      return pending;
+    },
+    async validate(){
+      await pending;
+      if(!preparation || !panel.isConnected)return false;
+      const before=editor.value;
+      try{
+        const result=await preparation.check({draftId,text:before});
+        if(!panel.isConnected || editor.value!==before){note.textContent='草稿或目标已变化，请重新审阅；出口已停止。';return false;}
+        if(result.allowed===true && result.status==='unchanged')return true;
+        const accepted=await review.refresh();
+        // A changed candidate is visible first; a later explicit outlet click
+        // acknowledges it. An identical restored draft can rebind its snapshot.
+        if(!accepted)return false;
+        if(editor.value!==before){note.textContent+=' 技能状态已变化，请审阅更新后的预览，再次选择出口。';return false;}
+        const rebound=await preparation.check({draftId,text:editor.value});
+        return rebound.allowed===true && rebound.status==='unchanged' && panel.isConnected && editor.value===before;
+      }catch(error){note.textContent='来源复核失败：'+String(error.message || error)+'；草稿已保留，出口已停止。';return false;}
+    },
+  };
+  return review;
+}
 function showIssueActionDraft(request, send, options = {}) {
+  options.state = options.state || {};
+  let review;
   const text = request.text;
   if (!options.container) document.querySelector('[data-issue-action-preview]')?.remove();
   const panel = document.createElement('section');
   panel.setAttribute('data-issue-action-preview', '');
   panel.setAttribute('role', options.container ? 'group' : 'dialog');
   panel.setAttribute('aria-label', '动作草稿预览');
-  panel.style.cssText = options.container ? 'display:flex;flex-direction:column;gap:8px;min-width:0;overflow:auto;max-height:60vh;padding:8px;box-sizing:border-box' : 'position:fixed;inset:8%;z-index:10000;background:var(--dsw-alias-background-primary,#202127);color:var(--dsw-alias-label-primary,#eee);padding:16px;display:flex;flex-direction:column;gap:8px;overflow:auto;border:1px solid #888;border-radius:8px';
+  panel.style.cssText = options.container ? 'display:flex;flex-direction:column;gap:8px;min-width:0;overflow:auto;max-height:60vh;padding:8px;box-sizing:border-box' : 'position:fixed;inset:8%;z-index:10000;background:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-primary,#111827);padding:16px;display:flex;flex-direction:column;gap:8px;overflow:auto;border:1px solid #888;border-radius:8px';
   const editor = document.createElement('textarea');
   editor.setAttribute('data-issue-action-draft', '');
   editor.setAttribute('aria-label', '可编辑动作草稿');
   editor.value = text + (options.sourceNotice ? '\n\n' + options.sourceNotice : '');
   editor.style.cssText = 'width:100%;box-sizing:border-box;min-height:180px;flex:1';
   const note = document.createElement('div');
+  note.setAttribute('data-issue-action-status', '');
+  note.setAttribute('role', 'status');
+  note.setAttribute('aria-live', 'polite');
   note.textContent = '检查并编辑草稿，再选择出口；填入聊天后由你发送。';
   panel.append(note, editor);
   const choice = document.createElement('select');
@@ -2953,7 +3029,7 @@ function showIssueActionDraft(request, send, options = {}) {
     generated = options.state.generated;
     choice.value = options.state.choice || 'main';
     previousChoice = choice.value;
-    options.sourceNotice = options.state.sourceNotice || options.sourceNotice;
+    options.sourceNotice = options.state.sourceNotice ?? options.sourceNotice;
     for (const [name, value] of Object.entries(options.state.context || {})) if (fields[name]) fields[name].value = value;
   }
   const persist = function () {
@@ -2976,53 +3052,32 @@ function showIssueActionDraft(request, send, options = {}) {
     button.setAttribute('data-issue-action-export', target);
     button.onclick = async () => {
       if (target === 'close') { if (options.onClose) options.onClose(); else panel.remove(); return; }
-      try { await send(target, editor.value); note.textContent = target === 'copy' ? '已复制' : '已请求填入聊天，请核实宿主结果；草稿已保留。'; }
+      try { if (!await review.validate()) throw new Error('技能来源变化需先审阅；本次出口已停止'); await send(target, editor.value); note.textContent = target === 'copy' ? '已复制' : target === 'active' ? '已填入当前聊天' : '已填入新聊天'; }
       catch (error) { note.textContent = '操作失败：' + String(error.message || error) + '。草稿已保留。'; }
     };
     panel.append(button);
   }
   (options.container || document.body).append(panel);
-  if (options.container) {
+  {
     const sourceNote = document.createElement('p');
     sourceNote.setAttribute('data-issue-action-source', '');
     sourceNote.textContent = '技能来源／更新：尚未核验；技能目录可见不代表宿主已加载。使用前查证当前项目来源及更新状态。';
     panel.insertBefore(sourceNote, editor);
-    let sourceGeneration = 0;
-    const refreshSource = async function () {
-      if (!options.inspectSkill) return;
-      const generation = ++sourceGeneration;
-      const name = choice.value === 'main' ? request.skill : choice.value.replace(/^skill:/, '');
-      if (!name) { sourceNote.textContent = '本动作无默认技能；保留不做边界。'; return; }
-      let notice;
-      try {
-        const result = await options.inspectSkill(name);
-        if (generation !== sourceGeneration || !panel.isConnected) return;
-        if (!result || result.ok !== true) throw new Error('没有可核验来源');
-        const source = result.source || {};
-        notice = '技能来源：' + (source.kind === 'host-resolved' ? '当前项目宿主解析' : '随包参考') + ' ' + (result.path || source.path || '路径未提供') + '；实际加载未核验；更新状态：' + (result.update?.status || '尚未核验') + '。';
-        if (result.execution?.allowed === false) notice += '必要条件未满足：' + (result.execution.reasons || ['请查证工具及资料']).join('；') + '；暂停依赖步骤。';
-      } catch (error) { notice = '技能来源／更新核验失败：' + String(error.message || error) + '；执行前查证，不把目录可见当作已加载。'; }
-      if (generation !== sourceGeneration || !panel.isConnected) return;
-      sourceNote.textContent = notice;
-      if (options.state?.cleared) return;
-      if (notice === options.sourceNotice) return;
-      if (editor.value !== generated && !window.confirm('技能来源状态已变化，更新已编辑的草稿预览？取消保留原文。')) { sourceNote.textContent += ' 来源变化尚未写入预览，请重新确认。'; return; }
-      if (options.sourceNotice && generated.endsWith(options.sourceNotice)) generated = generated.slice(0, -options.sourceNotice.length).trimEnd();
-      options.sourceNotice = notice;
-      generated += '\n\n' + notice;
-      editor.value = generated;
-      persist();
-    };
-    choice.addEventListener('change', refreshSource);
+    options.state.sourceNotice = options.state.sourceNotice ?? options.sourceNotice ?? '';
+    review = createDraftReview({ preparation: ctx.get('requestPreparation'), panel: panel, editor: editor, note: sourceNote, state: options.state,
+      getGenerated: function () { return generated; }, setGenerated: function (value) { generated = value; options.sourceNotice = options.state.sourceNotice; }, persist: persist });
+    choice.addEventListener('change', function () { review.invalidate(); review.refresh(); });
+    applyContext.addEventListener('click', function () { review.invalidate(); review.refresh(); });
     const refresh = document.createElement('button');
-    refresh.type = 'button'; refresh.textContent = '重新核验技能来源'; refresh.onclick = refreshSource;
+    refresh.type = 'button'; refresh.textContent = '重新核验技能来源'; refresh.onclick = function () { review.refresh(); };
     panel.insertBefore(refresh, editor);
     const clear = document.createElement('button');
     clear.type = 'button'; clear.textContent = '清空草稿'; clear.setAttribute('data-issue-action-clear', '');
-    clear.onclick = function () { editor.value = ''; generated = ''; if (options.state) options.state.cleared = true; persist(); };
+    clear.onclick = function () { editor.value = ''; generated = ''; if (options.state) options.state.cleared = true; review.invalidate(); persist(); };
     panel.insertBefore(clear, editor);
-    refreshSource();
+    review.refresh();
     for (const control of panel.querySelectorAll('select,input,textarea,button')) control.style.maxWidth = '100%';
+    if (!options.container) editor.focus();
     return panel;
   }
   editor.focus();
@@ -7614,13 +7669,7 @@ const RULES_SOURCE = "version-control-core/src/rules.ts";
     const previewIssueAction = (st, issue) => {
       const bottom = bottomActionControllers.get(st);
       if (bottom) return bottom.open();
-      return showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), async (target, finalText) => {
-      if (!await codexPrepareSkillUse(st, finalText)) throw new Error('技能状态需核对，旧出口已停止；草稿已保留。');
-      if (target === 'copy') { await navigator.clipboard.writeText(finalText); return; }
-      const actions = ctx.get('codexActions');
-      if (!actions) throw new Error('宿主草稿出口不可用，请选择复制');
-      await actions.prefill(target, finalText);
-    });
+      return showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), (target, finalText) => sendIssueActionDraft(st, target, finalText));
     };
     // v19：共享 —— 行级动作（列表与 map 详情共用）：按一处分类八选一（诊断/接手/补充/修复/讨论/研究/原型/执行），预填输入框；
     // 按钮主体色 = 对应 label 的 GitHub 配置色（字色按对比度在深白两色里择优，见 isLightHex）；接手跟 ready-for-human、补充跟 needs-info（#785），取不到时兜底 #c084fc
@@ -21571,20 +21620,7 @@ const useIssueDetailFold = function (st, issueNumber, issueEffort) {
       const sourceNotice = '技能来源与更新状态尚未核验；执行前读取当前项目解析来源并检查更新，缺合格来源或必要工具时暂停依赖步骤，不将目录可见当作已加载。';
       const ensurePreview = function () {
         if (!mounted.current && content.current) {
-          mounted.current = showIssueActionDraft(request, async function (target, finalText) {
-            if (typeof codexPrepareSkillUse === 'function' && !await codexPrepareSkillUse(st, finalText)) throw new Error('技能状态已变化，请重新核验来源并审阅草稿后重试；本次出口已停止');
-            if (target === 'copy') { await navigator.clipboard.writeText(finalText); return; }
-            const actions = ctx.get('codexActions');
-            if (!actions || !actions.prefill) throw new Error('宿主草稿出口不可用，请明确选择复制');
-            if (actions.capabilities?.reliableDraft !== true || actions.capabilities[target] === false) throw new Error('宿主未提供可靠的草稿读取与结果确认，请明确选择复制');
-            const result = await actions.prefill(target, finalText);
-            return result;
-          }, { container: content.current, state: state, sourceNotice: sourceNotice, inspectSkill: async function (name) {
-            const preparation = ctx.get('skillPreparation');
-            const update = preparation ? await preparation.prepare(name) : null;
-            const doc = await host.call('skill.readDoc', { name: name });
-            return update ? Object.assign({}, doc, { update: update }) : doc;
-          }, onClose: function () { setExpanded(false); } });
+          mounted.current = showIssueActionDraft(request, function (target, finalText) { return sendIssueActionDraft(st, target, finalText); }, { container: content.current, state: state, sourceNotice: sourceNotice, onClose: function () { setExpanded(false); } });
         }
       };
       React.useEffect(function () {
@@ -21593,7 +21629,7 @@ const useIssueDetailFold = function (st, issueNumber, issueEffort) {
         bottomActionControllers.set(st, controller);
         return function () { if (bottomActionControllers.get(st) === controller) bottomActionControllers.delete(st); };
       }, [st, props.issue.number, props.effortId]);
-      return React.createElement('section', { 'data-bottom-action-bar': true, 'aria-label': 'Issue 动作栏', style: { marginTop: 8, padding: 8, borderTop: '1px solid var(--dsw-alias-border-l2,#444)', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: 'none', background: 'var(--dsw-alias-background-primary,#202127)' } }, [
+      return React.createElement('section', { 'data-bottom-action-bar': true, 'aria-label': 'Issue 动作栏', style: { marginTop: 8, padding: 8, borderTop: '1px solid var(--dsw-alias-border-l2,#444)', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: 'none', background: 'var(--dsw-alias-bg-layer-1,#fff)', color: 'var(--dsw-alias-label-primary,#111827)' } }, [
         React.createElement('div', { key: 'header', style: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, minWidth: 0 } }, [
           React.createElement('strong', { key: 'action' }, props.label || '主动作'),
           React.createElement('span', { key: 'context', style: { fontSize: 11, overflowWrap: 'anywhere', flex: '1 1 120px' } }, '当前 Issue · ' + (request.skill ? '$' + request.skill : '保持不做边界') + '；先核对上下文与缺项'),
