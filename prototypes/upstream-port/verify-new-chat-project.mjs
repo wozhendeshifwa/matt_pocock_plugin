@@ -17,7 +17,7 @@ assert.equal(url.hostname, 'new');
 assert.equal(url.searchParams.get('projectId'), identity.projectId);
 assert.equal(url.searchParams.get('path'), identity.projectRoot);
 assert.equal(url.searchParams.get('prompt'), text);
-assert.equal(url.searchParams.get('mode'), 'code');
+assert.equal(url.searchParams.get('mode'), 'codex');
 assert.equal(url.searchParams.has('send'), false);
 await outputs.prefill('active', text);
 assert.equal(requests[1].method, 'ui/message');

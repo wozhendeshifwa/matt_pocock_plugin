@@ -19,3 +19,7 @@
 已备份并部署到当前配置使用的 .scratch/issue62/integration/prototypes/upstream-port，备份位于 .scratch/prompt-injection-deploy/20261127-project-inheritance。
 
 用户明确允许一次服务关闭再启用；已完成并核对 config.toml 与备份 SHA-256 一致。实际继续展开侧栏，发现宿主资源连接仍使用旧客户端（预览说明仍为宿主全局选择项目）。不能将受控检查或部署文件哈希当作原生验收通过。未发送测试消息，未操作其他聊天草稿。等待用户安排宿主重启以加载新资源后继续原生验收。
+
+## 原生失败反馈与参数更正
+
+重启后实际页面已显示来源项目绑定说明。通过正常纯文本预览核验后，ui/open-link 收到 ACK，但原生没有导航。随后核验当前已安装宿主 schema，合法 app mode 为 chat/work/codex；实现误传了 code。现已改为 codex 并重建部署，项目路由及真实生产桥接回归通过。此发现也说明仅检验输出参数和 ACK 不足以代替原生验收；等待更正后最终加载结果。

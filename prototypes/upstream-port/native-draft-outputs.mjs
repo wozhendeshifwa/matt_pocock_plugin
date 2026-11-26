@@ -20,7 +20,7 @@ export function createNativeDraftOutputs({ capabilities, getIdentity, readIdenti
       let response;
       if (target === 'new') {
         const url = new URL('codex://new');
-        url.search = new URLSearchParams({ mode: 'code', projectId: expected.projectId, path: expected.projectRoot, prompt: text }).toString();
+        url.search = new URLSearchParams({ mode: 'codex', projectId: expected.projectId, path: expected.projectRoot, prompt: text }).toString();
         response = await request('ui/open-link', { url: url.href });
       } else {
         // No await between the final identity check and posting the draft request.
