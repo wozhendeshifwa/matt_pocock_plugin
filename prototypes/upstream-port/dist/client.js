@@ -2857,7 +2857,31 @@ function issueActionRequest(issue, url) {
       goal += ' 缺明确就绪状态，先查证分流，不直接代码实施。';
     }
   }
-  return { kind, skill, text: (skill ? '$' + skill + '\n\n' : '') + '目标：' + String(issue.title || '') + '\nIssue：' + url + '\n标签事实：' + (labels.join('、') || '无标签') + '\n\n' + goal + '\n\n先读取最新正文、全部评论、标签、认领、父子与阻塞关系及已有实施记录，已完成先核验，新阻塞先处理；关联地图仅作背景，不扩大本次范围。Issue 操作优先 deck_ 工具，先认领并及时用 deck_issue_report 上报。技能按实际可用来源读取规则，技能名注入不等于已加载。结束前把真实状态及未完成的下一步写入正文；完成才关闭，关闭时在所属地图 Decisions so far 追加票名、链接与一句话结论。仅生成可编辑草稿，由用户发送，不自动执行。' };
+  return { kind, skill, text: (skill ? '$' + skill + '\n\n' : '') + '目标：' + String(issue.title || '') + '\nIssue：' + url + '\n标签事实：' + (labels.join('、') || '无标签') + '\n\n' + goal + '\n\n先读取最新正文、全部评论、标签、认领、父子与阻塞关系及已有实施记录，已完成先核验，新阻塞先处理；关联地图仅作背景，不扩大本次范围。Issue 操作优先 deck_ 工具，先认领并及时用 deck_issue_report 上报。技能按实际可用来源读取规则，技能名注入不等于已加载。结束前把真实状态及未完成的下一步写入正文；完成才关闭，关闭时在所属地图 Decisions so far 追加票名、链接与一句话结论。' };
+}
+function supplementalActionRequest(skill, mainText, context) {
+  const headerStart = mainText.indexOf('目标：');
+  const headerEnd = mainText.indexOf('\n\n', headerStart);
+  const header = mainText.slice(headerStart, headerEnd);
+  const common = mainText.slice(mainText.lastIndexOf('\n\n先读取最新'));
+  const scope = context.scope.trim(), branch = context.branch.trim(), baseline = context.baseline.trim();
+  const session = context.session.trim(), record = context.record.trim(), stage = context.stage;
+  let missing = [], goal = '用户手动选择此技能；读取完整技能规则，并先查证其所需目标及上下文；目标不明确先澄清，不擅自扩大范围。';
+  if (skill === 'pr') {
+    if (!scope) missing.push('改动范围');
+    if (!branch) missing.push('分支或 PR');
+    goal = '生成或修订 PR 正文草稿，按 Summary、Evidence、Merge Danger 记录实际变化、前后证据、可逆性及影响范围。验证记录先查，缺失或未验证如实标注。仅起草正文，不发布正文、不创建 PR、不推送、不合并；这些需要另行明确指令。';
+  } else if (skill === 'retro') {
+    if (!session) missing.push('目标编码会话');
+    if (!record) missing.push('原始会话记录');
+    goal = '读取指定编码会话原始证据，核对已有检查与指令，按严重程度列出证据、问题、环境改进建议及收益；先提供候选供用户选择，再决定修改文件或建票。不默认当前会话，不以项目目录冒充会话标识。';
+  } else if (skill === 'code-review') {
+    if (!scope) missing.push('改动范围');
+    if (!baseline) missing.push('比较基线');
+    goal = '审查指定范围的改动，进行中改动亦可；按仓库标准及来源规格报告可定位的证据和验证缺口，不擅自假设 main 或当前分支。修复进入统一 $implement-spec 流程，不能省略 implement-spec 自带最终审查。';
+  }
+  const facts = Object.entries({ '改动范围': scope, '分支或 PR': branch, '比较基线': baseline, '目标编码会话': session, '原始记录': record, '阶段／观察': stage }).filter(([, value]) => value).map(([label, value]) => label + '：' + value).join('\n');
+  return (missing.length ? '先查证补齐：' + missing.join('、') + '；只能询问无法自行取得的信息，补齐前不执行本补充动作。\n' : '$' + skill + '\n') + '\n' + header + (facts ? '\n' + facts : '') + '\n\n' + goal + common;
 }
 function showIssueActionDraft(text, send) {
   document.querySelector('[data-issue-action-preview]')?.remove();
@@ -2874,6 +2898,63 @@ function showIssueActionDraft(text, send) {
   const note = document.createElement('div');
   note.textContent = '检查并编辑草稿，再选择出口；填入聊天后由你发送。';
   panel.append(note, editor);
+  const choice = document.createElement('select');
+  choice.setAttribute('data-issue-action-choice', '');
+  choice.setAttribute('aria-label', '动作与全部技能');
+  choice.add(new Option('标签主动作', 'main'));
+  const supplements = document.createElement('optgroup');
+  supplements.label = '补充动作';
+  for (const [name, label] of [['pr', '撰写 PR 正文'], ['retro', '复盘编码会话'], ['code-review', '审查改动']]) supplements.append(new Option(label, name));
+  choice.append(supplements);
+  const menu = document.createElement('optgroup');
+  menu.label = '全部技能';
+  for (const name of CODEX_SKILL_NAMES) menu.append(new Option('$' + name, 'skill:' + name));
+  choice.append(menu);
+  const recommendations = document.createElement('div');
+  recommendations.setAttribute('data-issue-action-recommendations', '');
+  const fields = {};
+  const contextBox = document.createElement('details');
+  const summary = document.createElement('summary');
+  summary.textContent = '补充动作上下文（明确提供，不推定当前分支或会话）';
+  contextBox.append(summary);
+  for (const [name, label] of [['scope', '改动范围'], ['branch', '分支或 PR'], ['baseline', '比较基线'], ['session', '目标编码会话'], ['record', '原始会话记录']]) {
+    const input = document.createElement('input');
+    input.setAttribute('data-issue-action-context', name);
+    input.setAttribute('aria-label', label);
+    input.placeholder = label;
+    fields[name] = input;
+    contextBox.append(input);
+  }
+  const stage = document.createElement('select');
+  stage.setAttribute('data-issue-action-context', 'stage');
+  stage.setAttribute('aria-label', '编码阶段或观察');
+  for (const value of ['', '成功结束', '失败结束', '中止', '反复返工', '导航困难', '工具低效']) stage.add(new Option(value || '选择阶段或观察', value));
+  fields.stage = stage;
+  contextBox.append(stage);
+  const readContext = () => Object.fromEntries(Object.entries(fields).map(([name, field]) => [name, field.value]));
+  const updateRecommendations = () => {
+    const c = readContext(), names = [];
+    if (c.scope.trim() && c.branch.trim()) names.push('pr');
+    if (c.session.trim() && c.record.trim() && c.stage) names.push('retro');
+    if (c.scope.trim() && c.baseline.trim()) names.push('code-review');
+    recommendations.textContent = names.length ? '补充推荐：' + names.map(n => '$' + n).join('、') : '暂无补充推荐；可手动选择并查证缺项。';
+  };
+  for (const input of Object.values(fields)) { input.addEventListener('input', updateRecommendations); input.addEventListener('change', updateRecommendations); }
+  let previousChoice = 'main', generated = text;
+  const regenerate = () => {
+    if (editor.value !== generated && !window.confirm('替换已编辑的草稿？取消将保留原文。')) { choice.value = previousChoice; return; }
+    const skill = choice.value.replace(/^skill:/, '');
+    generated = choice.value === 'main' ? text : supplementalActionRequest(skill, text, readContext());
+    editor.value = generated;
+    previousChoice = choice.value;
+  };
+  choice.addEventListener('change', regenerate);
+  const applyContext = document.createElement('button');
+  applyContext.textContent = '更新所选动作草稿';
+  applyContext.setAttribute('data-issue-action-apply-context', '');
+  applyContext.onclick = regenerate;
+  updateRecommendations();
+  panel.append(choice, recommendations, contextBox, applyContext);
   for (const [target, label] of [['active', '填入当前聊天'], ['new', '填入新聊天'], ['copy', '复制'], ['close', '返回']]) {
     const button = document.createElement('button');
     button.textContent = label;
