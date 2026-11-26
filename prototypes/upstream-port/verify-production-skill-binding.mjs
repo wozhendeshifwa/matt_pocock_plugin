@@ -9,8 +9,8 @@ import { createOriginalHost } from './node-host.mjs';
 import { randomUUID } from 'node:crypto';
 const root = await fs.mkdtemp(path.join(os.tmpdir(),'deck-production-binding-'));
 const source = path.join(root,'source');
-const data = path.join(root,'data');
-await fs.mkdir(source); await fs.mkdir(data);
+const data = path.join(root,'production-project-'+'a'.repeat(75),'project-'+'b'.repeat(75),'data');
+await fs.mkdir(source); await fs.mkdir(data,{recursive:true});
 const git = (...args) => execFileSync('git',args,{cwd:source,encoding:'utf8'}).trim();
 git('init','-b','main'); git('config','user.name','Fixture'); git('config','user.email','fixture@example.invalid');
 async function publish(text) {

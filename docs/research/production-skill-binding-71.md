@@ -11,3 +11,5 @@
 验证：新增verify-production-skill-binding.mjs先因模块缺失红，实施后绿。临时本地git源覆盖启动安装、使用前无变化0正文下载、更新备份、离线保留且恢复中断目标journal、可回收死PID源锁、错项目/坏绑定拒绝，真实createOriginalHost验证prepare/readDoc且执行前置仍未知、RPC额外source拒绝。沙箱内Git MSYS辅助进程受权限限制失败，主机侧该脚本通过；不将环境失败写成通过。
 
 联网生产worker验收命令：node prototypes/upstream-port/verify-production-skill-binding-live.mjs ABS_PLUGIN_DATA_ROOT ABS_PROJECT_ROOT。它启动真实project-worker及固定批准源，输出两次使用前状态与来源/执行摘要，不打印规则全文。root负责真实源运行、独立双轴审查及票面收尾；本记录不冒称那些已完成。
+
+2026-11-27长路径修复：真实生产数据目录叠加项目hash/stage后，WinGit报GIT_DIR too big，不能仅用短临时夹具证明生产通过。新增与真实生产相当长度的临时dataRoot测试先红，之后将仅用于读取上游的Git对象仓库放到OS短临时目录；绑定、锁、stage、manifest及最终技能副本仍保留真实dataRoot。失败临时仓库保留，stage中的source-repository.json保存恢复指针；成功发布后仅清理本次mkdtemp创建且绝对路径经核验属于OS临时根的mattskills-source目录。没有修改Windows全局配置、生产dataRoot或用户技能路径。长路径维护入口/真实node-host回归主机侧通过，联网现场验收仍由root执行。

@@ -1,6 +1,7 @@
 // Trusted embedding adapter: the browser and project files cannot select a source.
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
@@ -64,7 +65,11 @@ export function createProductionSkillHost({dataRoot,workspaceRoot,source=APPROVE
    if(!await fs.stat(manifestFile).catch(()=>null)) {
     const staging=path.join(directory,'stage-'+randomUUID()); await fs.mkdir(staging);
     // Interrupted fetch repositories are recovery material, never reused or unlocked.
-    const repository=path.join(staging,'repository.git');
+    // WinGit rejects deeply nested GIT_DIR even though Node can publish there.
+    // Only transient Git objects use the OS temp root; binding/files stay in dataRoot.
+    const temporaryRoot=await fs.realpath(os.tmpdir());
+    const repository=await fs.mkdtemp(path.join(temporaryRoot,'mattskills-source-'));
+    await atomic(path.join(staging,'source-repository.json'),{repository});
     await git(['init','--bare',repository]);
     await git(['--git-dir',repository,'fetch','--no-tags','--depth=1','--filter=blob:limit=200001',identity.repository,revision]);
     const tree=(await git(['--git-dir',repository,'ls-tree','-r','-l','-z',revision,'--',identity.skillPrefix])).toString('utf8').split('\0').filter(Boolean);
@@ -93,6 +98,9 @@ export function createProductionSkillHost({dataRoot,workspaceRoot,source=APPROVE
     for(const name of skills.keys()) await fs.rename(path.join(staging,name),path.join(filesRoot,name));
     await atomic(path.join(filesRoot,'manifest.json'),{sourceId,revision,skills:[...skills].map(([name,files])=>({name,files}))});
     await fs.rename(filesRoot,snapshot);
+    const resolvedRepository=await fs.realpath(repository);
+    if(path.dirname(resolvedRepository)!==temporaryRoot||!path.basename(resolvedRepository).startsWith('mattskills-source-')) throw Error('temporary-repository-outside-root');
+    await fs.rm(resolvedRepository,{recursive:true,force:true});
    }
    } catch {sourceError='source-refresh-failed';}
    return [{id:'approved-plugin-reference',sourceId,kind:'bundled',projectRoot:await fs.realpath(workspaceRoot),manifestUrl:pathToFileURL(manifestFile).href,...(sourceError?{sourceError}:{})}];
