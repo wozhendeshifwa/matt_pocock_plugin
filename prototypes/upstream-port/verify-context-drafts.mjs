@@ -18,7 +18,7 @@ const session={id:'context-test',cwd:'C:/example/deck'};
 const sessions={current:session.id,byId:{[session.id]:session},items:[session]};
 await w.eval(await readFile(new URL('dist/client.js',import.meta.url),'utf8'));
 const dispose=w.MattSkillsCodex.mount(w.document.getElementById('root'),{
-  codexActions:{async prefill(target,text){drafts.push({target,text});}},
+  codexActions:{capabilities:{reliableDraft:true},async prefill(target,text){drafts.push({target,text});}},
   sessions:{list:{getSnapshot:()=>sessions,subscribe:()=>()=>{}},get:()=>session},
   connection:{rpc:{async call(_channel,_endpoint,req){
     if(['snapshot','refresh'].includes(req.method))return snapshot;

@@ -18,7 +18,7 @@ async function scenario(labels, expected, detail = false, exercise = null, fixtu
   if (mapStats) snapshot.value.maps.push({ ...row, stats: mapStats, tickets: [], children: [] });
   w.eval(client);
   const dispose = w.MattSkillsCodex.mount(w.document.getElementById('root'), {
-    codexActions: { async prefill(target, text) { actions.push({ target, text }); } },
+    codexActions: { capabilities: { reliableDraft: true }, async prefill(target, text) { actions.push({ target, text }); } },
     sessions: { list: { getSnapshot: () => state, subscribe: () => () => {} }, get: () => session },
     connection: { rpc: { async call(c, e, r) {
       if (['snapshot', 'refresh'].includes(r.method)) return snapshot;

@@ -2879,18 +2879,18 @@ function supplementalActionRequest(skill, request, context) {
   const facts = Object.entries(ACTION_CONTEXT_LABELS).map(([name, label]) => [label, String(context[name] || '').trim()]).filter(([, value]) => value).map(([label, value]) => label + '：' + value).join('\n');
   return renderIssueActionRequest({ skill, target: request.target, goal, missing, facts });
 }
-function showIssueActionDraft(request, send) {
+function showIssueActionDraft(request, send, options = {}) {
   const text = request.text;
-  document.querySelector('[data-issue-action-preview]')?.remove();
+  if (!options.container) document.querySelector('[data-issue-action-preview]')?.remove();
   const panel = document.createElement('section');
   panel.setAttribute('data-issue-action-preview', '');
-  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('role', options.container ? 'group' : 'dialog');
   panel.setAttribute('aria-label', '动作草稿预览');
-  panel.style.cssText = 'position:fixed;inset:8%;z-index:10000;background:var(--dsw-alias-background-primary,#202127);color:var(--dsw-alias-label-primary,#eee);padding:16px;display:flex;flex-direction:column;gap:8px;overflow:auto;border:1px solid #888;border-radius:8px';
+  panel.style.cssText = options.container ? 'display:flex;flex-direction:column;gap:8px;min-width:0;overflow:auto;max-height:60vh;padding:8px;box-sizing:border-box' : 'position:fixed;inset:8%;z-index:10000;background:var(--dsw-alias-background-primary,#202127);color:var(--dsw-alias-label-primary,#eee);padding:16px;display:flex;flex-direction:column;gap:8px;overflow:auto;border:1px solid #888;border-radius:8px';
   const editor = document.createElement('textarea');
   editor.setAttribute('data-issue-action-draft', '');
   editor.setAttribute('aria-label', '可编辑动作草稿');
-  editor.value = text;
+  editor.value = text + (options.sourceNotice ? '\n\n' + options.sourceNotice : '');
   editor.style.cssText = 'width:100%;box-sizing:border-box;min-height:180px;flex:1';
   const note = document.createElement('div');
   note.textContent = '检查并编辑草稿，再选择出口；填入聊天后由你发送。';
@@ -2934,11 +2934,12 @@ function showIssueActionDraft(request, send) {
     recommendations.textContent = names.length ? '补充推荐：' + names.map(n => '$' + n).join('、') : '暂无补充推荐；可手动选择并查证缺项。';
   };
   for (const input of Object.values(fields)) { input.addEventListener('input', updateRecommendations); input.addEventListener('change', updateRecommendations); }
-  let previousChoice = 'main', generated = text;
+  let previousChoice = 'main', generated = editor.value;
   const regenerate = () => {
     if (editor.value !== generated && !window.confirm('替换已编辑的草稿？取消将保留原文。')) { choice.value = previousChoice; return; }
     const skill = choice.value.replace(/^skill:/, '');
     generated = choice.value === 'main' ? text : supplementalActionRequest(skill, request, readContext());
+    if (options.sourceNotice) generated += '\n\n' + options.sourceNotice;
     editor.value = generated;
     previousChoice = choice.value;
   };
@@ -2954,14 +2955,52 @@ function showIssueActionDraft(request, send) {
     button.textContent = label;
     button.setAttribute('data-issue-action-export', target);
     button.onclick = async () => {
-      if (target === 'close') { panel.remove(); return; }
+      if (target === 'close') { if (options.onClose) options.onClose(); else panel.remove(); return; }
       try { await send(target, editor.value); note.textContent = target === 'copy' ? '已复制' : '已请求填入聊天，请核实宿主结果；草稿已保留。'; }
       catch (error) { note.textContent = '操作失败：' + String(error.message || error) + '。草稿已保留。'; }
     };
     panel.append(button);
   }
-  document.body.append(panel);
+  (options.container || document.body).append(panel);
+  if (options.container) {
+    const sourceNote = document.createElement('p');
+    sourceNote.setAttribute('data-issue-action-source', '');
+    sourceNote.textContent = '技能来源／更新：尚未核验；技能目录可见不代表宿主已加载。使用前查证当前项目来源及更新状态。';
+    panel.insertBefore(sourceNote, editor);
+    let sourceGeneration = 0;
+    const refreshSource = async function () {
+      if (!options.inspectSkill) return;
+      const generation = ++sourceGeneration;
+      const name = choice.value === 'main' ? request.skill : choice.value.replace(/^skill:/, '');
+      if (!name) { sourceNote.textContent = '本动作无默认技能；保留不做边界。'; return; }
+      let notice;
+      try {
+        const result = await options.inspectSkill(name);
+        if (generation !== sourceGeneration || !panel.isConnected) return;
+        if (!result || result.ok !== true) throw new Error('没有可核验来源');
+        const source = result.source || {};
+        notice = '技能来源：' + (source.kind === 'host-resolved' ? '当前项目宿主解析' : '随包参考') + ' ' + (result.path || source.path || '路径未提供') + '；实际加载未核验；更新状态：' + (result.update?.status || '尚未核验') + '。';
+        if (result.execution?.allowed === false) notice += '必要条件未满足：' + (result.execution.reasons || ['请查证工具及资料']).join('；') + '；暂停依赖步骤。';
+      } catch (error) { notice = '技能来源／更新核验失败：' + String(error.message || error) + '；执行前查证，不把目录可见当作已加载。'; }
+      if (generation !== sourceGeneration || !panel.isConnected) return;
+      sourceNote.textContent = notice;
+      if (notice === options.sourceNotice) return;
+      if (editor.value !== generated && !window.confirm('技能来源状态已变化，更新已编辑的草稿预览？取消保留原文。')) { sourceNote.textContent += ' 来源变化尚未写入预览，请重新确认。'; return; }
+      if (options.sourceNotice && generated.endsWith(options.sourceNotice)) generated = generated.slice(0, -options.sourceNotice.length).trimEnd();
+      options.sourceNotice = notice;
+      generated += '\n\n' + notice;
+      editor.value = generated;
+    };
+    choice.addEventListener('change', refreshSource);
+    const refresh = document.createElement('button');
+    refresh.type = 'button'; refresh.textContent = '重新核验技能来源'; refresh.onclick = refreshSource;
+    panel.insertBefore(refresh, editor);
+    refreshSource();
+    for (const control of panel.querySelectorAll('select,input,textarea,button')) control.style.maxWidth = '100%';
+    return panel;
+  }
   editor.focus();
+  return panel;
 }
     // 1. 技能目录 + 场景推荐映射
     // ============================================================
@@ -7545,12 +7584,16 @@ const RULES_SOURCE = "version-control-core/src/rules.ts";
     }
     // #361：行级动作注入文本的单一真源（诊断/接手/补充/修复/讨论/研究/原型/执行）—— 新会话打开与行内动作共用
     const rowActionText = (st, x) => issueActionRequest(x, issueUrlFor(st, x.number) || '#' + x.number).text;
-    const previewIssueAction = (st, issue) => showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), async (target, finalText) => {
+    const previewIssueAction = (st, issue) => {
+      const bottom = bottomActionControllers.get(st);
+      if (bottom) return bottom.open();
+      return showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), async (target, finalText) => {
       if (target === 'copy') { await navigator.clipboard.writeText(finalText); return; }
       const actions = ctx.get('codexActions');
       if (!actions) throw new Error('宿主草稿出口不可用，请选择复制');
       await actions.prefill(target, finalText);
     });
+    };
     // v19：共享 —— 行级动作（列表与 map 详情共用）：按一处分类八选一（诊断/接手/补充/修复/讨论/研究/原型/执行），预填输入框；
     // 按钮主体色 = 对应 label 的 GitHub 配置色（字色按对比度在深白两色里择优，见 isLightHex）；接手跟 ready-for-human、补充跟 needs-info（#785），取不到时兜底 #c084fc
     const mkRowAction = function (st, x, narrow, colorOf) {
@@ -21447,6 +21490,48 @@ const useIssueDetailFold = function (st, issueNumber, issueEffort) {
  * 同层禁止 import 其他视图（ListTab/MapDetail 等），像插件般隔离；所有共享能力经 DswsCtx 取用。
  * T2 数据通路：fetchIssueDetail(n)（GraphQL+REST 双通道，host 侧 wf.issueDetail），60s 缓存命中即用，loading/real/err 三态。
  */
+
+    const bottomActionControllers = new WeakMap();
+    const BottomActionBar = function (props) {
+      const st = props.st;
+      const content = React.useRef(null);
+      const mounted = React.useRef(null);
+      const [open, setOpen] = React.useState(false);
+      const request = issueActionRequest(props.issue, issueUrlFor(st, props.issue.number, props.effortId));
+      const sourceNotice = '技能来源与更新状态尚未核验；执行前读取当前项目解析来源并检查更新，缺合格来源或必要工具时暂停依赖步骤，不将目录可见当作已加载。';
+      const ensurePreview = function () {
+        if (!mounted.current && content.current) {
+          mounted.current = showIssueActionDraft(request, async function (target, finalText) {
+            if (typeof codexPrepareSkillUse === 'function' && !await codexPrepareSkillUse(st, finalText)) throw new Error('技能状态已变化，请重新核验来源并审阅草稿后重试；本次出口已停止');
+            if (target === 'copy') { await navigator.clipboard.writeText(finalText); return; }
+            const actions = ctx.get('codexActions');
+            if (!actions || !actions.prefill) throw new Error('宿主草稿出口不可用，请明确选择复制');
+            if (actions.capabilities?.reliableDraft !== true || actions.capabilities[target] === false) throw new Error('宿主未提供可靠的草稿读取与结果确认，请明确选择复制');
+            const result = await actions.prefill(target, finalText);
+            return result;
+          }, { container: content.current, sourceNotice: sourceNotice, inspectSkill: async function (name) {
+            const preparation = ctx.get('skillPreparation');
+            const update = preparation ? await preparation.prepare(name) : null;
+            const doc = await host.call('skill.readDoc', { name: name });
+            return update ? Object.assign({}, doc, { update: update }) : doc;
+          }, onClose: function () { setOpen(false); } });
+        }
+      };
+      React.useEffect(function () {
+        const controller = { open: function () { ensurePreview(); setOpen(true); } };
+        bottomActionControllers.set(st, controller);
+        return function () { if (bottomActionControllers.get(st) === controller) bottomActionControllers.delete(st); };
+      }, [st, props.issue.number, props.effortId]);
+      return React.createElement('section', { 'data-bottom-action-bar': true, 'aria-label': 'Issue 动作栏', style: { marginTop: 8, padding: 8, borderTop: '1px solid var(--dsw-alias-border-l2,#444)', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: 'none', background: 'var(--dsw-alias-background-primary,#202127)' } }, [
+        React.createElement('div', { key: 'header', style: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, minWidth: 0 } }, [
+          React.createElement('strong', { key: 'action' }, props.label || '主动作'),
+          React.createElement('span', { key: 'context', style: { fontSize: 11, overflowWrap: 'anywhere', flex: '1 1 120px' } }, '当前 Issue · ' + (request.skill ? '$' + request.skill : '保持不做边界') + '；先核对上下文与缺项'),
+          React.createElement('button', { key: 'toggle', type: 'button', 'data-bottom-action-toggle': true, 'aria-expanded': String(open), onClick: function () { ensurePreview(); setOpen(!open); } }, open ? '收起动作／预览' : '选择动作／预览'),
+        ]),
+        React.createElement('div', { key: 'preview', ref: content, hidden: !open, style: { minWidth: 0 } }),
+      ]);
+    };
+
 const IssueDetail = function (props) {
       const cx = React.useContext(DswsCtx)
       const h = cx ? cx.h : React.createElement
@@ -21784,6 +21869,7 @@ const IssueDetail = function (props) {
           h('span', { style: { flex: 1 } }),
           h('span', { style: { fontSize: 10, color: 'var(--dsw-alias-label-caption,#8b8b95)' } }, tr('detail.readOnlyHint')),
         ]) : null,
+        h(BottomActionBar, { key: String(st.cwd) + ':' + issueEffort + ':' + issueNumber, st: st, issue: fakeIssue, effortId: issueEffort, label: primaryInfo.label }),
         // 图片放大浮层（渲染函数共用，状态放共享 store，点缩略图打开，点空白与关闭与退出键关闭）
         (typeof mdImgOverlay === 'function' ? mdImgOverlay(st) : null),
       ])
