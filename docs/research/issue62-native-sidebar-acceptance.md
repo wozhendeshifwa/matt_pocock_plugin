@@ -24,3 +24,16 @@ MCP Apps 自动化 `locator.fill` 报 `Active element is no longer the expected 
 用户已在本聊天明确确认：“这一步我已经完成验收。不用再来了”。因此手写编辑与复制这一步记录为**用户已完成人工验收**，不再重复操作或要求用户重做。此结论的依据是用户确认；不将其写成 Agent 已逐字核对系统剪贴板，也不因自动化聚焦限制否定用户验收。
 
 最窄宽度/380px/缩放/输入法、跨项目真实恢复、已有输入保护及可靠当前/新聊天成功、实际宿主技能绑定/加载和新产品请求后的Agent原始会话仍待验收。父规格及相关最终验收票保持开放。此前的 [最终矩阵](issue62-final-review-and-acceptance.md) 中“运行服务尚未切换”已由本轮解除，其余未通过项不能随之关闭。
+
+## 重启后真实握手与首次回放
+
+独立探索复核当前集成工作树的脱敏捕获：北京时间18:11:14.376及18:12:34.239，两份初始化分别119及118个键，未触及160键上限。声明含 `experimental.openai/message.draft`、modelContext/find/skillsDeepLinks/files/sharedTexture，以及消息、上下文、工具/资源、剪贴板写权限等。未出现composer读取、revision、显式thread/project或receipt契约；draft声明本身不足以承诺这些能力。结合当前包的严格参数及空对象返回实现，仍无可核验的可靠公开适配器证据，不声称穷尽未公开能力。
+
+实际运行此前未执行的 `node verify-host-harness.mjs --capture ../../.scratch/upstream-sidebar/7d8bf528a0966464/host-context-captures.json --issue 62`，exit 0：
+
+- 真实能力键回放包含实验消息能力。
+- 面板→真实MCP服务→真实GitHub列表/详情通过。
+- 当前/新聊天不发ui/message，拒绝不支持的读写/回执，预览保持可编辑。
+- 面板内部status/run使用实际会话数据渲染。
+
+这是生产代码与真实边界相接的握手回放，不是原生聊天写入成功、布局矩阵或Agent行为验收；没有重做用户已完成的编辑/复制。当前公开MCP Apps控制接口没有窗口缩放/尺寸或原生焦点控制，剩余原生布局操作不能通过该接口自动完成。

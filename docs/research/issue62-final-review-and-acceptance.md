@@ -1,5 +1,16 @@
 # 底栏首版：集成、双轴审查与验收状态
 
+## 最新状态（2026-11-26，后续原生验收）
+
+下文保留最初集成与审查的完整记录；其中“服务未切换”“系统剪贴板及手写待用户完成”等描述已由以下事实更新：
+
+- 用户明确授权后，配置已备份且仅切换服务的两项路径；重启后已确认集成服务运行，真实Codex侧栏显示生产B底栏。
+- 原生551×822 CSS px、scale 1布局及出口可达、折叠恢复、跨Issue隔离/恢复、缺上下文先补缺项、两聊天出口拒绝不可靠写入且保留草稿已观察通过。
+- 手写编辑与复制一步用户明确确认已完成人工验收，并要求不再重复；以用户确认作为该项证据，不冒称Agent已逐字核对系统剪贴板。
+- 可靠当前/新聊天成功、已有输入/原子目标保护成功仍缺宿主能力；最窄/380px/缩放/输入法、跨项目真实恢复、实际来源加载及产品生成请求后的Agent原始会话仍待验收。未降低关闭门槛。
+
+后续证据：[配置切换](issue62-native-host-switch.md)、[原生侧栏验收及用户确认](issue62-native-sidebar-acceptance.md)。本记录中的初始矩阵应与这些后续记录合读；父规格仍开放。
+
 日期：2026-11-26（Asia/Shanghai）。代码固定点：`418066bb518e4fe6125613e234a2462d8eb9f3e8`，本地集成分支 `codex/issue62-integration`。
 
 规格：[动作策略](https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/60)、[上下文与技能来源](https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/61)、[底栏与首版验收](https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/62)。用户已授权本轮自主推进、常规取舍按推荐；未因此降低验收门槛。
