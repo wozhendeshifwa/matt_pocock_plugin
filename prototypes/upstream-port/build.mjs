@@ -30,7 +30,7 @@ adapted = adapted.replace(sandboxAnchor, sandboxAnchor + `
 const skillNames = (await readdir(new URL("../../vendor/mattskills-1.8.0-rc.7/bundled-skills/", import.meta.url), { withFileTypes: true }))
   .filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
 adapted = adaptSkillPrefixes(adapted, skillNames);
-// Native new drafts inherit the host selection, not a project supplied by us.
+// Keep the reminder to inspect the destination before sending a scoped draft.
 adapted = adapted.replaceAll('在新会话打开，继承工作区并推进', '在新会话打开，核对项目后推进')
   .replaceAll('Open in new session to advance #{n}, carrying workspace', 'Open in new session to advance #{n}; check the project before sending')
   .replaceAll('Open in new session, carrying workspace', 'Open in new session; check the project before sending');
