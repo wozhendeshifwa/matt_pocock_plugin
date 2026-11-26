@@ -1,6 +1,8 @@
+import { invokedSkillNames } from './request-preparation.mjs';
+
 export function adaptSkillPreparation(source) {
   const helper = `    const codexPrepareSkillUse = async function (st, text) {
-      const names = Array.from(new Set(Array.from(String(text || '').matchAll(/(?:^|\\s)[$/]([a-z][a-z0-9-]*)\\b/g), function (match) { return match[1] }).filter(function (name) { return CODEX_SKILL_NAMES.includes(name) })));
+      const names = (${invokedSkillNames.toString()})(text, CODEX_SKILL_NAMES);
       if (!names.length) return true;
       const preparation = ctx.get('skillPreparation');
       if (!preparation) { st.skillPreparation = { status: 'source-unbound', reason: 'host-capability-unavailable' }; return true; }

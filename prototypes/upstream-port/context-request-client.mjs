@@ -13,6 +13,7 @@ export function adaptContextRequests(source) {
   for(const id of oldIds)if(!CONTEXT_REQUEST_IDS.includes(id))throw new Error('Unreviewed request purpose: '+id);
   source=source.slice(0,start)+'    const codexContextRequest = '+contextRequest.toString()+';\n    const PROMPTS = '+JSON.stringify(Object.fromEntries(CONTEXT_REQUEST_IDS.map(id=>[id,{version:2}])))+';\n'+source.slice(end);
   once("      let s = (promptLang() === 'en' && p.en) ? p.en : (p.zh || '')", "      let s = codexContextRequest(id, params || {}, promptLang())");
+  once("      if (!p) return ''", "      if (!p) return codexContextRequest('unknown', Object.assign({sourceAction:id},params||{}), promptLang())");
   once("    const promptTextFor = function (st, id, params) { return promptText(id, backendParamsFor(st, params)) }", `    const codexRequestParams = function (st, params) {
       const nav = st && typeof peekNav === 'function' ? peekNav(st) : null;
       const related = nav ? issueUrlFor(st, nav.n, nav.effortId) : '';
