@@ -5,6 +5,8 @@
   "adaptedBoundaries": [
     "inject",
     "openTextInNewSession",
-    "comments.pagination"
+    "comments.pagination",
+    "skills.dollarPrefix",
+    "context.requests.v2"
   ]
 }
