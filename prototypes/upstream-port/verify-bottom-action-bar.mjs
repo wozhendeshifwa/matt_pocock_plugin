@@ -46,6 +46,9 @@ try{
   assert.match(editor.value,/当前项目宿主解析.*\/rules\/current\/SKILL.md/,'real source state must enter preview before output');
   assert.ok(bar.querySelector('[data-issue-action-export="active"]'));
   assert.ok(bar.querySelector('[data-issue-action-export="new"]'));
+  assert.match(bar.textContent,/暂不可用.*宿主/,'unknown host capability is explained before output interaction');
+  assert.equal(bar.querySelector('[data-issue-action-export="active"]').disabled,true);
+  assert.equal(bar.querySelector('[data-issue-action-export="new"]').disabled,true);
   editor.value+='\nUser edited final text';
   editor.dispatchEvent(new w.Event('input',{bubbles:true}));
   bar.querySelector('[data-issue-action-export="copy"]').click();
@@ -62,7 +65,6 @@ try{
   await until(()=>bar.textContent.includes('Clipboard denied'));
   assert.equal(bar.querySelector('[data-issue-action-draft]').value,editor.value,'failed copy preserves final text');
   bar.querySelector('[data-issue-action-export="active"]').click();
-  await until(()=>bar.textContent.includes('宿主'));
   await new Promise(resolve=>setTimeout(resolve,0));
   assert.equal(hostRequests.length,0,'an adapter without reliable capabilities cannot mutate unknown host input');
   assert.doesNotMatch(bar.textContent,/已填入当前聊天/,'unknown native result cannot claim success');

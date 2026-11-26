@@ -98,7 +98,7 @@ export function showIssueActionDraft(request, send) {
   note.setAttribute('data-issue-action-status', '');
   note.setAttribute('role', 'status');
   note.setAttribute('aria-live', 'polite');
-  note.textContent = '检查并编辑草稿，再选择出口；填入聊天后由你发送。';
+  note.textContent = '检查并编辑草稿，再选择可用出口；不会自动发送。';
   panel.append(note, editor);
   const choice = document.createElement('select');
   choice.setAttribute('data-issue-action-choice', '');
@@ -154,10 +154,26 @@ export function showIssueActionDraft(request, send) {
   applyContext.onclick = regenerate;
   updateRecommendations();
   panel.append(choice, recommendations, contextBox, applyContext);
+  const actions = ctx.get('codexActions');
+  const canFill = target => typeof actions?.prefill === 'function' && actions.capabilities?.reliableDraft === true && actions.capabilities[target] !== false;
+  const unavailableChats = [['active', '当前聊天'], ['new', '新聊天']].filter(([target]) => !canFill(target));
+  let availability;
+  if (unavailableChats.length) {
+    availability = document.createElement('p');
+    availability.id = 'issue-action-chat-availability-' + Math.random().toString(36).slice(2);
+    availability.setAttribute('data-issue-action-output-availability', '');
+    availability.textContent = unavailableChats.map(([, label]) => label).join('／') + '填入暂不可用：' + (actions?.capabilities?.reason || '宿主未提供可靠的草稿读取、目标锁定与结果确认。') + ' 请明确选择复制，再自行粘贴到所需聊天。';
+    panel.append(availability);
+  }
   for (const [target, label] of [['active', '填入当前聊天'], ['new', '填入新聊天'], ['copy', '复制'], ['close', '返回']]) {
     const button = document.createElement('button');
     button.textContent = label;
     button.setAttribute('data-issue-action-export', target);
+    if (['active', 'new'].includes(target) && !canFill(target)) {
+      button.disabled = true;
+      button.setAttribute('aria-describedby', availability.id);
+      button.title = availability.textContent;
+    }
     button.onclick = async () => {
       if (target === 'close') { panel.remove(); return; }
       try { await send(target, editor.value); note.textContent = target === 'copy' ? '已复制' : target === 'active' ? '已填入当前聊天' : '已填入新聊天'; }

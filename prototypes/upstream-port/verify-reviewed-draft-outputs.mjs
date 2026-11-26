@@ -35,6 +35,9 @@ for(const detail of [false,true]){
     else rowButton.querySelector('button').click();
     await until(()=>w.document.querySelector('[data-issue-action-draft]'));
     const editor=w.document.querySelector('[data-issue-action-draft]');
+    assert.equal(w.document.querySelector('[data-issue-action-export="active"]').disabled,false,'a reliable adapter keeps current chat available');
+    assert.equal(w.document.querySelector('[data-issue-action-export="new"]').disabled,false,'a reliable adapter keeps new chat available');
+    assert.equal(w.document.querySelector('[data-issue-action-output-availability]'),null,'reliable chat outputs do not show an unavailable notice');
     await until(()=>editor.value.includes('/rules/A/'));
     editor.value='Manual refinement\n'+editor.value;editor.dispatchEvent(new w.Event('input',{bubbles:true}));
     const click=target=>w.document.querySelector('[data-issue-action-export="'+target+'"]').click();

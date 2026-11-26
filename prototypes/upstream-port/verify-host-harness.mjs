@@ -191,8 +191,9 @@ try {
   for (const target of ['active', 'new']) {
     const button = window.document.querySelector(`[data-issue-action-export="${target}"]`);
     assert.ok(button, `Explicit ${target} output must be discoverable`);
+    assert.equal(button.disabled, true, `${target} is unavailable before a user attempts unsupported chat fill`);
+    assert.match(window.document.querySelector('[data-issue-action-preview]').textContent, /暂不可用.*宿主/);
     button.click();
-    await until(() => /宿主.*可靠|宿主.*不可用/.test(window.document.body.textContent), `${target} refuses unreliable host output`);
   }
   assert.equal(messages.length, 0, 'native message capability is insufficient to mutate unknown composer content');
   for (const id of ["board", "status", "run"]) {
@@ -211,7 +212,7 @@ try {
   assert.deepEqual(errors, []);
   console.log("PASS replayed real desktop capabilities include experimental.openai/message");
   console.log("PASS panel -> real MCP server -> real GitHub list/detail");
-  console.log("PASS active/new refuse unsupported draft reads/receipts without ui/message; preview remains editable");
+  console.log("PASS active/new explain unavailability and stay disabled without ui/message; preview remains editable");
   console.log("PASS panel-internal status/run tabs render with real session data");
   console.log("NOTE replay is not native draft success or visual acceptance; unsupported native success remains pending");
 } finally {
