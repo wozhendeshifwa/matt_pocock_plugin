@@ -1,0 +1,55 @@
+{
+  "threadId": "01a21879-616d-77b2-98ba-a2bacd5132a6",
+  "rollout": "C:/Users/27263/.codex/sessions/2026/11/26/rollout-2026-11-26T23-28-57-01a21879-616d-77b2-98ba-a2bacd5132a6.jsonl",
+  "records": [
+    {
+      "line": 15,
+      "timestamp": "2026-11-26T15:29:01.217Z",
+      "messageId": "msg_01a21879-6f21-73a1-9110-6dd5b5d2f5e2",
+      "name": "implement-spec",
+      "path": "C:\\Users\\27263\\.codex\\skills\\implement-spec\\SKILL.md",
+      "contentItemKinds": [
+        "skills.selected_skill_instructions"
+      ],
+      "bodyMatchesCurrentFile": true,
+      "injectedSha256": "987978aa037d116df7260fcaab1de3d37a2cb2a0b6d2ea8de5e4add5c4a9308f"
+    },
+    {
+      "line": 16,
+      "timestamp": "2026-11-26T15:29:01.236Z",
+      "messageId": "msg_01a21879-6f34-7112-8212-f658ab5e21b0",
+      "name": "to-spec",
+      "path": "C:\\Users\\27263\\.codex\\skills\\to-spec\\SKILL.md",
+      "contentItemKinds": [
+        "skills.selected_skill_instructions"
+      ],
+      "bodyMatchesCurrentFile": true,
+      "injectedSha256": "32babd2593d204d58cf33ed6a161e91eebd716290330f6b248068d704cc86890"
+    },
+    {
+      "line": 17,
+      "timestamp": "2026-11-26T15:29:01.253Z",
+      "messageId": "msg_01a21879-6f45-7332-9d98-e7d1d2bc1dfb",
+      "name": "to-tickets",
+      "path": "C:\\Users\\27263\\.codex\\skills\\to-tickets\\SKILL.md",
+      "contentItemKinds": [
+        "skills.selected_skill_instructions"
+      ],
+      "bodyMatchesCurrentFile": true,
+      "injectedSha256": "748978dfce1bbc64c4273a6aa0e0db9672f50da0c1e69cba82db8108a9574148"
+    },
+    {
+      "line": 18,
+      "timestamp": "2026-11-26T15:29:01.271Z",
+      "messageId": "msg_01a21879-6f57-76f3-a7ea-50b3e141e6a8",
+      "name": "triage",
+      "path": "C:\\Users\\27263\\.codex\\skills\\triage\\SKILL.md",
+      "contentItemKinds": [
+        "skills.selected_skill_instructions"
+      ],
+      "bodyMatchesCurrentFile": true,
+      "injectedSha256": "fbbc60032c1a0619f83986dae67d08b41a65e69c58da68005e9d74fbbac5fb1f"
+    }
+  ],
+  "boundary": "Full rule text entered this conversation; does not prove every workflow executed or plugin update source bound."
+}

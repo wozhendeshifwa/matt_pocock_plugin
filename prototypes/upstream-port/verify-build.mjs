@@ -56,15 +56,16 @@ try {
     assert.ok(window.document.body.textContent.includes(text), "Missing original content: " + text);
   }
   assert.ok(calls.includes("issueDetail"));
-  for (const [label, target] of [["执行", "active"], ["新会话", "new"]]) {
-    const button = [...window.document.querySelectorAll("button")].find(element => element.textContent.trim() === label);
-    assert.ok(button, "Original action button missing " + label);
-    button.click();
-    await until(() => window.document.querySelector('[data-issue-action-draft]'));
+  const toggle = window.document.querySelector('[data-bottom-action-toggle]');
+  assert.ok(toggle, "Accepted detail bottom action bar must be present");
+  toggle.click();
+  await until(() => window.document.querySelector('[data-issue-action-draft]'));
+  for (const target of ["active", "new"]) {
     window.document.querySelector(`[data-issue-action-export="${target}"]`).click();
     await until(() => actions.some(action => action.target === target));
   }
   assert.equal(actions[0].text, actions[1].text, "Original action prompt must be preserved across targets");
+  assert.match(actions[0].text, /^\$[a-z-]+/, "Both host targets must receive the selected Codex skill prefix");
   assert.ok(actions[0].text.includes("2"));
   for (const id of ["board", "status", "run"]) {
     assert.ok(window.document.querySelector(`[data-mattskills-tab="${id}"]`), `Panel tab ${id} must render`);
@@ -79,7 +80,7 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log("PASS bundled production React, original list, row interaction, full detail and comments");
-  console.log("PASS original execute/new-session buttons produce the same upstream prompt with separate host targets");
+  console.log("PASS accepted bottom action bar produces the same reviewed prompt with separate host targets");
   console.log("PASS panel-internal board/status/run tabs render from the original slot components");
 } finally {
   dispose();

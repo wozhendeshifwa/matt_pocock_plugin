@@ -1,0 +1,52 @@
+{
+  "source": "Codex read_thread original entries",
+  "threadId": "01a21884-c958-7441-a2f9-4f9525e305bf",
+  "turns": [
+    {
+      "id": "01a21884-ca62-7410-9bfe-10a1b843c17b",
+      "status": "completed",
+      "evidence": [
+        {
+          "type": "commandExecution",
+          "id": "exec-1a21945e-7a6d-408e-8432-5bb4ef502896",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-d7b36e0f-8cf1-427b-b408-64d03dcd18b2",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-fcd76304-fd96-4d7c-a052-7ba162180f5a",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-bafe38bb-95c0-4212-90e6-fd9d486be3f9",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "fileChange",
+          "id": "exec-e53411ed-8dd5-45f6-933a-aa5cae90c301",
+          "status": "completed"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-48760f60-7c4c-4420-9cdb-7e09efa037f2",
+          "status": "failed",
+          "exitCode": 1
+        },
+        {
+          "type": "fileChange",
+          "id": "exec-689a35fd-be46-422a-86d2-732ad4b68874",
+          "status": "completed"
+        }
+      ]
+    }
+  ]
+}

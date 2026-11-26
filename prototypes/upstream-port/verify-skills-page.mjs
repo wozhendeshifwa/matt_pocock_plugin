@@ -117,7 +117,7 @@ try {
   }
   console.log("PASS skill.readDoc returns the selected reference body for 3 skills without claiming host activation");
 
-  // --- 3. the panel shows all 27 and no "not installed" banner
+  // --- 3. the panel shows all 27 with an explicit reference/host boundary
   const resource = await rpc("resources/read", { uri: "ui://deck-sidebar/board.html" });
   const errors = [];
   const virtualConsole = new VirtualConsole();
@@ -154,7 +154,6 @@ try {
   }
   const rootText = () => window.document.getElementById("root").textContent;
   await until(() => [...window.document.querySelectorAll("button")].some(button => button.textContent.trim() === "技能"), "skills nav");
-  assert.ok(!rootText().includes("未检测到核心技能套件"), "skills banner must be gone");
   const skillsNav = [...window.document.querySelectorAll("button")].find(button => button.textContent.trim() === "技能");
   skillsNav.click();
   await until(() => rootText().includes("wayfinder"), "skills catalog");
@@ -162,7 +161,7 @@ try {
     assert.ok(rootText().includes(name), "skills page lists " + name);
   }
   console.log("PASS panel skills page lists all 27 vendored skills");
-  assert.ok(!rootText().includes("未检测到核心技能套件"), "skills banner stays gone after opening the page");
+  assert.match(window.document.querySelector('[data-skill-source-notice]')?.textContent ?? '', /不代表宿主已加载|not proof of host loading/, "catalog must distinguish readable references from host loading");
 
   // Opening a skill must fetch its doc through the endpoint (not a hardcoded copy).
   const nameElement = [...window.document.querySelectorAll(".pixel-sname")]

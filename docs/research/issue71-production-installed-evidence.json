@@ -1,0 +1,72 @@
+{
+  "revision": "ec47e0c7b0c11d9af5d2a9bda515546e854e19ff",
+  "skills": 27,
+  "filesVerified": 79,
+  "userOriginalsUnchanged": true,
+  "userAggregate": "5c64f4526a107feb162e6d9998cefd384e3c89a53fd8e58874c17bc83ccfae3a",
+  "events": [
+    {
+      "ts": "2026-11-26T16:03:41.037Z",
+      "method": "skill.prepare",
+      "category": "skill-maintenance",
+      "confirmation": "automatic-library-policy",
+      "projectHash": "69ff8ad74a90",
+      "stage": "startup",
+      "ok": false,
+      "errorKind": "checking"
+    },
+    {
+      "ts": "2026-11-26T16:04:03.586Z",
+      "method": "skill.prepare",
+      "category": "skill-maintenance",
+      "confirmation": "automatic-library-policy",
+      "projectHash": "69ff8ad74a90",
+      "fsTargetHash": "2fb08e54fa0e",
+      "stage": "startup",
+      "ok": true,
+      "errorKind": ""
+    },
+    {
+      "ts": "2026-11-26T16:04:03.587Z",
+      "method": "skill.prepare",
+      "category": "skill-maintenance",
+      "confirmation": "automatic-library-policy",
+      "projectHash": "69ff8ad74a90",
+      "stage": "before-use",
+      "ok": false,
+      "errorKind": "checking"
+    },
+    {
+      "ts": "2026-11-26T16:04:04.939Z",
+      "method": "skill.prepare",
+      "category": "skill-maintenance",
+      "confirmation": "automatic-library-policy",
+      "projectHash": "69ff8ad74a90",
+      "fsTargetHash": "2fb08e54fa0e",
+      "stage": "before-use",
+      "ok": true,
+      "errorKind": ""
+    },
+    {
+      "ts": "2026-11-26T16:04:04.945Z",
+      "method": "skill.prepare",
+      "category": "skill-maintenance",
+      "confirmation": "automatic-library-policy",
+      "projectHash": "69ff8ad74a90",
+      "stage": "before-use",
+      "ok": false,
+      "errorKind": "checking"
+    },
+    {
+      "ts": "2026-11-26T16:04:06.087Z",
+      "method": "skill.prepare",
+      "category": "skill-maintenance",
+      "confirmation": "automatic-library-policy",
+      "projectHash": "69ff8ad74a90",
+      "fsTargetHash": "2fb08e54fa0e",
+      "stage": "before-use",
+      "ok": true,
+      "errorKind": ""
+    }
+  ]
+}

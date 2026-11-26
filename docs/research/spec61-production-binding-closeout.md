@@ -30,6 +30,8 @@
 
 原始本机结果保留在主工作区.scratch/issue71-production-binding-live-final.json、issue71-production-installed-evidence.json；两次失败结果单独保留，不抹去历史失败。
 
+随交付提交的结果副本：[首次失败](issue71-production-binding-live-before-fix.json)、[源抓取修复后的长路径失败](issue71-production-binding-live-after-source-fix.json)、[最终真实源成功](issue71-production-binding-live-final.json)、[27项79文件及原件不变核验](issue71-production-installed-evidence.json)。这些是已有输出的归档，本次发布未重新执行验收。
+
 ## 当前运行服务生效
 
 只定向重载了脚本路径和项目参数逐字核对相符的6个本项目数据worker；未退出Codex、未重载父服务、未终止其他项目或编码任务。父服务自动创建新worker。
@@ -50,6 +52,8 @@
 | 审查/运行交付 | 既有动作、底栏、来源双轴结果继续有效，本次新增绑定及各次修复独立双轴定点通过；实际worker与当前服务已生效。 |
 
 共享原始证据：本目录spec61-real-session-acceptance-2026-11-26.md、spec61-native-followup-2026-11-26.md、issue62-agent-behavior-case.md；主工作区docs/research/issue60-controlled-behavior-results-2026-11-26.md及对应输入/trace，#60正文亦保留原始来源索引。旧矩阵中的未重载、等待#70、原生未查和没有真实会话均以本次及#62最新修订为准。
+
+现已归档到同一交付分支的补充资料：[动作最终验收](issue60-final-acceptance-2026-11-26.md)、[受控模型判断](issue60-controlled-behavior-results-2026-11-26.md)、[原始条目索引](issue60-controlled-behavior-trace-2026-11-26.json)、[父规格及地图关闭跟进](issue61-62-followthrough-2026-11-27.md)。
 
 ## 仍保留的能力边界
 

@@ -3,13 +3,12 @@ import * as ReactDOM from "react-dom";
 import { createRoot } from "react-dom/client";
 import { summarizeHostContext } from "./host-context.mjs";
 import { namingDisabledText } from "./naming-capability.mjs";
+import { createProtectedDraftOutputs } from "./protected-draft-outputs.mjs";
 import { ManualNaming } from "./manual-naming-view.mjs";
-
-import { createProtectedDraftOutputs } from './protected-draft-outputs.mjs';
 import { createRequestPreparation } from './request-preparation.mjs';
 import { MATT_SKILL_PROBE_NAMES } from '../../vendor/mattskills-1.8.0-rc.7/shared/matt-skills.js';
+
 const requestPreparations = new WeakMap();
-const actionDrafts = new Map(); // Panel-session memory survives project remounts.
 
 let plugin;
 window.__ModuleLoader__ = {
@@ -28,6 +27,8 @@ window.__ModuleLoader__ = {
 // are unchanged, and the settings page is the same SettingsPage the host's
 // settings.plugins.tab / settings.section slots would have carried.
 const DEFAULT_LABELS = { board: "看板", settings: "设置", status: "状态", run: "运行" };
+// Panel-session memory survives project remounts, never a page reload/restart.
+const actionDrafts = new Map();
 
 function PanelShell({ Panel, Settings, Status, Run, panelProps, locale, connection, labels = DEFAULT_LABELS }) {
   const language = React.useSyncExternalStore(
