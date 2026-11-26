@@ -77,7 +77,7 @@ try {
     const check = resolved["skill:" + name];
     assert.equal(check?.status, "pending", "readable reference does not prove host skill availability: " + name);
     assert.match(check.detail, /随包参考/);
-    assert.match(String(check.detail), /bundled-skills/, "chain detail points at the vendored skills");
+    assert.match(String(check.detail), /bundled-skills|skill-library/, "chain detail points at a plugin reference copy");
   }
   assert.notEqual(chain?.snapshot?.chainState, "allDone", "unknown host skill source must stay pending");
   console.log("PASS check chain distinguishes readable references from host skills");
@@ -91,31 +91,33 @@ try {
   });
   assert.ok(!prepared.isError);
   const prepareValue = prepared.structuredContent?.value ?? prepared.structuredContent;
-  assert.equal(prepareValue.status, 'source-unbound', 'production lacks trusted source binding and must not guess');
+  assert.ok(['checked', 'attention'].includes(prepareValue.status), 'production must report the approved binding check honestly');
+  assert.equal(prepareValue.bindings.length, 1, 'production has exactly one approved plugin binding');
+  assert.equal(prepareValue.latest, prepareValue.status === 'checked');
   const injectedTarget = await rpc('tools/call', {
     name: 'deck_upstream_write', arguments: { method: 'skill.prepare', payload: { name: 'tdd', targetRoot: projectRoot, expectedThreadId: threadId } }, _meta: metadata,
   });
   assert.equal(injectedTarget.isError, true, 'ordinary UI cannot select a maintenance target');
-  console.log('PASS skill.prepare is a write, rejects arbitrary targets and reports unbound production sources');
+  console.log('PASS skill.prepare is a write, rejects arbitrary targets and reports the approved production binding');
 
   // --- 2. the doc endpoint returns the vendored body, not a copy
   for (const name of ["wayfinder", "tdd", "writing-for-agents"]) {
     const doc = await upstream("skill.readDoc", { name });
     assert.equal(doc?.ok, true, "skill.readDoc must find " + name);
-    const vendorText = await readFile(path.join(bundledDir, name, "SKILL.md"), "utf8");
-    const parsed = parseSkillMarkdown(vendorText);
+    const selectedText = await readFile(doc.path, "utf8");
+    const parsed = parseSkillMarkdown(selectedText);
     assert.ok(parsed, "vendored SKILL.md parses: " + name);
     assert.ok(String(doc.md).endsWith(parsed.content), "detail preserves selected rules: " + name);
     assert.equal(doc.source.kind, 'bundled-reference');
     assert.equal(doc.source.actualLoad, 'unknown');
     assert.equal(doc.execution.allowed, false);
     assert.match(doc.md, /随包参考/);
-    assert.equal(doc.update.status, 'source-unbound');
-    assert.ok(String(doc.path || "").includes(path.join("bundled-skills", name)), "doc path is the vendored file: " + name);
+    assert.equal(doc.update.status, prepareValue.status);
+    assert.ok(String(doc.path || "").includes(path.join("bundled-skills", name)) || String(doc.path || "").includes(path.join("skill-library", name)), "doc path is a plugin reference file: " + name);
   }
-  console.log("PASS skill.readDoc returns the vendored body for 3 skills");
+  console.log("PASS skill.readDoc returns the selected reference body for 3 skills without claiming host activation");
 
-  // --- 3. the panel shows all 27 and no "not installed" banner
+  // --- 3. the panel shows all 27 with an explicit reference/host boundary
   const resource = await rpc("resources/read", { uri: "ui://deck-sidebar/board.html" });
   const errors = [];
   const virtualConsole = new VirtualConsole();
@@ -152,7 +154,6 @@ try {
   }
   const rootText = () => window.document.getElementById("root").textContent;
   await until(() => [...window.document.querySelectorAll("button")].some(button => button.textContent.trim() === "技能"), "skills nav");
-  assert.ok(!rootText().includes("未检测到核心技能套件"), "skills banner must be gone");
   const skillsNav = [...window.document.querySelectorAll("button")].find(button => button.textContent.trim() === "技能");
   skillsNav.click();
   await until(() => rootText().includes("wayfinder"), "skills catalog");
@@ -160,11 +161,11 @@ try {
     assert.ok(rootText().includes(name), "skills page lists " + name);
   }
   console.log("PASS panel skills page lists all 27 vendored skills");
-  assert.ok(!rootText().includes("未检测到核心技能套件"), "skills banner stays gone after opening the page");
+  assert.match(window.document.querySelector('[data-skill-source-notice]')?.textContent ?? '', /不代表宿主已加载|not proof of host loading/, "catalog must distinguish readable references from host loading");
 
   // Opening a skill must fetch its doc through the endpoint (not a hardcoded copy).
   const nameElement = [...window.document.querySelectorAll(".pixel-sname")]
-    .find(element => element.textContent.trim() === "/wayfinder");
+    .find(element => element.textContent.trim() === "$wayfinder");
   let row = nameElement?.parentElement ?? null;
   while (row && !(row.querySelector("button") && row.querySelectorAll(".pixel-sname").length === 1)) row = row.parentElement;
   const open = [...(row?.querySelectorAll("button") ?? [])].find(button => /详情|detail/i.test(button.textContent)) ?? row?.querySelector("button") ?? null;
