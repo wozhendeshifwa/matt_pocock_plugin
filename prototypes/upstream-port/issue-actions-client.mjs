@@ -187,7 +187,7 @@ export function showIssueActionDraft(request, send) {
       try {
         button.disabled = true;
         const result = await send(target, editor.value);
-        note.textContent = target === 'copy' ? '已复制' : result?.status === 'requested' ? '已请求填入' + (target === 'active' ? '当前聊天' : '新聊天') + '，请检查输入框后发送' : target === 'active' ? '已填入当前聊天' : '已填入新聊天';
+        note.textContent = target === 'copy' ? '已复制' : result?.status === 'requested' ? '已请求填入' + (target === 'active' ? '当前聊天' : '新聊天') + (target === 'new' ? '，请核对项目与输入框后发送' : '，请检查输入框后发送') : target === 'active' ? '已填入当前聊天' : '已填入新聊天';
       }
       catch (error) { note.textContent = '操作失败：' + String(error.message || error) + '。草稿已保留。'; }
       finally { button.disabled = false; }

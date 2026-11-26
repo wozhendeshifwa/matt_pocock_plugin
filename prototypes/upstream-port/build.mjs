@@ -3,6 +3,7 @@ import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
+import { adaptCommentPagination } from "./comment-pagination-client.mjs";
 import { adaptSkillPrefixes } from "./skill-prefix-client.mjs";
 import { adaptIssueActions } from "./issue-actions-client.mjs";
 import { adaptContextRequests } from "./context-request-client.mjs";
@@ -17,7 +18,7 @@ const runtime = await build({
   minify: true, legalComments: "inline",
 });
 const original = await readFile(new URL("../../vendor/mattskills-1.8.0-rc.7/lib/client.js", import.meta.url), "utf8");
-let adapted = original.replace(/\r\n/g, '\n');
+let adapted = adaptCommentPagination(original.replace(/\r\n/g, '\n'));
 const sandboxAnchor = '      const hasIssueDetail = topIssue !== null && topIssue !== undefined';
 if (adapted.split(sandboxAnchor).length !== 2) throw new Error('Issue selection boundary changed');
 adapted = adapted.replace(sandboxAnchor, sandboxAnchor + `
@@ -29,6 +30,10 @@ adapted = adapted.replace(sandboxAnchor, sandboxAnchor + `
 const skillNames = (await readdir(new URL("../../vendor/mattskills-1.8.0-rc.7/bundled-skills/", import.meta.url), { withFileTypes: true }))
   .filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
 adapted = adaptSkillPrefixes(adapted, skillNames);
+// Native new drafts inherit the host selection, not a project supplied by us.
+adapted = adapted.replaceAll('在新会话打开，继承工作区并推进', '在新会话打开，核对项目后推进')
+  .replaceAll('Open in new session to advance #{n}, carrying workspace', 'Open in new session to advance #{n}; check the project before sending')
+  .replaceAll('Open in new session, carrying workspace', 'Open in new session; check the project before sending');
 adapted = adaptContextRequests(adapted);
 adapted = adaptSkillSourceDisplay(adapted);
 adapted = adaptIssueActions(adapted);
@@ -42,7 +47,7 @@ for (const [anchor, target] of [
       const codexActions = ctx.get('codexActions');
       if (codexActions) {
         return Promise.resolve().then(() => codexActions.prefill(${JSON.stringify(target)}, text))
-          .then(result => { flash(st, result?.status === 'filled' ? tr('toast.injected') : '已请求填入聊天输入框，请检查后发送。', 'ok'); return true; })
+          .then(result => { flash(st, result?.status === 'filled' ? tr('toast.injected') : (${JSON.stringify(target)} === 'new' ? '已请求打开新草稿，请核对项目与输入框后发送。' : '已请求填入聊天输入框，请检查后发送。'), 'ok'); return true; })
           .catch(error => { flash(st, String(error && error.message || error), 'warn'); return false; });
       }
   `);

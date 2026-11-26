@@ -28,4 +28,5 @@ if (!tests.length) throw new Error('沙箱测试清单为空。');
 run('sandbox regressions', sandbox, ['--test', ...tests]);
 run('sidebar build', sidebar, ['build.mjs']);
 for (const file of ['verify-project-switch.mjs', 'verify-rpc-manifest.mjs', 'verify-write-policy.mjs']) run(file, sidebar, [file]);
+for (const file of ['verify-native-draft-injection.mjs', 'verify-native-legacy-actions.mjs', 'verify-chat-output-availability.mjs', 'verify-linked-worktree-project.mjs']) run(file, sidebar, [file]);
 console.log('\n[check] PASS: syntax, sandbox tests, sidebar build, project identity/draft routing, RPC manifest and write policy');

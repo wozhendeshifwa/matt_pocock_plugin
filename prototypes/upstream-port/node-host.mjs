@@ -1,3 +1,4 @@
+import './comment-pagination-hook.mjs';
 import { spawn, execFileSync } from "node:child_process";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { realpathSync, existsSync, mkdirSync, copyFileSync } from "node:fs";

@@ -1,3 +1,4 @@
+import { linkedWorktreeProject } from './linked-worktree-project.mjs';
 import { createReadStream } from "node:fs";
 import { glob, readFile, realpath, stat } from "node:fs/promises";
 import { createInterface } from "node:readline";
@@ -309,7 +310,8 @@ export function createSessionProjectResolver(options = {}) {
       }
 
       const cwd = await resolveDirectory(chosen);
-      const project = projectRootFor(cwd, roots);
+      const directProject = projectRootFor(cwd, roots);
+      const project = directProject ?? await linkedWorktreeProject(cwd, roots);
       const value = {
         threadId,
         cwd,
@@ -320,7 +322,7 @@ export function createSessionProjectResolver(options = {}) {
         sourceConflict: rolloutConflict,
         message: project ? null : OUTSIDE_PROJECT,
       };
-      if (!databaseFailed) {
+      if (!databaseFailed && directProject) {
         const rolloutFile = source === "state_5" ? rolloutCwds[0]?.file ?? null : null;
         cache.set(threadId, {
           signature,

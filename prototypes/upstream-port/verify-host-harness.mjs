@@ -191,11 +191,11 @@ try {
   for (const target of ['active', 'new']) {
     const button = window.document.querySelector(`[data-issue-action-export="${target}"]`);
     assert.ok(button, `Explicit ${target} output must be discoverable`);
-    assert.equal(button.disabled, true, `${target} is unavailable before a user attempts unsupported chat fill`);
+    assert.equal(button.disabled, !nativeDraft, `${target} follows the advertised native draft capability`);
     assert.match(window.document.querySelector('[data-issue-action-preview]').textContent, /暂不可用.*宿主/);
     button.click();
   }
-  assert.equal(messages.length, 0, 'native message capability is insufficient to mutate unknown composer content');
+  assert.equal(messages.length, 0, 'opening a preview never automatically mutates a host draft');
   for (const id of ["board", "status", "run"]) {
     assert.ok(window.document.querySelector(`[data-mattskills-tab="${id}"]`), `Panel tab ${id} must render`);
   }
@@ -212,9 +212,9 @@ try {
   assert.deepEqual(errors, []);
   console.log("PASS replayed real desktop capabilities include experimental.openai/message");
   console.log("PASS panel -> real MCP server -> real GitHub list/detail");
-  console.log("PASS active/new explain unavailability and stay disabled without ui/message; preview remains editable");
+  console.log("PASS active/new availability matches native capability and opening the preview performs no implicit write");
   console.log("PASS panel-internal status/run tabs render with real session data");
-  console.log("NOTE replay is not native draft success or visual acceptance; unsupported native success remains pending");
+  console.log("NOTE replay is not native draft success or visual acceptance; native composer readback and project inheritance require separate observation");
 } finally {
   if (dom) dom.window.close();
   for (const { timer } of requests.values()) clearTimeout(timer);

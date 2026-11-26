@@ -5,7 +5,7 @@ export function createNativeDraftOutputs({ capabilities, getIdentity, readIdenti
   return {
     capabilities: Object.freeze({ nativeDraftRequest: supported, reliableDraft: false, active: supported, new: supported,
       reason: supported ? '' : '宿主未提供聊天草稿接口。',
-      notice: supported ? '当前聊天使用追加方式，保留已有输入；不会自动发送。请求后请检查聊天输入框。' : '' }),
+      notice: supported ? '当前聊天追加并保留已有输入，不会自动发送。新聊天项目由宿主当前选择决定，请核对／切换项目后发送；需要确保项目时，先在目标项目开空聊天再使用当前聊天出口。' : '' }),
     async prefill(target, text) {
       if (!supported) throw new Error('宿主未提供聊天草稿接口。');
       if (!['active', 'new'].includes(target)) throw new Error('未知草稿出口，不会自动改投。');
