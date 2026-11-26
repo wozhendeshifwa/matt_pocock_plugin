@@ -42,7 +42,7 @@ export function createRequestPreparation({ knownNames, prepareSkill, readSkillDo
       facts.push({name,available:doc?.ok === true,path:doc?.path || source.path || null,
         kind:source.kind || 'unknown',actualLoad:'unknown',hostResolution:source.hostResolution || 'unknown',
         sourceId:source.sourceId || null,difference:source.difference?.kind || 'unknown',
-        body:String(doc?.md || '').replace(/\r\n/g,'\n').trim(),execution:{allowed,mode:execution.mode || '',reasons:execution.reasons || [],files:execution.files || []},
+        body:String(doc?.md || '').replace(/\r\n/g,'\n').trim(),execution:{allowed,mode:execution.mode || '',reasons:execution.reasons || [],files:execution.files || [],documentDigests:execution.documentDigests || []},
         update:{status:update?.status || 'unknown',latest:update?.latest === true,bindings}});
       let notice = '技能 '+name+'：'+(source.kind === 'host-resolved' ? '当前项目宿主解析规则' : source.kind === 'bundled-reference' ? '随包参考规则' : '来源未核验')+
         '；路径：'+(doc?.path || source.path || '未提供')+'；实际加载：未核验。';

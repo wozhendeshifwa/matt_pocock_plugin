@@ -10,4 +10,3 @@ export function adaptSkillSourceDisplay(source) {
     'h("p", { key: "source-notice", role: "note", "data-skill-source-notice": true }, tr("sd.listTitle").includes("技能") ? "目录列出本插件技能；当前项目来源请看详情。随包正文是参考，不代表宿主已加载。" : "Plugin skill catalog. See details for this project’s source. Bundled rules are reference material, not proof of host loading."),\n    h("div", { key: "rows" }, items.map(function(it) {');
   return source;
 }
-
