@@ -37,6 +37,7 @@ export const READ_ENDPOINTS = new Set([
 ]);
 
 export const WRITE_ENDPOINTS = new Set([
+  "skill.prepare",
   "deckExec",
   "gitStage",
   "gitUnstage",
@@ -64,7 +65,8 @@ export const WRITE_ENDPOINTS = new Set([
   "updateInstall",
 ]);
 
-export const UPSTREAM_ENDPOINTS = new Set([...READ_ENDPOINTS, ...WRITE_ENDPOINTS]);
+export const ADAPTER_ENDPOINTS = new Set(['skill.prepare']);
+export const UPSTREAM_ENDPOINTS = new Set([...READ_ENDPOINTS, ...WRITE_ENDPOINTS].filter(name => !ADAPTER_ENDPOINTS.has(name)));
 
 // logExport only reads the day's log and returns its text, so #18 moved it to
 // the read set (write-policy already classified it "read-only-export").
@@ -83,6 +85,7 @@ export function rpcManifest() {
     read: [...READ_ENDPOINTS].sort(),
     write: [...WRITE_ENDPOINTS].sort(),
     upstream: [...UPSTREAM_ENDPOINTS].sort(),
+    adapter: [...ADAPTER_ENDPOINTS].sort(),
     conditional: ["setupLayout"],
     adapterRead: ['portSnapshotCache'],
   };

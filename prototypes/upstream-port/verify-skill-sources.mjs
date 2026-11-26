@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createSkillsService } from './skills-service.mjs';
 
 const root = await mkdtemp(path.join(os.tmpdir(), 'deck-skill-sources-'));
@@ -81,7 +82,7 @@ try {
   await rm(hostFile);
   assert.equal((await host.resolveBinding('example')).binding.id, 'existing-source', 'missing local skill retains a verified source binding for repair');
   assert.equal(await host.get('unrelated-plugin-skill'), null);
-  const realBundled = createSkillsService({ workspaceRoot, bundledDir: path.resolve('vendor/mattskills-1.8.0-rc.7/bundled-skills'),
+  const realBundled = createSkillsService({ workspaceRoot, bundledDir: fileURLToPath(new URL('../../vendor/mattskills-1.8.0-rc.7/bundled-skills/', import.meta.url)),
     assessRequirements: async () => ({ complete: true, tools: [] }),
   });
   const wayfinder = await realBundled.inspectForUse('wayfinder');

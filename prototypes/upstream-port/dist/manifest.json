@@ -12,6 +12,7 @@
     "skills.dollarPrefix",
     "issueActions.scenarioDraft",
     "context.requests.v2",
-    "skills.sourceDisplay"
+    "skills.sourceDisplay",
+    "skills.beforeUse"
   ]
 }

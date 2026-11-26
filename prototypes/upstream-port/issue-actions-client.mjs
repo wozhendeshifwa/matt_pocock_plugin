@@ -165,6 +165,7 @@ export function adaptIssueActions(source) {
   replaceFunction('const rowActionKind = function (x) {', 'const actionColorOf =', 'const rowActionKind = x => issueActionRequest(x, "").kind;');
   replaceFunction('const rowActionText = function (st, x) {', '// v19：共享 —— 行级动作', `const rowActionText = (st, x) => issueActionRequest(x, issueUrlFor(st, x.number) || '#' + x.number).text;
     const previewIssueAction = (st, issue) => showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), async (target, finalText) => {
+      if (!await codexPrepareSkillUse(st, finalText)) throw new Error('技能状态需核对，旧出口已停止；草稿已保留。');
       if (target === 'copy') { await navigator.clipboard.writeText(finalText); return; }
       const actions = ctx.get('codexActions');
       if (!actions) throw new Error('宿主草稿出口不可用，请选择复制');

@@ -293,6 +293,17 @@
         }
         dispose = window.MattSkillsCodex.mount(document.getElementById("root"), {
           sessions,
+          skillPreparation: { async prepare(name) {
+            const atCall = current;
+            const active = await readProject();
+            if (!atCall || !active || atCall.projectRoot !== mountedProject.projectRoot || active.projectRoot !== atCall.projectRoot || active.threadId !== atCall.threadId) throw new Error('聊天或项目已切换，旧技能准备已停止。');
+            const reply = await rpc('tools/call', { name: 'deck_upstream_write', arguments: { method: 'skill.prepare', payload: { name, expectedThreadId: atCall.threadId } } });
+            const after = await readProject();
+            if (!current || !after || current.threadId !== atCall.threadId || current.projectRoot !== atCall.projectRoot || after.threadId !== atCall.threadId || after.projectRoot !== atCall.projectRoot) throw new Error('聊天或项目已切换，旧技能准备已停止。');
+            if (reply.isError) throw new Error(reply.content?.[0]?.text ?? '技能更新状态无法核验。');
+            const result = reply.structuredContent ?? JSON.parse(reply.content[0].text);
+            return result.value ?? result;
+          } },
           locale: localeService,
           sandboxTasks: {
             currentIssue: null,
