@@ -39,17 +39,29 @@ async function until(check) {
 }
 const find = pattern => [...window.document.querySelectorAll('[aria-label]')].find(el => pattern.test(el.getAttribute("aria-label")));
 try {
-  await until(() => find(/交接：发送|Handoff: send/));
-  find(/交接：发送|Handoff: send/).click();
+  const boardAction = name => window.document.querySelector('[data-mattskills-panel="board"] [data-board-action="' + name + '"]');
+  await until(() => boardAction('handoff'));
+  const header = boardAction('handoff').closest('[data-head-tier]');
+  assert.ok(header, "Chat actions must be in the repository toolbar");
+  const toolbarItems = [...header.children];
+  const actionGroup = boardAction('handoff').parentElement;
+  assert.ok(toolbarItems.indexOf(header.querySelector('[data-head-icon="palette"]')) < toolbarItems.indexOf(actionGroup));
+  assert.ok(header.querySelector('[data-head-refresh]'));
+  assert.equal(window.document.querySelector('[data-mattskills-panel="board"]').hidden, false);
+  boardAction('handoff').click();
   await until(() => actions.length === 1);
   assert.equal(actions[0].target, "active");
   assert.match(actions[0].text, /handoff/);
   file = "20261107-120000-000-test.md";
-  find(/尚未生成交接文档|No handoff doc yet|开新会话并预填|Open a new session with/).click();
+  boardAction('new').click();
   await until(() => actions.length === 2);
   assert.equal(actions[1].target, "new");
   assert.ok(actions[1].text.includes(file));
   assert.ok(actions[1].text.replaceAll("\\", "/").includes(".scratch/handoff"));
+  boardAction('fixate').click();
+  await until(() => actions.length === 3);
+  assert.equal(actions[2].target, "active");
+  assert.ok(actions[2].text.length > 100, "Consolidation must inject the full upstream template");
   window.document.querySelector('[data-mattskills-tab="status"]').click();
   const note = () => window.document.querySelector('[data-mattskills-naming-note]').textContent;
   await until(() => note().includes("watchers are disabled"));
@@ -67,5 +79,5 @@ try {
   language = "zh";
   for (const listener of listeners) listener();
   await until(() => note().includes("watcher 已关闭"));
-  console.log("PASS original handoff buttons generate active/new drafts; naming limitation visible");
+  console.log("PASS board handoff/new/consolidation buttons generate drafts; naming limitation visible");
 } finally { dispose(); window.close(); }

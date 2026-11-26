@@ -29,6 +29,7 @@ for (const name of WRITE_ENDPOINTS) {
 assert.equal(classifyEndpoint("setupLayout", {}), "read");
 assert.equal(classifyEndpoint("setupLayout", { layout: "multi" }), "write");
 assert.equal(classifyEndpoint("not-an-endpoint", {}), "unknown");
+assert.equal(classifyEndpoint("portSnapshotCache", {}), "read");
 
 const overlap = [...READ_ENDPOINTS].filter(name => WRITE_ENDPOINTS.has(name));
 assert.deepEqual(overlap, [], "Read/write sets must not overlap");

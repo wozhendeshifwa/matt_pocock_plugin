@@ -316,7 +316,7 @@ try {
   await until(() => drafted.length === 1, "single-ticket draft");
   assert.equal(drafted[0]._meta?.["openai/message"]?.target, "active", "Row actions prefill the current chat");
   assert.equal(drafted[0]._meta?.["openai/message"]?.send, false, "Row actions only prefill the current chat");
-  assert.ok(drafted[0].content[0].text.startsWith("/wayfinder"), "Row action uses the upstream wayfinder prompt: " + drafted[0].content[0].text.slice(0, 60));
+  assert.ok(drafted[0].content[0].text.startsWith("$wayfinder"), "Row action uses the Codex wayfinder prefix: " + drafted[0].content[0].text.slice(0, 60));
   assert.ok(drafted[0].content[0].text.includes(repositoryUrl + "/issues/" + actionable.number), "Row action prompt names ticket #" + actionable.number);
   console.log("PASS a single takeable child keeps its original row action and send:false draft");
 
@@ -337,7 +337,7 @@ try {
   for (const draft of mapDrafts) assert.equal(draft._meta?.["openai/message"]?.send, false, "Map actions only create a draft");
   assert.equal(mapDrafts[0].content[0].text, mapDrafts[1].content[0].text, "The same upstream prompt feeds both targets");
   const mapUrl = map.url ?? repositoryUrl + "/issues/" + map.number;
-  assert.ok(mapDrafts[0].content[0].text.startsWith("/wayfinder " + mapUrl), "Map action prompt starts from the map URL: " + mapDrafts[0].content[0].text.slice(0, 80));
+  assert.ok(mapDrafts[0].content[0].text.startsWith("$wayfinder " + mapUrl), "Map action prompt starts from the map URL: " + mapDrafts[0].content[0].text.slice(0, 80));
   console.log("PASS map-level execute/new-session reuse the original prompt and the send:false draft boundary");
 
   // --- Board frontier filter ----------------------------------------------

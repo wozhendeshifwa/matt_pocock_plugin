@@ -142,7 +142,8 @@ try {
 
   // Opening a skill must fetch its doc through the endpoint (not a hardcoded copy).
   const nameElement = [...window.document.querySelectorAll(".pixel-sname")]
-    .find(element => element.textContent.trim() === "/wayfinder");
+    .find(element => element.textContent.trim() === "$wayfinder");
+  assert.ok(nameElement, "Skill invocation examples use the Codex dollar prefix");
   let row = nameElement?.parentElement ?? null;
   while (row && !(row.querySelector("button") && row.querySelectorAll(".pixel-sname").length === 1)) row = row.parentElement;
   const open = [...(row?.querySelectorAll("button") ?? [])].find(button => /详情|detail/i.test(button.textContent)) ?? row?.querySelector("button") ?? null;

@@ -8,6 +8,7 @@ import { resolveSessionProject } from "./session-project.mjs";
 import { rpcManifest, WRITE_ENDPOINTS } from "./rpc-endpoints.mjs";
 import { ENABLED_WRITE_ENDPOINTS } from "./write-policy.mjs";
 import { createDeckToolsForHost } from "../../vendor/mattskills-1.8.0-rc.7/lib/platform/deckToolsAssembly.js";
+import { sandboxTools, dispatchSandbox } from '../sandbox-tasks/adapter.mjs';
 
 // The service owns no project. Each sidebar instance resolves its project per
 // request from the host-provided thread identity, so the data root is keyed by
@@ -75,6 +76,7 @@ async function handle(request) {
     case "initialize": return { protocolVersion: request.params.protocolVersion, capabilities: { tools: {}, resources: {} }, serverInfo: { name: "deck-sidebar-probe", version: "1.8.0-rc.7-codex.3" } };
     case "ping": return {};
     case "tools/list": return { tools: [
+      ...sandboxTools,
       { name: "deck_current_project", description: "Resolve this UI request's host-provided thread identity to its local project.", inputSchema: { type: "object", additionalProperties: false }, annotations: { readOnlyHint: true }, _meta: { ui: { visibility: ["app"] } } },
       { name: "open_deck_sidebar_probe", title: "MattSkillsDeck", description: "Open the original MattSkills sidebar. Each panel follows the active chat's project when the host supplies a trustworthy thread identity.", inputSchema: { type: "object", additionalProperties: false }, annotations: { readOnlyHint: true }, _meta: { ui: { resourceUri: uri }, "openai/ui": { entrypoints: [{ type: "thread" }] } } },
       { name: "deck_upstream_read", description: "Read original MattSkills plugin data through the Codex adapter.", inputSchema: { type: "object", required: ["method"], additionalProperties: false, properties: { method: { type: "string" }, payload: { type: "object" } } }, annotations: { readOnlyHint: true }, _meta: { ui: { visibility: ["app"] } } },
@@ -96,6 +98,13 @@ async function handle(request) {
       if (!uris.has(request.params.uri)) throw new Error("Sidebar resource not found");
       return { contents: [{ uri: request.params.uri, mimeType, text: html }] };
     case "tools/call": {
+      if (sandboxTools.some(tool => tool.name === request.params.name)) {
+        try {
+          const project = await resolveSessionProject(request.params._meta);
+          const value = await dispatchSandbox(request.params.name, request.params.arguments ?? {}, project);
+          return { content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value };
+        } catch (error) { return { isError: true, content: [{ type: 'text', text: error.message }] }; }
+      }
       if (request.params.name === "deck_current_project") {
         try {
           const project = await resolveSessionProject(request.params._meta);

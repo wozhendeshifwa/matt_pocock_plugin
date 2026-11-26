@@ -24,6 +24,7 @@ w.eval(await readFile(new URL('sidebar-bridge.js',import.meta.url),'utf8'));
 await new Promise(r=>setTimeout(r,20));
 assert.equal(mounts[0].props.sessionId,'C:/a');
 assert.equal(mounts[0].props.session.cwd,'C:/a');
+assert.equal(await mounts[0].services.snapshotCache.get('C:/b'),null,'cache must reject another project key');
 
 // A different chat in the same project must keep the mounted board (and its
 // state) while moving only the identity used for the next request.
@@ -55,6 +56,7 @@ await poll();
 assert.equal(disposed,1);
 assert.equal(mounts[1].props.sessionId,'C:/b');
 await assert.rejects(mounts[0].services.connection.rpc.call('/api','dsws',{method:'snapshot'}));
+assert.equal(await mounts[0].services.snapshotCache.get('C:/a'),null,'old panel cannot hydrate after project switch');
 
 // Switching back to the first project restores that project's board.
 active={threadId:'project-a-4',projectRoot:'C:/a',cwd:'C:/a'};

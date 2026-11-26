@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+if (!process.argv.includes('--baseline')) await import('./upstream-host.mjs');
+const {createSnapshotComposer}=await import('../../vendor/mattskills-1.8.0-rc.7/lib/tracker/snapshot.js');
+let release;
+const blocked=new Promise(r=>release=r);
+let countCalls=0;
+const tracker={list:async()=>{await blocked;return {ok:true,data:[]};},counts:async()=>{countCalls++;return {ok:true,data:{open:0,closed:0,total:0}};}};
+const composer=createSnapshotComposer({get:()=>tracker});
+const ref={backend:'github',refId:'test/repo',name:'test/repo'};
+const pending=composer.composeSnapshot('github',ref,{}, {force:true});
+await new Promise(r=>setTimeout(r,20));
+try{assert.equal(countCalls,1,'counts must start while the independent list is still pending');}finally{release();}
+const reply=await pending;assert.equal(reply.ok,true);assert.equal(reply.snapshot.deck.partial,false);
+await composer.composeSnapshot('github',ref);assert.equal(countCalls,1,'cache hit must not launch counts');
+await composer.composeSnapshot('github',ref,{}, {force:true});assert.equal(countCalls,2,'forced refresh must issue a new count query');
+tracker.counts=async()=>{throw Error('offline');};
+const degraded=await composer.composeSnapshot('github',ref,{}, {force:true});
+assert.equal(degraded.ok,true);assert.equal(degraded.snapshot.deck.partial,true);
+tracker.list=async()=>({ok:false,error:{kind:'network',message:'offline'}});
+assert.equal((await composer.composeSnapshot('github',ref,{}, {force:true})).ok,false);
+const order=[];
+const other=createSnapshotComposer({get:()=>({list:async()=>{order.push('list');return {ok:true,data:[]};},counts:async()=>{order.push('counts');return {ok:true,data:{open:0,closed:0,total:0}};}})});
+await other.composeSnapshot('other',{...ref,backend:'other'}, {},{force:true});
+assert.deepEqual(order,['list','counts'],'other backends retain original sequencing');
+console.log('PASS concurrent list/counts, force bypass, count degradation and list failure');

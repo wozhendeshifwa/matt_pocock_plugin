@@ -4,6 +4,8 @@ import { createRoot } from "react-dom/client";
 import { summarizeHostContext } from "./host-context.mjs";
 import { namingDisabledText } from "./naming-capability.mjs";
 import { ManualNaming } from "./manual-naming-view.mjs";
+import { createSandboxTaskView } from "../sandbox-tasks/view.mjs";
+const SandboxTaskView = createSandboxTaskView(React);
 
 let plugin;
 window.__ModuleLoader__ = {
@@ -29,6 +31,7 @@ function PanelShell({ Panel, Settings, Status, Run, panelProps, locale, connecti
     () => locale?.getSnapshot?.().active ?? "zh",
   );
   const tabs = [{ id: "board", label: labels.board, component: Panel }];
+  if (panelProps.sandboxTasks) tabs.push({ id: 'sandbox', label: language === 'en' ? 'Sandbox tasks' : '沙箱任务', component: SandboxTaskView });
   if (Settings) tabs.push({ id: "settings", label: labels.settings ?? DEFAULT_LABELS.settings, component: Settings });
   if (Status) tabs.push({ id: "status", label: labels.status, component: Status });
   if (Run) tabs.push({ id: "run", label: labels.run, component: Run });
@@ -117,7 +120,7 @@ window.MattSkillsCodex = {
       Settings,
       Status,
       Run,
-      panelProps,
+      panelProps: { ...panelProps, sandboxTasks: hostServices.sandboxTasks },
       locale: hostServices.locale,
       connection: hostServices.connection,
       labels: panelProps.labels ?? DEFAULT_LABELS,
