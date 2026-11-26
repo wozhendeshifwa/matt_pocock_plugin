@@ -4,6 +4,7 @@ import {
   READ_ENDPOINTS,
   WRITE_ENDPOINTS,
   UPSTREAM_ENDPOINTS,
+  ADAPTER_ENDPOINTS,
   classifyEndpoint,
 } from "./rpc-endpoints.mjs";
 
@@ -33,7 +34,8 @@ assert.equal(classifyEndpoint("portSnapshotCache", {}), "read");
 
 const overlap = [...READ_ENDPOINTS].filter(name => WRITE_ENDPOINTS.has(name));
 assert.deepEqual(overlap, [], "Read/write sets must not overlap");
-assert.equal(READ_ENDPOINTS.size + WRITE_ENDPOINTS.size, UPSTREAM_ENDPOINTS.size);
+assert.equal(READ_ENDPOINTS.size + WRITE_ENDPOINTS.size, UPSTREAM_ENDPOINTS.size + ADAPTER_ENDPOINTS.size);
+assert.equal(classifyEndpoint('skill.prepare'), 'write');
 
 console.log(`PASS upstream endpoint manifest covers all ${registered.size} harness.handle registrations`);
 console.log(`PASS read=${READ_ENDPOINTS.size} write=${WRITE_ENDPOINTS.size} conditional=setupLayout`);

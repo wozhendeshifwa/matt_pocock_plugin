@@ -12,18 +12,21 @@ const oldTemplates=JSON.stringify({execute:'OLD ACTIVE TEMPLATE {url}'});
 const oldStart=JSON.stringify({custom:'OLD START TEMPLATE {url}'});
 w.localStorage.setItem('dsws.templates',oldTemplates);
 w.localStorage.setItem('dsws.startCfg',oldStart);
-const drafts=[];const copies=[];
+const drafts=[];const copies=[];const preparations=[];
+let preparationOutcome={status:'source-unbound',bindings:[]};
 Object.defineProperty(w.navigator,'clipboard',{value:{async writeText(text){copies.push(text);}}});
 const session={id:'context-test',cwd:'C:/example/deck'};
 const sessions={current:session.id,byId:{[session.id]:session},items:[session]};
 await w.eval(await readFile(new URL('dist/client.js',import.meta.url),'utf8'));
 const dispose=w.MattSkillsCodex.mount(w.document.getElementById('root'),{
   codexActions:{capabilities:{reliableDraft:true},async prefill(target,text){drafts.push({target,text});}},
+  skillPreparation:{async prepare(name){preparations.push(name);return preparationOutcome;}},
   sessions:{list:{getSnapshot:()=>sessions,subscribe:()=>()=>{}},get:()=>session},
   connection:{rpc:{async call(_channel,_endpoint,req){
     if(['snapshot','refresh'].includes(req.method))return snapshot;
     if(req.method==='issueDetail')return {ok:true,value:{ok:true,issue}};
     if(req.method==='cwd')return {ok:true,value:{ok:true,cwd:session.cwd,workspaceRoot:session.cwd}};
+    if(req.method==='skill.readDoc')return {ok:true,value:{ok:true,path:'/fixture/skills/'+req.payload.name+'/SKILL.md',source:{kind:'bundled-reference'},execution:{allowed:true}}};
     return {ok:true,value:{ok:false,error:{kind:'unsupported',message:'Fixture'}}};
   }}}
 },{sessionId:session.id,session,useSessions:select=>select?select(sessions):sessions});
@@ -35,9 +38,18 @@ try{
   await until(()=>button('执行'));
   button('执行').click();
   await until(()=>w.document.querySelector('[data-issue-action-draft]'));
-  assert.equal(drafts.length,0,'action selection opens preview without sending');
+  await until(()=>w.document.querySelector('[data-issue-action-source]').textContent.includes('/fixture/skills/'));
+  const previewChecks=preparations.length;
+  assert.equal(drafts.length,0,'preview source checks never send a host draft');
+  let releasePreparation;
+  preparationOutcome=new Promise(resolve=>{releasePreparation=resolve;});
   w.document.querySelector('[data-issue-action-export="active"]').click();
+  await until(()=>preparations.length>previewChecks);
+  assert.equal(drafts.length,0,'host draft waits while skill preparation is pending');
+  preparationOutcome={status:'source-unbound',bindings:[]};
+  releasePreparation(preparationOutcome);
   await until(()=>drafts.length===1);
+  assert.ok(preparations.includes('implement-spec'),'actual issue outlet prepares its skill before using the draft');
   assert.doesNotMatch(drafts[0].text,/OLD ACTIVE|OLD START/);
   assert.match(drafts[0].text,/\$implement-spec/);
   assert.match(drafts[0].text,/https:\/\/github.com\/example\/deck\/issues\/61/);
@@ -65,5 +77,12 @@ try{
   assert.match(drafts.at(-1).text,/\$wayfinder/);
   assert.match(drafts.at(-1).text,/example\/deck/);
   assert.match(drafts.at(-1).text,/目的地|destination/);
+  const sent=drafts.length;
+  preparationOutcome={status:'checked',bindings:[{status:'updated',latest:true}]};
+  button('执行').click();
+  await until(()=>w.document.querySelector('[data-issue-action-draft]'));
+  w.document.querySelector('[data-issue-action-export="active"]').click();
+  await until(()=>w.document.body.textContent.includes('技能状态已变化'));
+  assert.equal(drafts.length,sent,'changed skill state stops the old outlet for visible review');
   console.log('PASS production sidebar: scoped implementation request, same current/new draft, legacy templates inactive and preserved');
 }finally{dispose();w.close();}

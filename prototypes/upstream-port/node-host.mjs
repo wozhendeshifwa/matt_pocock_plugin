@@ -13,6 +13,7 @@ import { classifyEndpoint } from "./rpc-endpoints.mjs";
 import { classifyReadCommand, createBoundedCollector } from "./read-command.mjs";
 import { createSessionStore } from "./session-store.mjs";
 import { createSkillsService } from "./skills-service.mjs";
+import { createSkillUpdateManager } from './skill-updates.mjs';
 import { classifyOpenCommand } from "./open-command.mjs";
 import { classifyWriteCommand } from "./write-gate.mjs";
 import { classifyGraphWriteCommand, observeGraphIssueId } from "./graph-write-gate.mjs";
@@ -318,8 +319,22 @@ export async function createOriginalHost({ dataRoot, workspaceRoot, skillHost } 
   services.set("platform", await createPlatform(context, { homedir: () => dataRoot }));
   // The MCP transport has no current-host skill resolution/requirements channel.
   // Only a trusted embedding may supply one; disk discovery is not evidence.
+  const bundledDir = fileURLToPath(new URL("../../vendor/mattskills-1.8.0-rc.7/bundled-skills/", import.meta.url));
+  const skillUpdates = createSkillUpdateManager({
+    dataRoot, workspaceRoot, frozenBundledDir: bundledDir,
+    getBindings: input => skillHost?.getUpdateBindings?.(input) ?? [],
+    assessRequirements: skillHost?.assessRequirements,
+    async audit(event) {
+      await recordWrite({ method: 'skill.prepare', category: 'skill-maintenance', confirmation: 'automatic-library-policy',
+        projectHash, ...(event.bindings?.length ? { fsTargetHash: digest(event.bindings.map(item => item.targetHash).join(',')) } : {}),
+        stage: event.reason, ok: event.status === 'checked', errorKind: event.status === 'checked' ? '' : event.status });
+    },
+  });
+  // The startup check owns its queue, not the read-only board lifecycle. A use
+  // preparation waits for this check and checks again; reads can show checking.
+  void skillUpdates.prepare({ reason: 'startup' }).catch(() => {});
   const skills = createSkillsService({
-    bundledDir: fileURLToPath(new URL("../../vendor/mattskills-1.8.0-rc.7/bundled-skills/", import.meta.url)),
+    bundledDir, managedBundledDir: skillUpdates.managedBundledDir,
     workspaceRoot, resolveHostSkill: skillHost?.resolveSkill, assessRequirements: skillHost?.assessRequirements,
   });
   services.set("skills", skills);
@@ -338,7 +353,11 @@ export async function createOriginalHost({ dataRoot, workspaceRoot, skillHost } 
   let sequence = 0;
   return {
     async call(method, payload = {}) {
-      if (method === 'skill.readDoc') return { ok: true, value: await skills.readDoc(payload) };
+      if (method === 'skill.readDoc') return { ok: true, value: { ...await skills.readDoc(payload), update: skillUpdates.status() } };
+      if (method === 'skill.prepare') {
+        if (Object.keys(payload).some(key => !['name', 'reason', 'expectedThreadId'].includes(key))) throw new Error('skill-prepare-out-of-scope');
+        return { ok: true, value: await skillUpdates.prepare({ ...(payload.name ? { name: payload.name } : {}), reason: 'before-use' }) };
+      }
       if (method === "namingPlan") return { ok: true, value: await manualNaming.plan(payload.sessionId) };
       if (method === "cancelNewSessionWatcher") return { ok: true, value: await manualNaming.cancel(payload.sessionId, payload.suggestionId) };
       const naming = namingCapability(method);

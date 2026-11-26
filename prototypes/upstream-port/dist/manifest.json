@@ -13,6 +13,7 @@
     "issueActions.scenarioDraft",
     "context.requests.v2",
     "skills.sourceDisplay",
+    "skills.beforeUse",
     "issueActions.bottomBar"
   ]
 }

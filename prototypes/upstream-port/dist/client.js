@@ -7588,6 +7588,7 @@ const RULES_SOURCE = "version-control-core/src/rules.ts";
       const bottom = bottomActionControllers.get(st);
       if (bottom) return bottom.open();
       return showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), async (target, finalText) => {
+      if (!await codexPrepareSkillUse(st, finalText)) throw new Error('技能状态需核对，旧出口已停止；草稿已保留。');
       if (target === 'copy') { await navigator.clipboard.writeText(finalText); return; }
       const actions = ctx.get('codexActions');
       if (!actions) throw new Error('宿主草稿出口不可用，请选择复制');
@@ -10053,7 +10054,32 @@ const _installLateSnapshot = function (st, snap, reqNorm, mine) {
     // #361：在新会话中打开 —— 同 cwd + 自动命名 + 预填指令
     //   契约（dsh-client-runtime ISessions）：create({cwd}) → SessionId；scope(sid) → AgentContext；
     //   sessionOf(ctx) → SessionFace.rename(title)；open(sid) 切换。任一步失败降级为当前会话注入 + 提醒。
-    const openTextInNewSession = function (st, text, title, opts) {
+    const codexPrepareSkillUse = async function (st, text) {
+      const names = Array.from(new Set(Array.from(String(text || '').matchAll(/(?:^|\s)[$/]([a-z][a-z0-9-]*)\b/g), function (match) { return match[1] }).filter(function (name) { return CODEX_SKILL_NAMES.includes(name) })));
+      if (!names.length) return true;
+      const preparation = ctx.get('skillPreparation');
+      if (!preparation) { st.skillPreparation = { status: 'source-unbound', reason: 'host-capability-unavailable' }; return true; }
+      try {
+        const results = [];
+        for (const name of names) results.push(await preparation.prepare(name));
+        st.skillPreparation = { names: names, results: results };
+        if (typeof emit === 'function') emit(st);
+        const updated = results.some(function (result) { return (result.bindings || []).some(function (binding) { return binding.status === 'updated' }) });
+        const failed = results.some(function (result) { return !['checked','source-unbound','binding-invalid'].includes(result.status) });
+        if (updated || failed) {
+          const retained = results.some(function (result) { return (result.bindings || []).some(function (binding) { return binding.usable }) });
+          flash(st, updated ? '技能状态已变化，请先核对草稿再重试；旧出口已停止。' : retained ? '技能检查未通过，现有可用规则已保留；请先核对来源与草稿再重试。' : '技能检查未通过，尚无已核验可用来源；请先查证缺项，旧出口已停止。', 'warn');
+          return false;
+        }
+        return true;
+      } catch (error) {
+        st.skillPreparation = { status: 'prepare-failed' };
+        flash(st, String(error && error.message || '技能更新状态无法核验；旧出口已停止。'), 'warn');
+        return false;
+      }
+    };
+    const openTextInNewSession = async function (st, text, title, opts) {
+      if (!await codexPrepareSkillUse(st, text)) return false;
       const codexActions = ctx.get('codexActions');
       if (codexActions) {
         Promise.resolve().then(() => codexActions.prefill("new", text))
@@ -10387,7 +10413,8 @@ const _installLateSnapshot = function (st, snap, reqNorm, mine) {
       previewIssueAction(st, x)
     }
     // 彻底移除：extractIssueRefs 已移除（#345）
-    const inject = (st, text) => {
+    const inject = async (st, text) => {
+      if (!await codexPrepareSkillUse(st, text)) return false;
       const codexActions = ctx.get('codexActions');
       if (codexActions) {
         Promise.resolve().then(() => codexActions.prefill("active", text))
@@ -10504,7 +10531,8 @@ const _installLateSnapshot = function (st, snap, reqNorm, mine) {
     // v1.6：技能安装引导已收编进 PROMPTS 注册表（installSkills 条目），见下方 promptText('installSkills') 引用
     // v1.5 引导链：打开外部 URL（gh 安装/登录文档）
     const openUrl = function (url) { try { if (typeof window !== 'undefined' && window.open) window.open(url, '_blank') } catch (e) { /* 忽略 */ } }
-    const copyText = (st, text, okMsg) => {
+    const copyText = async (st, text, okMsg) => {
+      if (!await codexPrepareSkillUse(st, text)) return false;
       text = codexSkillText(text); // #951：多返回真实结果给调用点换图标，提示行为与原来逐字一致
       if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
         return navigator.clipboard.writeText(text).then(function () { flash(st, okMsg || tr('toast.copied'), 'ok'); return true }).catch(function () { flash(st, tr('toast.copyFailed'), 'warn'); return false })
