@@ -68,13 +68,17 @@ export function supplementalActionRequest(skill, request, context) {
   return renderIssueActionRequest({ skill, target: request.target, goal, missing, facts });
 }
 
+function canFillIssueActionDraft(actions, target) {
+  return typeof actions?.prefill === 'function' && actions.capabilities?.reliableDraft === true && actions.capabilities[target] !== false;
+}
+
 export async function sendIssueActionDraft(st, target, finalText) {
   if (target === 'copy') {
     await navigator.clipboard.writeText(finalText);
     return { status: 'copied', target: 'copy' };
   }
   const actions = ctx.get('codexActions');
-  if (!actions || !actions.prefill || actions.capabilities?.reliableDraft !== true || actions.capabilities[target] === false) throw new Error('宿主未提供可靠的草稿读取与结果确认，请明确选择复制');
+  if (!canFillIssueActionDraft(actions, target)) throw new Error('宿主未提供可靠的草稿读取与结果确认，请明确选择复制');
   const result = await actions.prefill(target, finalText);
   if (!result || result.status !== 'filled') throw new Error('宿主填入结果无法确认；草稿已保留');
   if (result.target !== target) throw new Error('宿主返回的目标与所选聊天不一致；草稿已保留');
@@ -155,8 +159,7 @@ export function showIssueActionDraft(request, send) {
   updateRecommendations();
   panel.append(choice, recommendations, contextBox, applyContext);
   const actions = ctx.get('codexActions');
-  const canFill = target => typeof actions?.prefill === 'function' && actions.capabilities?.reliableDraft === true && actions.capabilities[target] !== false;
-  const unavailableChats = [['active', '当前聊天'], ['new', '新聊天']].filter(([target]) => !canFill(target));
+  const unavailableChats = [['active', '当前聊天'], ['new', '新聊天']].filter(([target]) => !canFillIssueActionDraft(actions, target));
   let availability;
   if (unavailableChats.length) {
     availability = document.createElement('p');
@@ -169,7 +172,7 @@ export function showIssueActionDraft(request, send) {
     const button = document.createElement('button');
     button.textContent = label;
     button.setAttribute('data-issue-action-export', target);
-    if (['active', 'new'].includes(target) && !canFill(target)) {
+    if (['active', 'new'].includes(target) && !canFillIssueActionDraft(actions, target)) {
       button.disabled = true;
       button.setAttribute('aria-describedby', availability.id);
       button.title = availability.textContent;
@@ -205,6 +208,6 @@ export function adaptIssueActions(source) {
   replaceOnce('const mapDone=!!(isMap&&', 'const mapDone=!!(!issueActionRequest(x, "").roleConflict&&isMap&&');
   replaceOnce('const mapEmpty=!!(isMap&&', 'const mapEmpty=!!(!issueActionRequest(x, "").roleConflict&&isMap&&');
   const anchor = '    // 1. 技能目录 + 场景推荐映射';
-  replaceOnce(anchor, 'const ISSUE_ACTION_COMMON = ' + JSON.stringify(ISSUE_ACTION_COMMON) + ';\nconst SUPPLEMENTAL_ACTIONS = ' + JSON.stringify(SUPPLEMENTAL_ACTIONS) + ';\nconst ACTION_CONTEXT_LABELS = ' + JSON.stringify(ACTION_CONTEXT_LABELS) + ';\n' + renderIssueActionRequest.toString() + '\n' + supplementalRequirements.toString() + '\n' + issueActionRequest.toString() + '\n' + supplementalActionRequest.toString() + '\n' + sendIssueActionDraft.toString() + '\n' + createDraftReview.toString() + '\n' + showIssueActionDraft.toString() + '\n' + anchor);
+  replaceOnce(anchor, 'const ISSUE_ACTION_COMMON = ' + JSON.stringify(ISSUE_ACTION_COMMON) + ';\nconst SUPPLEMENTAL_ACTIONS = ' + JSON.stringify(SUPPLEMENTAL_ACTIONS) + ';\nconst ACTION_CONTEXT_LABELS = ' + JSON.stringify(ACTION_CONTEXT_LABELS) + ';\n' + renderIssueActionRequest.toString() + '\n' + supplementalRequirements.toString() + '\n' + issueActionRequest.toString() + '\n' + supplementalActionRequest.toString() + '\n' + canFillIssueActionDraft.toString() + '\n' + sendIssueActionDraft.toString() + '\n' + createDraftReview.toString() + '\n' + showIssueActionDraft.toString() + '\n' + anchor);
   return source;
 }
