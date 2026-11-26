@@ -181,6 +181,14 @@ export function createSkillUpdateManager({ dataRoot, workspaceRoot, frozenBundle
   }
   async function update(binding, requested) {
     const result = { id: binding.id, sourceId: binding.sourceId, latest: false, downloadedFiles: 0, status: 'check-failed', actualLoad: 'unknown' };
+    // Read the bound catalog before touching its target. A source legitimately
+    // managing other skills is not a failure of this requested skill.
+    let manifest, manifestError;
+    if (requested) {
+      try { manifest = manifestOf(await bounded(new URL(binding.manifestUrl), 1024 * 1024), binding); }
+      catch (error) { manifestError = error; }
+    }
+    if (requested && manifest && !manifest.skills.some(skill => skill.name === requested)) return null;
     let release;
     let control;
     let selectedNames = requested ? [requested] : [];
@@ -194,7 +202,10 @@ export function createSkillUpdateManager({ dataRoot, workspaceRoot, frozenBundle
       await recover(control, binding.targetRoot);
       const previous = await json(path.join(control, 'state.json')).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
       if (previous && previous.sourceId !== binding.sourceId) throw new Error('bound-source-changed');
-      const manifest = manifestOf(await bounded(new URL(binding.manifestUrl), 1024 * 1024), binding);
+      // Even when the source is unavailable, recover an interrupted matching
+      // target transaction before reporting the failed check.
+      if (manifestError) throw manifestError;
+      if (!manifest) manifest = manifestOf(await bounded(new URL(binding.manifestUrl), 1024 * 1024), binding);
       result.revision = manifest.revision;
       const selected = requested ? manifest.skills.filter(skill => skill.name === requested) : manifest.skills;
       if (!selected.length) throw new Error('skill-not-in-bound-source');
@@ -286,10 +297,15 @@ export function createSkillUpdateManager({ dataRoot, workspaceRoot, frozenBundle
     try { bindings = await validateBindings(await getBindings?.({ projectRoot: workspaceRoot }) ?? []); }
     catch { last = { status: 'binding-invalid', bindings: [], checkedAt: new Date().toISOString(), actualLoad: 'unknown', latest: false }; await audit({ reason, status: last.status }); return last; }
     if (!bindings.length) { last = { status: 'source-unbound', bindings: [], checkedAt: new Date().toISOString(), actualLoad: 'unknown', latest: false }; await audit({ reason, status: last.status }); return last; }
-    const results = [];
-    for (const binding of bindings) results.push(await update(binding, name));
-    last = { status: results.every(item => item.latest) ? 'checked' : 'attention', latest: results.every(item => item.latest), checkedAt: new Date().toISOString(), actualLoad: 'unknown', bindings: results };
-    await audit({ reason, status: last.status, bindings: results.map((item, index) => ({ sourceHash: hash(item.sourceId).slice(0, 12), targetHash: hash(bindings[index].targetRoot).slice(0, 12), status: item.status, errorKind: item.errorKind ?? '' })) });
+    const results = [], resultTargets = [];
+    for (const binding of bindings) {
+      const result = await update(binding, name);
+      if (result) { results.push(result); resultTargets.push(binding.targetRoot); }
+    }
+    const latest = results.length > 0 && results.every(item => item.latest);
+    last = { status: !results.length ? 'source-unbound' : latest ? 'checked' : 'attention', latest,
+      ...(!results.length ? { reason:'skill-not-in-bound-sources' } : {}), checkedAt: new Date().toISOString(), actualLoad: 'unknown', bindings: results };
+    await audit({ reason, status: last.status, bindings: results.map((item, index) => ({ sourceHash: hash(item.sourceId).slice(0, 12), targetHash: hash(resultTargets[index]).slice(0, 12), status: item.status, errorKind: item.errorKind ?? '' })) });
     return last;
   }
   return {
