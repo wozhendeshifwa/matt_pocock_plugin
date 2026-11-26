@@ -3,17 +3,19 @@ import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
 
 const client = await readFile(new URL('dist/client.js', import.meta.url), 'utf8');
-async function scenario(labels, expected, detail = false, exercise = null) {
+async function scenario(labels, expected, detail = false, exercise = null, fixtureTitle = 'Action fixture', mapStats = null) {
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://actions.invalid', runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;
   w.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
-  const row = { key: '10', number: 10, type: 'issue', title: 'Action fixture', state: 'OPEN', labels, assignees: [], blockedBy: [], url: 'https://github.com/fixture/repo/issues/10' };
+  const row = { key: '10', number: 10, type: 'issue', title: fixtureTitle, state: 'OPEN', labels, assignees: [], blockedBy: [], url: 'https://github.com/fixture/repo/issues/10' };
+  if (mapStats) row.type = 'map';
   const session = { id: 'actions', cwd: '/fixture' };
   const state = { current: session.id, byId: { actions: session }, items: [session] };
   const actions = [];
   const copied = [];
   Object.defineProperty(w.navigator, 'clipboard', { value: { async writeText(text) { copied.push(text); } } });
   const snapshot = { ok: true, value: { ok: true, workspaceRoot: '/fixture', repoRoot: '/fixture', repo: { owner: 'fixture', name: 'repo' }, repository: { name: 'fixture/repo', url: 'https://github.com/fixture/repo' }, issues: [row], maps: [], labels: [], selection: { backendId: 'github' }, backendModules: [{ id: 'github' }] } };
+  if (mapStats) snapshot.value.maps.push({ ...row, stats: mapStats, tickets: [], children: [] });
   w.eval(client);
   const dispose = w.MattSkillsCodex.mount(w.document.getElementById('root'), {
     codexActions: { async prefill(target, text) { actions.push({ target, text }); } },
@@ -27,9 +29,10 @@ async function scenario(labels, expected, detail = false, exercise = null) {
   }, { sessionId: session.id, session, useSessions: sel => typeof sel === 'function' ? sel(state) : state });
   const until = async check => { for (let i = 0; i < 100; i++) { if (check()) return; await new Promise(r => setTimeout(r, 20)); } assert.fail('UI timeout: ' + w.document.body.textContent.slice(-800)); };
   try {
-    await until(() => w.document.querySelector('[role="button"][aria-label="#10 Action fixture"]'));
+    const findRow = () => [...w.document.querySelectorAll('[role="button"]')].find(el => el.getAttribute('aria-label') === '#10 ' + fixtureTitle);
+    await until(findRow);
     assert.equal(actions.length, 0, 'reading labels must not change the host draft');
-    const rowElement = w.document.querySelector('[role="button"][aria-label="#10 Action fixture"]');
+    const rowElement = findRow();
     if (detail) {
       rowElement.click();
       await until(() => w.document.querySelector('[data-detail-primary-text]'));
@@ -74,6 +77,7 @@ await scenario(['needs-triage', 'unrelated'], [/^\$triage/, /先用 \$triage 诊
 await scenario([], [/^\$triage/, /无标签/, /不默认实施/]);
 await scenario(['unrecognized'], [/^\$triage/, /不默认实施/]);
 await scenario(['ready-for-agent', 'bug'], [/^\$diagnosing-bugs/, /\$implement-spec/], true);
+await scenario(['ready-for-agent', 'bug', 'wayfinder:task'], [/缺规格先 \$to-spec/, /缺实施票先 \$to-tickets/, /只补缺项并复用有效产物/]);
 await scenario(['ready-for-agent', 'wayfinder:task'], [], false, async (w, editor) => {
   const choice = w.document.querySelector('[data-issue-action-choice]');
   assert.ok(choice, 'preview must retain all skills and supplemental actions');
@@ -136,4 +140,14 @@ await scenario(['ready-for-agent', 'wayfinder:task'], [], false, async (w, edito
   choice.dispatchEvent(new w.Event('change'));
   assert.match(editor.value, /标签事实：ready-for-agent、wayfinder:task/);
 });
+await scenario(['ready-for-agent', 'wayfinder:task'], [], false, async (w, editor) => {
+  const choice = w.document.querySelector('[data-issue-action-choice]');
+  choice.value = 'pr';
+  choice.dispatchEvent(new w.Event('change'));
+  assert.match(editor.value, /Issue：https:\/\/github.com\/fixture\/repo\/issues\/10/);
+  assert.match(editor.value, /标签事实：ready-for-agent、wayfinder:task/);
+  assert.match(editor.value, /Label policy\n\n先读取最新Release context/);
+}, 'Label policy\n\n先读取最新Release context');
+await scenario(['wayfinder:map', 'wayfinder:task'], [/先查证，再请用户确认/, /确认前不实施/], false, null, 'Action fixture', { total: 0, closed: 0 });
+await scenario(['wayfinder:map', 'wayfinder:research'], [/先查证，再请用户确认/, /确认前不实施/], false, null, 'Action fixture', { total: 1, closed: 1 });
 console.log('PASS shipped action click -> editable preview -> final host draft');
