@@ -4599,7 +4599,11 @@ function getWizardSteps(wizardAction) {
     //   不要再在文本里逐条拍脑袋（#779 全量加、#791 才发现与金样门禁打架，就是这么来的）。
     const codexContextRequest = function contextRequest(id, values = {}, language = 'zh') {
   const en = language === 'en';
-  const v = (key, fallback) => String(values[key] || fallback);
+  const v = (key, fallback) => {
+    const value=values[key];
+    if(value && typeof value==='object')return String(value.url || (value.owner && value.name ? value.owner+'/'+value.name : value.refId || value.name) || fallback);
+    return String(value || fallback);
+  };
   const project = v('project', v('repo', en ? 'Locate the intended project first' : '先定位目标项目'));
   const issue = ['tpl.diagnose','tpl.fix','tpl.discuss','tpl.research','tpl.prototype','tpl.execute','tpl.takeover','tpl.supplement'].includes(id);
   const map = ['mapExecute','mapInspect','complete'].includes(id);

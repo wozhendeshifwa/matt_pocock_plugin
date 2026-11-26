@@ -3,7 +3,11 @@
 export const CONTEXT_REQUEST_VERSION = 2;
 export function contextRequest(id, values = {}, language = 'zh') {
   const en = language === 'en';
-  const v = (key, fallback) => String(values[key] || fallback);
+  const v = (key, fallback) => {
+    const value=values[key];
+    if(value && typeof value==='object')return String(value.url || (value.owner && value.name ? value.owner+'/'+value.name : value.refId || value.name) || fallback);
+    return String(value || fallback);
+  };
   const project = v('project', v('repo', en ? 'Locate the intended project first' : '先定位目标项目'));
   const issue = ['tpl.diagnose','tpl.fix','tpl.discuss','tpl.research','tpl.prototype','tpl.execute','tpl.takeover','tpl.supplement'].includes(id);
   const map = ['mapExecute','mapInspect','complete'].includes(id);

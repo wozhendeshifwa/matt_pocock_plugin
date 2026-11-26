@@ -43,7 +43,7 @@ try{
   assert.equal(drafts[1].text,drafts[0].text);
   assert.equal(w.localStorage.getItem('dsws.templates'),oldTemplates,'old values remain recoverable, inactive');
   assert.equal(w.localStorage.getItem('dsws.startCfg'),oldStart,'no migration overwrites user config');
-  for(const [name,required] of [['pr',/基线|comparison base/],['retro',/原始记录|original records/],['implement-spec',/规格.*实施票|spec.*ticket/i]]){
+  for(const [name,required] of [['pr',/基线|comparison base/],['retro',/原始记录|original records/],['implement-spec',/规格.*实施票|spec.*ticket/i],['implement',/\$implement-spec/]]){
     const before=drafts.length;
     w.document.querySelector('.dsws-skillbtn').click();
     await until(()=>w.document.querySelector('.dsws-skillpop-row[aria-label="$'+name+'"]'));
@@ -52,6 +52,8 @@ try{
     const text=drafts.at(-1).text;
     assert.match(text,required,name+' request must identify prerequisites, not only inject a name');
     assert.match(text,/C:\/example\/deck/);
+    assert.doesNotMatch(text,/\[object Object\]/);
+    if(name==='implement')assert.doesNotMatch(text,/\$implement(?:\s|$)/,'legacy menu item must use the spec implementation workflow');
   }
   const before=drafts.length;
   button('+ 需求').click();await until(()=>drafts.length===before+1);
