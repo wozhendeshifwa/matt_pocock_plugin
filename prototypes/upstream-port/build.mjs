@@ -5,6 +5,7 @@ import { adaptCommentPagination } from "./comment-pagination-client.mjs";
 import { adaptSkillPrefixes } from "./skill-prefix-client.mjs";
 import { adaptContextRequests } from "./context-request-client.mjs";
 import { adaptSkillSourceDisplay } from "./skill-source-client.mjs";
+import { adaptSkillPreparation } from './skill-preparation-client.mjs';
 
 const runtime = await build({
   entryPoints: [new URL("browser-runtime.mjs", import.meta.url).pathname.replace(/^\/(\w:)/, "$1")],
@@ -33,6 +34,7 @@ for (const [anchor, target] of [
       }
   `);
 }
+adapted = adaptSkillPreparation(adapted);
 const output = new URL("dist/", import.meta.url);
 await mkdir(output, { recursive: true });
 // Adapt host actions and comment pagination. The remaining source, styles, components,
@@ -42,6 +44,6 @@ await writeFile(new URL("manifest.json", output), JSON.stringify({
   upstreamVersion: "1.8.0-rc.7",
   upstreamClientSha256: createHash("sha256").update(original).digest("hex"),
   output: "client.js",
-  adaptedBoundaries: ["inject", "openTextInNewSession", "comments.pagination", "skills.dollarPrefix", "context.requests.v2"],
+  adaptedBoundaries: ["inject", "openTextInNewSession", "comments.pagination", "skills.dollarPrefix", "context.requests.v2", "skills.beforeUse"],
 }, null, 2) + "\n");
 console.log("Built original MattSkills client with Codex mounting adapter");

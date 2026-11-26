@@ -7,6 +7,7 @@
     "openTextInNewSession",
     "comments.pagination",
     "skills.dollarPrefix",
-    "context.requests.v2"
+    "context.requests.v2",
+    "skills.beforeUse"
   ]
 }
