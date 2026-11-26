@@ -4,14 +4,14 @@ import { JSDOM } from 'jsdom';
 const dom = new JSDOM('<main id="root"></main>', { runScripts:'outside-only' });
 const w = dom.window;
 w.eval(await readFile(new URL('dist/client.js', import.meta.url), 'utf8'));
-let identity = { threadId:'thread-a', projectRoot:'C:/project', cwd:'C:/project' };
+let identity = { threadId:'thread-a', projectId:'project-a', projectRoot:'C:/project', cwd:'C:/project' };
 const mounts = [], messages = [];
 w.setInterval = () => 1;
 w.MattSkillsCodex.mount = (element, services) => { mounts.push(services); return () => {}; };
 w.postMessage = request => {
   if (!request.id) return;
-  if (request.method === 'ui/message') messages.push(request.params);
-  const result = request.method === 'ui/initialize' ? {hostCapabilities:{experimental:{'openai/message':{draft:{}}}}} : request.params.name === 'deck_current_project' ? {structuredContent:identity} : {};
+  if (['ui/message','ui/open-link'].includes(request.method)) messages.push(request.params);
+  const result = request.method === 'ui/initialize' ? {hostCapabilities:{openLinks:{},experimental:{'openai/message':{draft:{}}}}} : request.params.name === 'deck_current_project' ? {structuredContent:identity} : {};
   queueMicrotask(() => w.dispatchEvent(new w.MessageEvent('message', {source:w,data:{jsonrpc:'2.0',id:request.id,result}})));
 };
 w.eval(await readFile(new URL('sidebar-bridge.js', import.meta.url), 'utf8'));
@@ -23,9 +23,16 @@ try {
     const result = await mounts[0].codexActions.prefill(target,'exact edited draft');
     assert.equal(result.status,'requested','empty host ACK must never be called verified fill');
     assert.equal(result.target,target);
-    assert.equal(messages.at(-1)._meta['openai/message'].send,false);
-    assert.equal(messages.at(-1)._meta['openai/message'].target,target);
-    assert.equal(messages.at(-1).content[0].text,'exact edited draft');
+    if (target === 'active') {
+      assert.equal(messages.at(-1)._meta['openai/message'].send,false);
+      assert.equal(messages.at(-1)._meta['openai/message'].target,target);
+      assert.equal(messages.at(-1).content[0].text,'exact edited draft');
+    } else {
+      const url = new URL(messages.at(-1).url);
+      assert.equal(url.searchParams.get('projectId'),identity.projectId);
+      assert.equal(url.searchParams.get('path'),identity.projectRoot);
+      assert.equal(url.searchParams.get('prompt'),'exact edited draft');
+    }
   }
   assert.equal(messages.length,2);
   identity = {...identity, threadId:'thread-b'};

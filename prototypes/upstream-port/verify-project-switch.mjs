@@ -4,7 +4,7 @@ import {JSDOM} from 'jsdom';
 import {createNativeDraftOutputs} from './native-draft-outputs.mjs';
 const dom=new JSDOM('<main id="root"></main>',{runScripts:'outside-only'});
 const w=dom.window;
-let active={threadId:'project-a-1',projectRoot:'C:/a',cwd:'C:/a'};
+let active={threadId:'project-a-1',projectId:'project-a',projectRoot:'C:/a',cwd:'C:/a'};
 let poll;
 let disposed=0;
 let lastPayload=null;
@@ -17,10 +17,10 @@ w.setInterval=fn=>{poll=fn;return 1};
 w.MattSkillsCodex={createNativeDraftOutputs,mount(element,services,props){mounts.push({services,props});return ()=>disposed++}};
 w.postMessage=message=>{
  if(!message.id)return;
- if(message.method==='ui/message')messages.push(message.params);
+ if(['ui/message','ui/open-link'].includes(message.method))messages.push(message.params);
  if(message.params?.name==='deck_upstream_read')lastPayload=message.params.arguments?.payload;
  if(message.params?.arguments?.method==='skill.prepare')preparations.push(message.params);
- const result=message.method==='ui/initialize'?{hostContext:{},hostCapabilities:{experimental:{'openai/message':{draft:{}}}}}:
+ const result=message.method==='ui/initialize'?{hostContext:{},hostCapabilities:{openLinks:{},experimental:{'openai/message':{draft:{}}}}}:
  message.params.name==='deck_current_project'?{structuredContent:active}:
  message.params.arguments?.method==='skill.prepare'?{structuredContent:{ok:true,value:{status:'source-unbound',bindings:[]}}}:
  {structuredContent:{ok:true,value:{}}};
@@ -35,7 +35,7 @@ assert.equal(mounts[0].props.session.cwd,'C:/a');
 
 // A different chat in the same project must keep the mounted board (and its
 // state) while moving only the identity used for the next request.
-active={threadId:'project-a-2',projectRoot:'C:/a',cwd:'C:/a'};
+active={threadId:'project-a-2',projectId:'project-a',projectRoot:'C:/a',cwd:'C:/a'};
 await poll();
 assert.equal(mounts.length,1,'same-project chat switch must not remount');
 assert.equal(disposed,0);
@@ -48,7 +48,8 @@ for (const target of ['active', 'new']) {
   assert.equal((await mounts[0].services.codexActions.prefill(target,'same-project draft')).status,'requested');
 }
 assert.equal(messages.length,2,'native draft requests restore the original append path');
-assert.ok(messages.every(message=>message._meta['openai/message'].send===false));
+assert.equal(messages[0]._meta['openai/message'].send,false);
+assert.equal(new URL(messages[1].url).searchParams.get('projectId'),'project-a');
 const preparation=await mounts[0].services.skillPreparation.prepare('tdd');
 assert.equal(preparation.status,'source-unbound');
 assert.equal(preparations[0].name,'deck_upstream_write');
@@ -57,11 +58,11 @@ holdPreparation=true;
 const pendingPreparation=mounts[0].services.skillPreparation.prepare('tdd');
 while(!finishPreparation)await new Promise(resolve=>setTimeout(resolve,1));
 const rejectedPreparation=assert.rejects(pendingPreparation,/已切换/);
-active={threadId:'project-a-switched',projectRoot:'C:/a',cwd:'C:/a'};
+active={threadId:'project-a-switched',projectId:'project-a',projectRoot:'C:/a',cwd:'C:/a'};
 finishPreparation();await rejectedPreparation;holdPreparation=false;
 
 // A cwd below the same project root is still the same board.
-active={threadId:'project-a-3',projectRoot:'C:/a',cwd:'C:/a/sub'};
+active={threadId:'project-a-3',projectId:'project-a',projectRoot:'C:/a',cwd:'C:/a/sub'};
 await poll();
 assert.equal(mounts.length,1,'subdirectory of the same project must not remount');
 assert.equal(disposed,0);
@@ -69,14 +70,14 @@ const subdirResult=await mounts[0].services.connection.rpc.call('/api','dsws',{m
 assert.deepEqual(subdirResult,{ok:true,value:{}});
 assert.equal(lastPayload.expectedThreadId,'project-a-3');
 
-active={threadId:'project-b',projectRoot:'C:/b',cwd:'C:/b'};
+active={threadId:'project-b',projectId:'project-b',projectRoot:'C:/b',cwd:'C:/b'};
 await poll();
 assert.equal(disposed,1);
 assert.equal(mounts[1].props.sessionId,'C:/b');
 await assert.rejects(mounts[0].services.connection.rpc.call('/api','dsws',{method:'snapshot'}));
 
 // Switching back to the first project restores that project's board.
-active={threadId:'project-a-4',projectRoot:'C:/a',cwd:'C:/a'};
+active={threadId:'project-a-4',projectId:'project-a',projectRoot:'C:/a',cwd:'C:/a'};
 await poll();
 assert.equal(disposed,2);
 assert.equal(mounts[2].props.sessionId,'C:/a');
