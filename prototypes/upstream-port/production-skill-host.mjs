@@ -76,7 +76,13 @@ export function createProductionSkillHost({dataRoot,workspaceRoot,source=APPROVE
   } finally {await release();}
  }
  return {
-  getUpdateBindings(input) {const next=queue.then(()=>refresh(input));queue=next.catch(()=>{});return next;},
+  getUpdateBindings(input) {
+   const next=queue.then(()=>refresh(input)).catch(async error=>{
+    if(error.message!=='maintenance-busy') throw error;
+    return [{id:'approved-plugin-reference',sourceId,kind:'bundled',projectRoot:await fs.realpath(workspaceRoot),manifestUrl:pathToFileURL(path.join(directory,'unavailable','manifest.json')).href,sourceError:'maintenance-busy'}];
+   });
+   queue=next.catch(()=>{});return next;
+  },
   // Installing reference files requires package integrity and complete local references,
   // not the Agent execution tools. This assessment is never supplied to skill use.
   async assessMaintenanceRequirements() {return {complete:true,tools:[{name:'git-source-read',available:true}]};},

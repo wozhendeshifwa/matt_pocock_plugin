@@ -44,6 +44,11 @@ try {
  await fs.rename(source+'.offline',source);
  await fs.writeFile(path.join(data,'skill-source/lock.json'),JSON.stringify({pid:2147483646,token:'dead-owner'}));
  assert.equal((await manager.prepare({name:'tdd'})).latest,true,'abandoned source lock is recoverable');
+ await fs.writeFile(path.join(data,'skill-source/lock.json'),JSON.stringify({pid:process.pid,token:'live-owner'}));
+ const busy=await manager.prepare({name:'tdd'});
+ assert.equal(busy.bindings[0].status,'busy');
+ assert.equal(busy.latest,false);
+ await fs.unlink(path.join(data,'skill-source/lock.json'));
  await assert.rejects(host.getUpdateBindings({projectRoot:source}),/wrong-project/);
  const originalCwd=process.cwd();
  process.chdir(data);
