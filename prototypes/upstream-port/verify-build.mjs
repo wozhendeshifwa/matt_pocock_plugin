@@ -60,10 +60,12 @@ try {
     const button = [...window.document.querySelectorAll("button")].find(element => element.textContent.trim() === label);
     assert.ok(button, "Original action button missing " + label);
     button.click();
+    await until(() => window.document.querySelector('[data-issue-action-draft]'));
+    window.document.querySelector(`[data-issue-action-export="${target}"]`).click();
     await until(() => actions.some(action => action.target === target));
   }
   assert.equal(actions[0].text, actions[1].text, "Original action prompt must be preserved across targets");
-  assert.ok(actions[0].text.startsWith("$wayfinder"), "Both host targets must receive the Codex skill prefix");
+  assert.match(actions[0].text, /^\$[a-z-]+/, "Both host targets must receive the selected Codex skill prefix");
   assert.ok(actions[0].text.includes("2"));
   for (const id of ["board", "status", "run"]) {
     assert.ok(window.document.querySelector(`[data-mattskills-tab="${id}"]`), `Panel tab ${id} must render`);

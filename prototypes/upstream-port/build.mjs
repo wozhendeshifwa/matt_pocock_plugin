@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { adaptCommentPagination } from "./comment-pagination-client.mjs";
 import { adaptSkillPrefixes } from "./skill-prefix-client.mjs";
+import { adaptIssueActions } from "./issue-actions-client.mjs";
 
 const runtime = await build({
   entryPoints: [new URL("browser-runtime.mjs", import.meta.url).pathname.replace(/^\/(\w:)/, "$1")],
@@ -13,7 +14,7 @@ const runtime = await build({
   minify: true, legalComments: "inline",
 });
 const original = await readFile(new URL("../../vendor/mattskills-1.8.0-rc.7/lib/client.js", import.meta.url), "utf8");
-let adapted = adaptCommentPagination(original);
+let adapted = adaptCommentPagination(original.replace(/\r\n/g, '\n'));
 const sandboxAnchor = '      const hasIssueDetail = topIssue !== null && topIssue !== undefined';
 if (adapted.split(sandboxAnchor).length !== 2) throw new Error('Issue selection boundary changed');
 adapted = adapted.replace(sandboxAnchor, sandboxAnchor + `
@@ -25,6 +26,7 @@ adapted = adapted.replace(sandboxAnchor, sandboxAnchor + `
 const skillNames = (await readdir(new URL("../../vendor/mattskills-1.8.0-rc.7/bundled-skills/", import.meta.url), { withFileTypes: true }))
   .filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
 adapted = adaptSkillPrefixes(adapted, skillNames);
+adapted = adaptIssueActions(adapted);
 for (const [anchor, target] of [
   ["const inject = (st, text) => {", "active"],
   ["const openTextInNewSession = function (st, text, title, opts) {", "new"],
@@ -79,6 +81,6 @@ await writeFile(new URL("manifest.json", output), JSON.stringify({
   upstreamVersion: "1.8.0-rc.7",
   upstreamClientSha256: createHash("sha256").update(original).digest("hex"),
   output: "client.js",
-  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix"],
+  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft"],
 }, null, 2) + "\n");
 console.log("Built original MattSkills client with Codex mounting adapter");

@@ -5,7 +5,7 @@ import { adaptSkillPrefixes } from './skill-prefix-client.mjs';
 
 const vendor = new URL('../../vendor/mattskills-1.8.0-rc.7/', import.meta.url);
 const names = (await readdir(new URL('bundled-skills/', vendor), { withFileTypes: true })).filter(x => x.isDirectory()).map(x => x.name);
-const source = await readFile(new URL('lib/client.js', vendor), 'utf8');
+const source = (await readFile(new URL('lib/client.js', vendor), 'utf8')).replace(/\r\n/g, '\n');
 const adapted = adaptSkillPrefixes(source, names);
 const context = vm.createContext({});
 const helper = adapted.slice(0, adapted.indexOf(source.slice(0, 50)));

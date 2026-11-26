@@ -5,6 +5,11 @@
   "adaptedBoundaries": [
     "inject",
     "openTextInNewSession",
-    "comments.pagination"
+    "diskGetSnapshot",
+    "useStore.subscription",
+    "DetailsDock.headerActions",
+    "comments.pagination",
+    "skills.dollarPrefix",
+    "issueActions.scenarioDraft"
   ]
 }
