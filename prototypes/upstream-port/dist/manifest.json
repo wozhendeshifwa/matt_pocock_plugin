@@ -4,6 +4,12 @@
   "output": "client.js",
   "adaptedBoundaries": [
     "inject",
-    "openTextInNewSession"
+    "openTextInNewSession",
+    "skills.dollarPrefix",
+    "issueActions.scenarioDraft",
+    "context.requests.v2",
+    "skills.sourceDisplay",
+    "skills.beforeUse",
+    "issueActions.bottomBar"
   ]
 }

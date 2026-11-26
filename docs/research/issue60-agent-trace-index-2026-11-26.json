@@ -1,0 +1,278 @@
+{
+  "threadId": "01a21879-616d-77b2-98ba-a2bacd5132a6",
+  "source": "Codex read_thread",
+  "turns": [
+    {
+      "id": "01a2187f-6477-73e0-9838-4fa6a5f0bf82",
+      "status": "inProgress",
+      "evidence": [
+        {
+          "type": "userMessage",
+          "id": "01a2187f-64fa-72e0-8898-2b36df5723f3"
+        },
+        {
+          "type": "agentMessage",
+          "id": "msg_096e2e9a01c11de9016b0851c5963c87d0be5ed08feb729645"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-d0a831e1-a690-4332-8946-294f5e245b75",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "call_b11f275d6b524a67b3cd3ddc6621e554",
+          "tool": "js",
+          "status": "completed"
+        },
+        {
+          "type": "agentMessage",
+          "id": "msg_096e2e9a01c11de9016b0851d5ce2c87d09eadf8150b96ff28"
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-613ff1e3-bec3-4c1f-8e08-2816af638ef7",
+          "tool": "deck_context",
+          "status": "completed"
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-4483efbb-2583-4c39-9730-dff8da232580",
+          "tool": "deck_issue_get",
+          "status": "completed"
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-af4652c4-7c49-4f85-9835-61b6f8de862c",
+          "tool": "deck_issue_report",
+          "status": "completed"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-fc208525-5615-4867-a946-9480413e6de3",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-adeb986c-fd1d-412b-9bd7-83b800b3971c",
+          "tool": "open_deck_sidebar_probe",
+          "status": "completed"
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-665726f0-c773-4b8b-86af-e877c41ff9bb",
+          "tool": "read_thread",
+          "status": "completed"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-efbeeccd-b8aa-4fdd-8b08-538f2bf8020c",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "call_ee57d7e731bc400d8dad474668d2ee93",
+          "tool": "js",
+          "status": "completed"
+        },
+        {
+          "type": "agentMessage",
+          "id": "msg_096e2e9a01c11de9016b0851fd7a3487d0be185fc8a9568861"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-8f77966d-57fc-4de3-84b9-3e6b905e662d",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "call_791dccb244f545c48592dfe9b9e1c2e9",
+          "tool": "js",
+          "status": "completed"
+        },
+        {
+          "type": "agentMessage",
+          "id": "msg_096e2e9a01c11de9016b08521885d487d0a4497f64f992f847"
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "call_a3e754074e224b03ad4f0373b9605d15",
+          "tool": "js",
+          "status": "completed"
+        },
+        {
+          "type": "agentMessage",
+          "id": "msg_096e2e9a01c11de9016b08521cd14887d0826c976462831e60"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-8ced7848-2640-4df3-a02d-7bbf8ac02ff8",
+          "status": "completed",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "id": "01a21879-62a7-74b2-914e-015774599be9",
+      "status": "completed",
+      "evidence": [
+        {
+          "type": "userMessage",
+          "id": "01a21879-6ef9-7b02-86f5-7ee1cedeb009"
+        },
+        {
+          "type": "agentMessage",
+          "id": "msg_096e2e9a01c11de9016b08503f6f4887d0b575aebad3544fda"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-cd524048-0913-430b-aa2f-5ca29520f9fd",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-503532a2-b7d6-48fb-a385-005d31fb5452",
+          "tool": "deck_context",
+          "status": "completed"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-c1429c34-9594-4fd1-920b-2589dc174325",
+          "status": "failed",
+          "exitCode": 1
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-1e142af9-838a-4cbe-ae52-d13e5fae4615",
+          "tool": "deck_issue_get",
+          "status": "completed"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-35f3aa17-8a16-4a11-8b2e-a04fcdf53fe9",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-9917224c-532c-4739-a918-4d033cbb0fd9",
+          "tool": "deck_issue_patch",
+          "status": "completed"
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-ee256d01-b812-44cf-af21-71ed2d02affc",
+          "tool": "deck_issue_report",
+          "status": "completed"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-b4a61dc6-615e-41b3-899d-b8697f2dd8dd",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-c5364356-f822-4e41-b121-d13cd1fdacdb",
+          "tool": "deck_issue_get",
+          "status": "completed"
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-99b27a0a-5692-41fb-97dd-a7b5c0f29c2f",
+          "tool": "deck_map_snapshot",
+          "status": "completed"
+        },
+        {
+          "type": "agentMessage",
+          "id": "msg_096e2e9a01c11de9016b0850887b0487d09e00f4bd594ba365"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-6cd6345b-4ae8-45df-a304-3948b22ec2b3",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-88fb0401-70fa-4d4f-b765-448826dc9308",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-9691265b-4b2f-4de4-8e7a-0a4a31c58f8e",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-fab628a9-2abe-4d32-bb65-5f48aa59eddb",
+          "tool": "deck_issue_get",
+          "status": "completed"
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-4094ecef-c59b-4bbc-bbda-997a5789eb37",
+          "tool": "deck_issue_get",
+          "status": "completed"
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-35e68390-1462-47cf-a15a-26da21424802",
+          "tool": "deck_issue_get",
+          "status": "completed"
+        },
+        {
+          "type": "agentMessage",
+          "id": "msg_096e2e9a01c11de9016b0850b243a487d0957896a12bfa05a1"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-60aeff84-ddc1-4d59-97db-799663385236",
+          "status": "failed",
+          "exitCode": 1
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-54bc4803-0952-45be-bda8-2f57986e0877",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-c0e9e35e-995d-408f-ad4e-de6af134cdc6",
+          "tool": "deck_issue_get",
+          "status": "completed"
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-cb0e2c1d-a61a-471d-bb70-b7705abada72",
+          "tool": "deck_issue_patch",
+          "status": "completed"
+        },
+        {
+          "type": "mcpToolCall",
+          "id": "exec-839cadc6-ade2-4937-8c7b-75564188a17d",
+          "tool": "deck_issue_report",
+          "status": "completed"
+        },
+        {
+          "type": "commandExecution",
+          "id": "exec-2959401c-8da5-420d-bb7b-63e29a5e9412",
+          "status": "completed",
+          "exitCode": 0
+        },
+        {
+          "type": "agentMessage",
+          "id": "msg_096e2e9a01c11de9016b0850f6857887d0a7ac089b26216d53"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,164 @@
+{
+  "recordedAt": "2026-11-26T15:37:57.896Z",
+  "workspaceRoot": "C:\\Users\\27263\\Desktop\\matt_pocock_",
+  "skills": [
+    {
+      "name": "triage",
+      "selectedReference": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\triage\\SKILL.md",
+      "source": {
+        "kind": "bundled-reference",
+        "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\triage\\SKILL.md",
+        "hostResolution": "unknown",
+        "actualLoad": "unknown",
+        "difference": {
+          "kind": "unavailable"
+        },
+        "sourceId": null,
+        "binding": null,
+        "hostPath": null
+      },
+      "execution": {
+        "allowed": false,
+        "reasons": [
+          "工具及其他必要资料要求未核验；先查证，暂停依赖步骤。"
+        ],
+        "files": [
+          "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\triage\\SKILL.md",
+          "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\triage\\AGENT-BRIEF.md",
+          "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\triage\\OUT-OF-SCOPE.md"
+        ],
+        "documentDigests": [
+          {
+            "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\triage\\AGENT-BRIEF.md",
+            "sha256": "d628b9437a2c1ddf1189d39103346683e8ef2c373b0276c5c00f9403f3fb6709"
+          },
+          {
+            "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\triage\\OUT-OF-SCOPE.md",
+            "sha256": "49aaa24ecebe5b12583acee2b2c085f2340934e555fabe81cd86dc3d057fa7c0"
+          },
+          {
+            "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\triage\\SKILL.md",
+            "sha256": "fbbc60032c1a0619f83986dae67d08b41a65e69c58da68005e9d74fbbac5fb1f"
+          }
+        ],
+        "mode": "bundled-readonly"
+      },
+      "referenceSha256": "fbbc60032c1a0619f83986dae67d08b41a65e69c58da68005e9d74fbbac5fb1f",
+      "installedPath": "C:\\Users\\27263\\.codex\\skills\\triage\\SKILL.md",
+      "installedSha256": "fbbc60032c1a0619f83986dae67d08b41a65e69c58da68005e9d74fbbac5fb1f",
+      "normalizedSame": true,
+      "distinction": "read-only production source inspection; no host resolver or requirement assessor fabricated; reading is not host activation"
+    },
+    {
+      "name": "implement-spec",
+      "selectedReference": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\implement-spec\\SKILL.md",
+      "source": {
+        "kind": "bundled-reference",
+        "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\implement-spec\\SKILL.md",
+        "hostResolution": "unknown",
+        "actualLoad": "unknown",
+        "difference": {
+          "kind": "unavailable"
+        },
+        "sourceId": null,
+        "binding": null,
+        "hostPath": null
+      },
+      "execution": {
+        "allowed": false,
+        "reasons": [
+          "工具及其他必要资料要求未核验；先查证，暂停依赖步骤。"
+        ],
+        "files": [
+          "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\implement-spec\\SKILL.md"
+        ],
+        "documentDigests": [
+          {
+            "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\implement-spec\\SKILL.md",
+            "sha256": "987978aa037d116df7260fcaab1de3d37a2cb2a0b6d2ea8de5e4add5c4a9308f"
+          }
+        ],
+        "mode": "bundled-readonly"
+      },
+      "referenceSha256": "987978aa037d116df7260fcaab1de3d37a2cb2a0b6d2ea8de5e4add5c4a9308f",
+      "installedPath": "C:\\Users\\27263\\.codex\\skills\\implement-spec\\SKILL.md",
+      "installedSha256": "987978aa037d116df7260fcaab1de3d37a2cb2a0b6d2ea8de5e4add5c4a9308f",
+      "normalizedSame": true,
+      "distinction": "read-only production source inspection; no host resolver or requirement assessor fabricated; reading is not host activation"
+    },
+    {
+      "name": "to-spec",
+      "selectedReference": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\to-spec\\SKILL.md",
+      "source": {
+        "kind": "bundled-reference",
+        "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\to-spec\\SKILL.md",
+        "hostResolution": "unknown",
+        "actualLoad": "unknown",
+        "difference": {
+          "kind": "unavailable"
+        },
+        "sourceId": null,
+        "binding": null,
+        "hostPath": null
+      },
+      "execution": {
+        "allowed": false,
+        "reasons": [
+          "工具及其他必要资料要求未核验；先查证，暂停依赖步骤。"
+        ],
+        "files": [
+          "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\to-spec\\SKILL.md"
+        ],
+        "documentDigests": [
+          {
+            "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\to-spec\\SKILL.md",
+            "sha256": "32babd2593d204d58cf33ed6a161e91eebd716290330f6b248068d704cc86890"
+          }
+        ],
+        "mode": "bundled-readonly"
+      },
+      "referenceSha256": "32babd2593d204d58cf33ed6a161e91eebd716290330f6b248068d704cc86890",
+      "installedPath": "C:\\Users\\27263\\.codex\\skills\\to-spec\\SKILL.md",
+      "installedSha256": "32babd2593d204d58cf33ed6a161e91eebd716290330f6b248068d704cc86890",
+      "normalizedSame": true,
+      "distinction": "read-only production source inspection; no host resolver or requirement assessor fabricated; reading is not host activation"
+    },
+    {
+      "name": "to-tickets",
+      "selectedReference": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\to-tickets\\SKILL.md",
+      "source": {
+        "kind": "bundled-reference",
+        "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\to-tickets\\SKILL.md",
+        "hostResolution": "unknown",
+        "actualLoad": "unknown",
+        "difference": {
+          "kind": "unavailable"
+        },
+        "sourceId": null,
+        "binding": null,
+        "hostPath": null
+      },
+      "execution": {
+        "allowed": false,
+        "reasons": [
+          "工具及其他必要资料要求未核验；先查证，暂停依赖步骤。"
+        ],
+        "files": [
+          "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\to-tickets\\SKILL.md"
+        ],
+        "documentDigests": [
+          {
+            "path": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration\\vendor\\mattskills-1.8.0-rc.7\\bundled-skills\\to-tickets\\SKILL.md",
+            "sha256": "d96fcd781f17d31622a9211efa4fe64858492914c5bbd91f0e1cf8b5874128dc"
+          }
+        ],
+        "mode": "bundled-readonly"
+      },
+      "referenceSha256": "d96fcd781f17d31622a9211efa4fe64858492914c5bbd91f0e1cf8b5874128dc",
+      "installedPath": "C:\\Users\\27263\\.codex\\skills\\to-tickets\\SKILL.md",
+      "installedSha256": "748978dfce1bbc64c4273a6aa0e0db9672f50da0c1e69cba82db8108a9574148",
+      "normalizedSame": false,
+      "distinction": "read-only production source inspection; no host resolver or requirement assessor fabricated; reading is not host activation"
+    }
+  ]
+}

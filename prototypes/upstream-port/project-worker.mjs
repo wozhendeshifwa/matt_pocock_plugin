@@ -1,7 +1,8 @@
+import { createProductionSkillHost } from './production-skill-host.mjs';
 import { createOriginalHost } from "./node-host.mjs";
 import { normalizePanelPayload } from "./panel-payload.mjs";
 
-const host = await createOriginalHost({ dataRoot: process.cwd(), workspaceRoot: process.argv[2] });
+const host = await createOriginalHost({ dataRoot: process.cwd(), workspaceRoot: process.argv[2], skillHost: createProductionSkillHost({dataRoot: process.cwd(), workspaceRoot: process.argv[2]}) });
 process.on("message", async ({ id, method, payload }) => {
   try {
     if (method === "__deck_tools_list__") {

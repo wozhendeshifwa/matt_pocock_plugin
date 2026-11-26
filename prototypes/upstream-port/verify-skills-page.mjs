@@ -75,11 +75,28 @@ try {
   const resolved = chain?.resolved ?? {};
   for (const name of ["wayfinder", "setup-matt-pocock-skills", "ask-matt"]) {
     const check = resolved["skill:" + name];
-    assert.equal(check?.status, "pass", "chain skill check must pass: " + name + " -> " + JSON.stringify(check));
+    assert.equal(check?.status, "pending", "readable reference does not prove host skill availability: " + name);
+    assert.match(check.detail, /随包参考/);
     assert.match(String(check.detail), /bundled-skills/, "chain detail points at the vendored skills");
   }
-  assert.equal(chain?.snapshot?.chainState, "allDone", "chain completes when skills resolve");
-  console.log("PASS check chain reports the vendored skills as installed (6/6)");
+  assert.notEqual(chain?.snapshot?.chainState, "allDone", "unknown host skill source must stay pending");
+  console.log("PASS check chain distinguishes readable references from host skills");
+
+  const deniedPrepare = await rpc('tools/call', {
+    name: 'deck_upstream_read', arguments: { method: 'skill.prepare', payload: { name: 'tdd', expectedThreadId: threadId } }, _meta: metadata,
+  });
+  assert.equal(deniedPrepare.isError, true, 'maintenance must not run through read-only RPC');
+  const prepared = await rpc('tools/call', {
+    name: 'deck_upstream_write', arguments: { method: 'skill.prepare', payload: { name: 'tdd', expectedThreadId: threadId } }, _meta: metadata,
+  });
+  assert.ok(!prepared.isError);
+  const prepareValue = prepared.structuredContent?.value ?? prepared.structuredContent;
+  assert.equal(prepareValue.status, 'source-unbound', 'production lacks trusted source binding and must not guess');
+  const injectedTarget = await rpc('tools/call', {
+    name: 'deck_upstream_write', arguments: { method: 'skill.prepare', payload: { name: 'tdd', targetRoot: projectRoot, expectedThreadId: threadId } }, _meta: metadata,
+  });
+  assert.equal(injectedTarget.isError, true, 'ordinary UI cannot select a maintenance target');
+  console.log('PASS skill.prepare is a write, rejects arbitrary targets and reports unbound production sources');
 
   // --- 2. the doc endpoint returns the vendored body, not a copy
   for (const name of ["wayfinder", "tdd", "writing-for-agents"]) {
@@ -88,7 +105,12 @@ try {
     const vendorText = await readFile(path.join(bundledDir, name, "SKILL.md"), "utf8");
     const parsed = parseSkillMarkdown(vendorText);
     assert.ok(parsed, "vendored SKILL.md parses: " + name);
-    assert.equal(String(doc.md).trim(), parsed.content.trim(), "doc body is byte-for-byte the vendored body: " + name);
+    assert.ok(String(doc.md).endsWith(parsed.content), "detail preserves selected rules: " + name);
+    assert.equal(doc.source.kind, 'bundled-reference');
+    assert.equal(doc.source.actualLoad, 'unknown');
+    assert.equal(doc.execution.allowed, false);
+    assert.match(doc.md, /随包参考/);
+    assert.equal(doc.update.status, 'source-unbound');
     assert.ok(String(doc.path || "").includes(path.join("bundled-skills", name)), "doc path is the vendored file: " + name);
   }
   console.log("PASS skill.readDoc returns the vendored body for 3 skills");
@@ -152,9 +174,7 @@ try {
     await until(() => rootText().includes("A loose idea has arrived"), "skill detail rendered");
     assert.ok(rootText().includes("A loose idea has arrived"), "skill detail shows the vendored body");
     console.log("PASS clicking 详情 opens the vendored doc through skill.readDoc");
-  } else {
-    console.log("SKIP skill click (no row action in this DOM)");
-  }
+  } else assert.fail('Skill detail action must remain reachable');
   assert.deepEqual(errors, []);
   console.log("PASS skills page -> MCP -> vendored bundled-skills");
 } finally {

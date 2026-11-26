@@ -12,6 +12,7 @@ import { classifyEndpoint } from "./rpc-endpoints.mjs";
 import { classifyReadCommand, createBoundedCollector } from "./read-command.mjs";
 import { createSessionStore } from "./session-store.mjs";
 import { createSkillsService } from "./skills-service.mjs";
+import { createSkillUpdateManager } from './skill-updates.mjs';
 import { classifyOpenCommand } from "./open-command.mjs";
 import { classifyWriteCommand } from "./write-gate.mjs";
 import { classifyGraphWriteCommand, observeGraphIssueId } from "./graph-write-gate.mjs";
@@ -47,7 +48,7 @@ function confirmationFor(method) {
   return WRITE_POLICY[method]?.confirmation ?? DECK_TOOL_POLICY[method]?.confirmation ?? "";
 }
 
-export async function createOriginalHost({ dataRoot, workspaceRoot }) {
+export async function createOriginalHost({ dataRoot, workspaceRoot, skillHost } = {}) {
   dataRoot = await fs.realpath(dataRoot);
   workspaceRoot = await fs.realpath(workspaceRoot);
   const gitExecutable = await resolveExecutable("git", { env: process.env });
@@ -315,12 +316,28 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
     on() { return () => {}; },
   };
   services.set("platform", await createPlatform(context, { homedir: () => dataRoot }));
-  // Codex has no skills service (#8). Supplying the bundled-skills registry here
-  // lets the upstream bootstrap register its provider and makes the check chain
-  // report the 27 packaged skills instead of waiting forever.
-  services.set("skills", createSkillsService({
-    bundledDir: fileURLToPath(new URL("../../vendor/mattskills-1.8.0-rc.7/bundled-skills/", import.meta.url)),
-  }));
+  // The MCP transport has no current-host skill resolution/requirements channel.
+  // Only a trusted embedding may supply one; disk discovery is not evidence.
+  const bundledDir = fileURLToPath(new URL("../../vendor/mattskills-1.8.0-rc.7/bundled-skills/", import.meta.url));
+  const skillUpdates = createSkillUpdateManager({
+    dataRoot, workspaceRoot, frozenBundledDir: bundledDir,
+    getBindings: input => skillHost?.getUpdateBindings?.(input) ?? [],
+    assessMaintenanceRequirements: skillHost?.assessMaintenanceRequirements ?? skillHost?.assessRequirements,
+    assessRequirements: skillHost?.assessRequirements,
+    async audit(event) {
+      await recordWrite({ method: 'skill.prepare', category: 'skill-maintenance', confirmation: 'automatic-library-policy',
+        projectHash, ...(event.bindings?.length ? { fsTargetHash: digest(event.bindings.map(item => item.targetHash).join(',')) } : {}),
+        stage: event.reason, ok: event.status === 'checked', errorKind: event.status === 'checked' ? '' : event.status });
+    },
+  });
+  // The startup check owns its queue, not the read-only board lifecycle. A use
+  // preparation waits for this check and checks again; reads can show checking.
+  void skillUpdates.prepare({ reason: 'startup' }).catch(() => {});
+  const skills = createSkillsService({
+    bundledDir, managedBundledDir: skillUpdates.managedBundledDir,
+    workspaceRoot, resolveHostSkill: skillHost?.resolveSkill, assessRequirements: skillHost?.assessRequirements,
+  });
+  services.set("skills", skills);
   originalHost.apply(context);
   const toolDeadline = Date.now() + 12000;
   while (deckTools.size < 9 && Date.now() < toolDeadline) {
@@ -336,6 +353,11 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
   let sequence = 0;
   return {
     async call(method, payload = {}) {
+      if (method === 'skill.readDoc') return { ok: true, value: { ...await skills.readDoc(payload), update: skillUpdates.status() } };
+      if (method === 'skill.prepare') {
+        if (Object.keys(payload).some(key => !['name', 'reason', 'expectedThreadId'].includes(key))) throw new Error('skill-prepare-out-of-scope');
+        return { ok: true, value: await skillUpdates.prepare({ ...(payload.name ? { name: payload.name } : {}), reason: 'before-use' }) };
+      }
       if (method === "namingPlan") return { ok: true, value: await manualNaming.plan(payload.sessionId) };
       if (method === "cancelNewSessionWatcher") return { ok: true, value: await manualNaming.cancel(payload.sessionId, payload.suggestionId) };
       const naming = namingCapability(method);
@@ -376,7 +398,7 @@ export async function createOriginalHost({ dataRoot, workspaceRoot }) {
             ok: outcome?.ok !== false, errorKind: outcome?.ok === false ? String(outcome?.error?.kind ?? outcome?.errorKind ?? "backend") : "",
           });
         }
-        return result;
+        return method === 'chain' ? skills.annotateChecks(result) : result;
       } catch (error) {
         if (policy) {
           await recordWrite({

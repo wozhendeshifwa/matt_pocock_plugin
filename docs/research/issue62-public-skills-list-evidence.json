@@ -1,0 +1,96 @@
+{
+  "queriedAt": "2026-11-26T15:44:40.612Z",
+  "executable": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1120.6357.0_x64__2p2nqsd0c76g0\\app\\resources\\codex.exe",
+  "mode": "separate-stdio-app-server; not current Desktop session",
+  "methods": [
+    "initialize",
+    "initialized",
+    "skills/list"
+  ],
+  "entries": [
+    {
+      "cwd": "C:\\Users\\27263\\Desktop\\matt_pocock_",
+      "totalSkills": 45,
+      "errors": [],
+      "skills": [
+        {
+          "name": "implement-spec",
+          "path": "C:\\Users\\27263\\.codex\\skills\\implement-spec\\SKILL.md",
+          "scope": "user",
+          "enabled": true,
+          "pluginId": null
+        },
+        {
+          "name": "pr",
+          "path": "C:\\Users\\27263\\.codex\\skills\\pr\\SKILL.md",
+          "scope": "user",
+          "enabled": true,
+          "pluginId": null
+        },
+        {
+          "name": "tdd",
+          "path": "C:\\Users\\27263\\.codex\\skills\\tdd\\SKILL.md",
+          "scope": "user",
+          "enabled": true,
+          "pluginId": null
+        },
+        {
+          "name": "triage",
+          "path": "C:\\Users\\27263\\.codex\\skills\\triage\\SKILL.md",
+          "scope": "user",
+          "enabled": true,
+          "pluginId": null
+        },
+        {
+          "name": "wayfinder",
+          "path": "C:\\Users\\27263\\.codex\\skills\\wayfinder\\SKILL.md",
+          "scope": "user",
+          "enabled": true,
+          "pluginId": null
+        }
+      ]
+    },
+    {
+      "cwd": "C:\\Users\\27263\\Desktop\\matt_pocock_\\.scratch\\issue62\\integration",
+      "totalSkills": 45,
+      "errors": [],
+      "skills": [
+        {
+          "name": "implement-spec",
+          "path": "C:\\Users\\27263\\.codex\\skills\\implement-spec\\SKILL.md",
+          "scope": "user",
+          "enabled": true,
+          "pluginId": null
+        },
+        {
+          "name": "pr",
+          "path": "C:\\Users\\27263\\.codex\\skills\\pr\\SKILL.md",
+          "scope": "user",
+          "enabled": true,
+          "pluginId": null
+        },
+        {
+          "name": "tdd",
+          "path": "C:\\Users\\27263\\.codex\\skills\\tdd\\SKILL.md",
+          "scope": "user",
+          "enabled": true,
+          "pluginId": null
+        },
+        {
+          "name": "triage",
+          "path": "C:\\Users\\27263\\.codex\\skills\\triage\\SKILL.md",
+          "scope": "user",
+          "enabled": true,
+          "pluginId": null
+        },
+        {
+          "name": "wayfinder",
+          "path": "C:\\Users\\27263\\.codex\\skills\\wayfinder\\SKILL.md",
+          "scope": "user",
+          "enabled": true,
+          "pluginId": null
+        }
+      ]
+    }
+  ]
+}

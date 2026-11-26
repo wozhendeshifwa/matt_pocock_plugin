@@ -1,0 +1,22 @@
+[
+  {
+    "source": "C:/Users/27263/Desktop/matt_pocock_/docs/research/spec61-native-followup-2026-11-26.md",
+    "snapshot": "issue62-shared-native-manual-evidence.md",
+    "sha256": "0ecb8d4b60320e15e855f35a4c7473f95e2b8d0e77ad4adf00f95d1b9db98f8e"
+  },
+  {
+    "source": "C:/Users/27263/Desktop/matt_pocock_/docs/research/spec61-real-session-acceptance-2026-11-26.md",
+    "snapshot": "issue62-shared-skill-injection-evidence.md",
+    "sha256": "6a354b1755159d8cbe02c59b85b3e5d2530b30d59d0d7211f59cd61864b2e2ea"
+  },
+  {
+    "source": "C:/Users/27263/Desktop/matt_pocock_/docs/research/issue60-skill-injection-provenance-2026-11-26.json",
+    "snapshot": "issue62-shared-skill-provenance.json",
+    "sha256": "0e0e28329392c5efb4e3ee651e6166560d75c2845ab0f97c6e638d6a99da9c3c"
+  },
+  {
+    "source": "C:/Users/27263/Desktop/matt_pocock_/.scratch/issue62/skill-api-probe/skills-list-result.json",
+    "snapshot": "issue62-public-skills-list-evidence.json",
+    "sha256": "adcfec6d87ae66c9b0268ce50e9d393e8fac64622ba12363937726a5704d9a7f"
+  }
+]

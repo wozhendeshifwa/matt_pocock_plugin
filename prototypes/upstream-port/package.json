@@ -4,6 +4,13 @@
   "private": true,
   "type": "module",
   "description": "Codex host adapter for the unmodified MattSkillsDeck client",
+  "scripts": {
+    "check:issue-actions": "node build.mjs && node verify-issue-actions.mjs && node verify-project-switch.mjs && node verify-skill-prefix.mjs",
+    "check:bottom-actions": "node build.mjs && node verify-bottom-action-bar.mjs",
+    "check:host-outputs": "node build.mjs && node --test verify-protected-draft-outputs.mjs && node verify-project-switch.mjs",
+    "check:action-drafts": "node build.mjs && node verify-action-drafts.mjs",
+    "check:reviewed-outputs": "node build.mjs && node verify-chat-output-availability.mjs && node verify-reviewed-draft-outputs.mjs"
+  },
   "dependencies": {
     "jsdom": "^31.0.0",
     "react": "^19.3.1",
