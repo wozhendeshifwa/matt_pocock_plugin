@@ -323,6 +323,7 @@ export async function createOriginalHost({ dataRoot, workspaceRoot, skillHost } 
   const skillUpdates = createSkillUpdateManager({
     dataRoot, workspaceRoot, frozenBundledDir: bundledDir,
     getBindings: input => skillHost?.getUpdateBindings?.(input) ?? [],
+    assessMaintenanceRequirements: skillHost?.assessMaintenanceRequirements ?? skillHost?.assessRequirements,
     assessRequirements: skillHost?.assessRequirements,
     async audit(event) {
       await recordWrite({ method: 'skill.prepare', category: 'skill-maintenance', confirmation: 'automatic-library-policy',

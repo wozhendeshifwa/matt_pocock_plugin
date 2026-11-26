@@ -1,0 +1,61 @@
+import assert from 'node:assert/strict';
+import * as fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createProductionSkillHost } from './production-skill-host.mjs';
+import { createSkillUpdateManager } from './skill-updates.mjs';
+import { createOriginalHost } from './node-host.mjs';
+import { randomUUID } from 'node:crypto';
+const root = await fs.mkdtemp(path.join(os.tmpdir(),'deck-production-binding-'));
+const source = path.join(root,'source');
+const data = path.join(root,'data');
+await fs.mkdir(source); await fs.mkdir(data);
+const git = (...args) => execFileSync('git',args,{cwd:source,encoding:'utf8'}).trim();
+git('init','-b','main'); git('config','user.name','Fixture'); git('config','user.email','fixture@example.invalid');
+async function publish(text) {
+ await fs.mkdir(path.join(source,'package/bundled-skills/tdd'),{recursive:true});
+ await fs.writeFile(path.join(source,'package/bundled-skills/tdd/SKILL.md'),`---\nname: tdd\ndescription: fixture\n---\n${text}`);
+ git('add','.'); git('commit','-m',text);
+}
+try {
+ await publish('first');
+ const host = createProductionSkillHost({dataRoot:data,workspaceRoot:root,source:{repository:source,ref:'refs/heads/main',skillPrefix:'package/bundled-skills/',names:['tdd']}});
+ const manager = createSkillUpdateManager({dataRoot:data,workspaceRoot:root,getBindings:host.getUpdateBindings,assessMaintenanceRequirements:host.assessMaintenanceRequirements});
+ assert.equal((await manager.prepare({reason:'startup'})).latest,true);
+ assert.match(await fs.readFile(path.join(data,'skill-library/tdd/SKILL.md'),'utf8'),/first/);
+ assert.equal((await manager.prepare({name:'tdd'})).bindings[0].downloadedFiles,0);
+ await publish('second');
+ const update = await manager.prepare({name:'tdd'});
+ assert.equal(update.bindings[0].status,'updated');
+ assert.match(await fs.readFile(path.join(data,'skill-library/.mattskills-maintenance',update.bindings[0].backupId,'backup/tdd/SKILL.md'),'utf8'),/first/);
+ await fs.rename(source,source+'.offline');
+ const journalId=randomUUID(), control=path.join(data,'skill-library/.mattskills-maintenance');
+ await fs.mkdir(path.join(control,journalId,'backup'),{recursive:true});
+ await fs.rename(path.join(data,'skill-library/tdd'),path.join(control,journalId,'backup/tdd'));
+ await fs.mkdir(path.join(data,'skill-library/tdd'));
+ await fs.writeFile(path.join(data,'skill-library/tdd/SKILL.md'),'interrupted partial switch');
+ await fs.writeFile(path.join(control,'transaction.json'),JSON.stringify({id:journalId,phase:'switching',operations:[{name:'tdd',hadOld:true}]}));
+ const offline=await manager.prepare({name:'tdd'});
+ assert.equal(offline.latest,false);
+ assert.notEqual(offline.status,'binding-invalid','network failure is not corrupt binding');
+ assert.equal(offline.bindings[0].errorKind,'source-refresh-failed');
+ assert.match(await fs.readFile(path.join(data,'skill-library/tdd/SKILL.md'),'utf8'),/second/);
+ await fs.rename(source+'.offline',source);
+ await fs.writeFile(path.join(data,'skill-source/lock.json'),JSON.stringify({pid:2147483646,token:'dead-owner'}));
+ assert.equal((await manager.prepare({name:'tdd'})).latest,true,'abandoned source lock is recoverable');
+ await assert.rejects(host.getUpdateBindings({projectRoot:source}),/wrong-project/);
+ const originalCwd=process.cwd();
+ process.chdir(data);
+ const running=await createOriginalHost({dataRoot:data,workspaceRoot:root,skillHost:host});
+ try {
+  assert.equal((await running.call('skill.prepare',{name:'tdd'})).value.latest,true);
+  const doc=(await running.call('skill.readDoc',{name:'tdd'})).value;
+  assert.equal(doc.source.actualLoad,'unknown');
+  assert.equal(doc.execution.allowed,false,'maintenance readiness must not authorize Agent execution');
+  await assert.rejects(running.call('skill.prepare',{name:'tdd',source:'other'}),/out-of-scope/);
+ } finally {running.dispose();process.chdir(originalCwd);}
+ await fs.writeFile(path.join(data,'skill-source/binding.json'),'{}');
+ assert.equal((await manager.prepare({name:'tdd'})).status,'binding-invalid');
+ console.log('PASS production binding startup, unchanged check, update backup, offline preservation and corrupt binding rejection');
+} finally { await fs.rm(root,{recursive:true,force:true}); }

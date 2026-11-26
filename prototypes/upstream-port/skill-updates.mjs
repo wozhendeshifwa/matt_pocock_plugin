@@ -86,7 +86,7 @@ async function sourceFile(binding, file) {
   return bytes;
 }
 function alive(pid) { if (!Number.isSafeInteger(pid) || pid <= 0) return true; try { process.kill(pid, 0); return true; } catch (error) { return error.code !== 'ESRCH'; } }
-async function acquire(control) {
+export async function acquireSkillMaintenanceLock(control) {
   const lock = path.join(control, 'lock.json');
   for (let attempt = 0; attempt < 2; attempt++) {
     const token = randomUUID();
@@ -117,7 +117,7 @@ async function acquire(control) {
   throw new Error('maintenance-busy');
 }
 
-export function createSkillUpdateManager({ dataRoot, workspaceRoot, frozenBundledDir, getBindings, assessRequirements, audit = async () => {} }) {
+export function createSkillUpdateManager({ dataRoot, workspaceRoot, frozenBundledDir, getBindings, assessRequirements, assessMaintenanceRequirements = assessRequirements, audit = async () => {} }) {
   const managedBundledDir = path.resolve(dataRoot, 'skill-library');
   let queue = Promise.resolve();
   let last = { status: 'not-checked', actualLoad: 'unknown', bindings: [] };
@@ -183,8 +183,8 @@ export function createSkillUpdateManager({ dataRoot, workspaceRoot, frozenBundle
     const result = { id: binding.id, sourceId: binding.sourceId, latest: false, downloadedFiles: 0, status: 'check-failed', actualLoad: 'unknown' };
     // Read the bound catalog before touching its target. A source legitimately
     // managing other skills is not a failure of this requested skill.
-    let manifest, manifestError;
-    if (requested) {
+    let manifest, manifestError = binding.sourceError ? new Error(binding.sourceError) : undefined;
+    if (requested && !manifestError) {
       try { manifest = manifestOf(await bounded(new URL(binding.manifestUrl), 1024 * 1024), binding); }
       catch (error) { manifestError = error; }
     }
@@ -198,7 +198,7 @@ export function createSkillUpdateManager({ dataRoot, workspaceRoot, frozenBundle
       control = path.join(binding.targetRoot, CONTROL);
       await noLinks(binding.targetRoot, control);
       await fs.mkdir(control, { recursive: true });
-      release = await acquire(control);
+      release = await acquireSkillMaintenanceLock(control);
       await recover(control, binding.targetRoot);
       const previous = await json(path.join(control, 'state.json')).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
       if (previous && previous.sourceId !== binding.sourceId) throw new Error('bound-source-changed');
@@ -252,7 +252,7 @@ export function createSkillUpdateManager({ dataRoot, workspaceRoot, frozenBundle
           }
           const parsed = parseSkillMarkdown(await fs.readFile(path.join(stageRoot, skill.name, 'SKILL.md'), 'utf8'));
           if (parsed?.name !== skill.name) throw new Error('skill-name-mismatch');
-          const entry = await createSkillsService({ bundledDir: stageRoot, workspaceRoot, assessRequirements }).inspectForUse(skill.name);
+          const entry = await createSkillsService({ bundledDir: stageRoot, workspaceRoot, assessRequirements: assessMaintenanceRequirements }).inspectForUse(skill.name);
           if (!entry?.execution.allowed) throw new Error('update-prerequisites-unverified');
         }
         const operations = [];

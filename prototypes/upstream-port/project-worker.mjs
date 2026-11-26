@@ -1,3 +1,4 @@
+import { createProductionSkillHost } from './production-skill-host.mjs';
 import { createOriginalHost } from "./node-host.mjs";
 import { normalizePanelPayload } from "./panel-payload.mjs";
 import { createProjectSnapshotCache } from "./project-snapshot-cache.mjs";
@@ -5,7 +6,7 @@ import { createSnapshotCacheIdentity } from "./snapshot-cache-identity.mjs";
 import { classifyEndpoint } from "./rpc-endpoints.mjs";
 import { DECK_TOOL_POLICY } from "./write-policy.mjs";
 
-const host = await createOriginalHost({ dataRoot: process.cwd(), workspaceRoot: process.argv[2] });
+const host = await createOriginalHost({ dataRoot: process.cwd(), workspaceRoot: process.argv[2], skillHost: createProductionSkillHost({dataRoot: process.cwd(), workspaceRoot: process.argv[2]}) });
 const snapshots = createProjectSnapshotCache({
   directory: process.cwd(), workspaceRoot: process.argv[2],
   identity: createSnapshotCacheIdentity(process.argv[2]),
