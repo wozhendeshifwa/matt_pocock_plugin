@@ -4,6 +4,10 @@ import { createRoot } from "react-dom/client";
 import { summarizeHostContext } from "./host-context.mjs";
 import { namingDisabledText } from "./naming-capability.mjs";
 import { ManualNaming } from "./manual-naming-view.mjs";
+import { createRequestPreparation } from './request-preparation.mjs';
+import { MATT_SKILL_PROBE_NAMES } from '../../vendor/mattskills-1.8.0-rc.7/shared/matt-skills.js';
+
+const requestPreparations = new WeakMap();
 
 let plugin;
 window.__ModuleLoader__ = {
@@ -76,6 +80,7 @@ function PanelShell({ Panel, Settings, Status, Run, panelProps, locale, connecti
 // native session IDs, repository bindings, or successful action responses.
 window.MattSkillsCodex = {
   summarizeHostContext,
+  requestPreparation(element) { return requestPreparations.get(element) ?? null; },
   mount(element, hostServices, panelProps = {}) {
     if (!plugin) throw new Error("Original MattSkills client has not loaded");
     const slots = new Map();
@@ -91,6 +96,20 @@ window.MattSkillsCodex = {
       },
       sidebarRightTabs: { register() { return () => {}; } },
     };
+    const requestPreparation = createRequestPreparation({
+      knownNames: MATT_SKILL_PROBE_NAMES,
+      prepareSkill: async name => {
+        if (!hostServices.skillPreparation) return { status:'source-unbound', bindings:[] };
+        return hostServices.skillPreparation.prepare(name);
+      },
+      readSkillDoc: async name => {
+        const reply = await hostServices.connection.rpc.call('/api','dsws',{method:'skill.readDoc',payload:{name}});
+        if (reply?.ok !== true) throw new Error('skill-source-unavailable');
+        return reply.value ?? reply;
+      },
+    });
+    services.requestPreparation = requestPreparation;
+    requestPreparations.set(element, requestPreparation);
     const context = {
       get: name => services[name],
       inject(dependencies, callback) {
@@ -123,6 +142,8 @@ window.MattSkillsCodex = {
       labels: panelProps.labels ?? DEFAULT_LABELS,
     }));
     return () => {
+      requestPreparation.dispose();
+      requestPreparations.delete(element);
       root.unmount();
       for (const dispose of disposers.reverse()) dispose();
     };
