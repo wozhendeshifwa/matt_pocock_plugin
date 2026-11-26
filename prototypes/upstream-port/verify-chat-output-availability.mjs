@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
 
 const client = await readFile(new URL('dist/client.js', import.meta.url), 'utf8');
-for (const detail of [false, true]) {
+for (const native of [false, true]) for (const detail of [false, true]) {
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://availability.invalid', runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;
   w.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
@@ -15,7 +15,7 @@ for (const detail of [false, true]) {
   const snapshot = { ok: true, value: { ok: true, workspaceRoot: session.cwd, repoRoot: session.cwd, repo: { owner: 'fixture', name: 'repo' }, repository: { name: 'fixture/repo', refId: 'fixture/repo' }, selection: { backendId: 'github' }, backendModules: [{ id: 'github' }], issues: [row], maps: [], labels: [] } };
   w.eval(client);
   const dispose = w.MattSkillsCodex.mount(w.document.getElementById('root'), {
-    codexActions: { capabilities: { reliableDraft: false, active: false, new: false, reason: '宿主缺少可靠读取与结果确认' }, async prefill(target, text) { writes.push({ target, text }); } },
+    codexActions: { capabilities: { nativeDraftRequest: native, reliableDraft: false, active: native, new: native, reason: '宿主缺少可靠读取与结果确认' }, async prefill(target, text) { writes.push({ target, text }); return {status:'requested',target}; } },
     skillPreparation: { async prepare() { return { status: 'checked', bindings: [] }; } },
     sessions: { list: { getSnapshot: () => sessions, subscribe: () => () => {} }, get: () => session },
     connection: { rpc: { async call(c, e, r) {
@@ -35,6 +35,7 @@ for (const detail of [false, true]) {
     await until(() => w.document.querySelector('[data-issue-action-draft]'));
     const preview = w.document.querySelector('[data-issue-action-preview]');
     const editor = preview.querySelector('[data-issue-action-draft]');
+    if (!native) {
     assert.match(preview.textContent, /暂不可用/);
     assert.match(preview.textContent, /宿主缺少可靠读取与结果确认/);
     assert.match(preview.textContent, /选择复制/);
@@ -43,6 +44,9 @@ for (const detail of [false, true]) {
       assert.equal(button.disabled, true, 'unavailable chat output is disabled before interaction');
       assert.ok(button.getAttribute('aria-describedby'), 'disabled output has an accessible explanation');
       button.click();
+    }
+    } else {
+      for (const target of ['active','new']) assert.equal(preview.querySelector('[data-issue-action-export="'+target+'"]').disabled,false);
     }
     assert.equal(editor.disabled, false);
     assert.equal(preview.querySelector('[data-issue-action-export="copy"]').disabled, false);
@@ -57,6 +61,17 @@ for (const detail of [false, true]) {
     assert.equal(copies[0], final, 'availability explanation never changes exported text');
     assert.equal(editor.value, final, 'successful copy preserves the edited draft');
     assert.equal(writes.length, 0);
-    console.log('PASS ' + (detail ? 'bottom bar' : 'list preview') + ' explains disabled chat outputs while keeping editable exact copy');
+    if (native) {
+      for (const target of ['active','new']) {
+        const before = writes.length;
+        preview.querySelector('[data-issue-action-export="'+target+'"]').click();
+        await until(()=>writes.length===before+1);
+        await until(()=>preview.textContent.includes('已请求填入'));
+        assert.equal(writes.at(-1).text,final);
+        assert.equal(writes.at(-1).target,target);
+        assert.doesNotMatch(preview.textContent,/已填入当前聊天|已填入新聊天/);
+      }
+    }
+    console.log('PASS '+(native?'native append request: ':'unavailable: ')+(detail?'bottom bar':'list preview')+' exact text and truthful status');
   } finally { dispose(); w.close(); }
 }

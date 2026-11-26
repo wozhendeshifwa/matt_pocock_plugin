@@ -73,6 +73,7 @@ export const UPSTREAM_ENDPOINTS = new Set([...READ_ENDPOINTS, ...WRITE_ENDPOINTS
 // setupLayout is a read when it has no layout value and a write when a layout
 // is supplied.
 export function classifyEndpoint(method, payload = {}) {
+  if (method === 'portSnapshotCache') return 'read';
   if (method === "setupLayout") return payload?.layout == null ? "read" : "write";
   if (READ_ENDPOINTS.has(method)) return "read";
   if (WRITE_ENDPOINTS.has(method)) return "write";
@@ -86,5 +87,6 @@ export function rpcManifest() {
     upstream: [...UPSTREAM_ENDPOINTS].sort(),
     adapter: [...ADAPTER_ENDPOINTS].sort(),
     conditional: ["setupLayout"],
+    adapterRead: ['portSnapshotCache'],
   };
 }

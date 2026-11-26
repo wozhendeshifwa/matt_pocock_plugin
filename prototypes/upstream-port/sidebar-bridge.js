@@ -282,14 +282,14 @@
           run: language === "en" ? "Run" : "运行",
         };
         async function callForProject(channel, endpoint, request) {
-            if (channel !== "/api" || endpoint !== "dsws") throw new Error("Unknown upstream channel");
-            const atCall = current;
-            if (!atCall || atCall.projectRoot !== mountedProject.projectRoot) throw new Error("项目已切换，旧请求已丢弃。");
-            const tool = isWriteCall(request.method, request.payload) ? "deck_upstream_write" : "deck_upstream_read";
-            const reply = await rpc("tools/call", { name: tool, arguments: { ...request, payload: { ...request.payload, expectedThreadId: atCall.threadId } } });
-            if (!current || current.threadId !== atCall.threadId || current.projectRoot !== atCall.projectRoot) throw new Error("项目已切换，旧请求已丢弃。");
-            if (reply.isError) throw new Error(reply.content?.[0]?.text ?? (tool === "deck_upstream_write" ? "操作未完成。" : "项目数据读取失败。"));
-            return reply.structuredContent ?? JSON.parse(reply.content[0].text);
+          if (channel !== "/api" || endpoint !== "dsws") throw new Error("Unknown upstream channel");
+          const atCall = current;
+          if (!atCall || atCall.projectRoot !== mountedProject.projectRoot) throw new Error("项目已切换，旧请求已丢弃。");
+          const tool = isWriteCall(request.method, request.payload) ? "deck_upstream_write" : "deck_upstream_read";
+          const reply = await rpc("tools/call", { name: tool, arguments: { ...request, payload: { ...request.payload, expectedThreadId: atCall.threadId } } });
+          if (!current || current.threadId !== atCall.threadId || current.projectRoot !== atCall.projectRoot) throw new Error("项目已切换，旧请求已丢弃。");
+          if (reply.isError) throw new Error(reply.content?.[0]?.text ?? (tool === "deck_upstream_write" ? "操作未完成。" : "项目数据读取失败。"));
+          return reply.structuredContent ?? JSON.parse(reply.content[0].text);
         }
         dispose = window.MattSkillsCodex.mount(document.getElementById("root"), {
           sessions,
@@ -305,11 +305,48 @@
             return result.value ?? result;
           } },
           locale: localeService,
-          // openai/message only appends and returns {}; it cannot read existing
-          // input, atomically pin a destination, or prove the resulting draft.
-          // Do not turn its capability bit into a reliable adapter. All legacy
-          // and footer callers share the same fail-closed output boundary.
-          codexActions: window.MattSkillsCodex.createProtectedDraftOutputs(),
+          sandboxTasks: {
+            currentIssue: null,
+            setCurrentIssue(value) { this.currentIssue = value; },
+            async loadIssue(number) {
+              const issue = number ? { number } : this.currentIssue;
+              if (!issue?.number) throw new Error('请先在看板打开当前Issue，或填写Issue编号。');
+              const atCall = await readProject();
+              if (!atCall || atCall.projectRoot !== mountedProject.projectRoot) throw new Error('项目已切换。');
+              const reply = await rpc('tools/call', { name: 'deck_upstream_read', arguments: { method: 'issueDetail', payload: { ...issue, expectedThreadId: atCall.threadId } } });
+              if (!current || current.projectRoot !== atCall.projectRoot || current.threadId !== atCall.threadId) throw new Error('聊天已切换，请重试。');
+              if (reply.isError) throw new Error(reply.content?.[0]?.text ?? 'Issue读取失败。');
+              const result = reply.structuredContent ?? JSON.parse(reply.content[0].text);
+              const value = result.value ?? result;
+              if (value.ok === false) throw new Error(value.error?.message ?? 'Issue读取失败。');
+              return value.issue ?? value;
+            },
+            async call(method, input = {}) {
+              const atCall = await readProject();
+              if (!atCall || !current || atCall.projectRoot !== mountedProject.projectRoot || current.projectRoot !== atCall.projectRoot) throw new Error('项目已切换，旧操作已丢弃。');
+              const read = ['list', 'prepare', 'detail', 'mergePreview', 'cleanPreview', 'shutdownPreview'].includes(method);
+              const reply = await rpc('tools/call', { name: read ? 'deck_sandbox_read' : 'deck_sandbox_write', arguments: { method, input, expectedThreadId: atCall.threadId } });
+              if (!current || current.projectRoot !== atCall.projectRoot || current.threadId !== atCall.threadId) throw new Error('聊天已切换，请核对任务列表；不会自动重发启动。');
+              if (reply.isError) throw new Error(reply.content?.[0]?.text ?? '沙箱操作未完成。');
+              return reply.structuredContent ?? JSON.parse(reply.content[0].text);
+            },
+          },
+          snapshotCache: { async get(key) {
+            const normalize = value => String(value).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+            if (normalize(key) !== normalize(mountedProject.projectRoot)) return null;
+            try {
+              const reply = await callForProject('/api', 'dsws', { method: 'portSnapshotCache', payload: {} });
+              return reply?.ok && reply.value?.ok ? { snapshot: reply.value, ts: reply.value.generatedMs } : null;
+            } catch { return null; } // Cache failures never prevent the real read.
+          } },
+          // Restore the native append-only draft transport without claiming
+          // atomic replacement or verified composer readback.
+          codexActions: window.MattSkillsCodex.createNativeDraftOutputs({
+            capabilities: initialization.hostCapabilities,
+            getIdentity: () => current?.projectRoot === mountedProject.projectRoot ? current : null,
+            readIdentity: readProject,
+            request: rpc,
+          }),
           connection: { rpc: { call: callForProject } },
         }, { sessionId: session.id, session, useSessions, labels });
       } catch (error) { clearPanel("项目未关联：" + error.message); }

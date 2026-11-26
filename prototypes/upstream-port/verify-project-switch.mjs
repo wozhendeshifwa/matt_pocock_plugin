@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {JSDOM} from 'jsdom';
-import {createProtectedDraftOutputs} from './protected-draft-outputs.mjs';
+import {createNativeDraftOutputs} from './native-draft-outputs.mjs';
 const dom=new JSDOM('<main id="root"></main>',{runScripts:'outside-only'});
 const w=dom.window;
 let active={threadId:'project-a-1',projectRoot:'C:/a',cwd:'C:/a'};
@@ -14,13 +14,13 @@ const preparations=[];
 let holdPreparation=false;
 let finishPreparation;
 w.setInterval=fn=>{poll=fn;return 1};
-w.MattSkillsCodex={createProtectedDraftOutputs,mount(element,services,props){mounts.push({services,props});return ()=>disposed++}};
+w.MattSkillsCodex={createNativeDraftOutputs,mount(element,services,props){mounts.push({services,props});return ()=>disposed++}};
 w.postMessage=message=>{
  if(!message.id)return;
  if(message.method==='ui/message')messages.push(message.params);
  if(message.params?.name==='deck_upstream_read')lastPayload=message.params.arguments?.payload;
  if(message.params?.arguments?.method==='skill.prepare')preparations.push(message.params);
- const result=message.method==='ui/initialize'?{hostContext:{},hostCapabilities:{experimental:{'openai/message':true}}}:
+ const result=message.method==='ui/initialize'?{hostContext:{},hostCapabilities:{experimental:{'openai/message':{draft:{}}}}}:
  message.params.name==='deck_current_project'?{structuredContent:active}:
  message.params.arguments?.method==='skill.prepare'?{structuredContent:{ok:true,value:{status:'source-unbound',bindings:[]}}}:
  {structuredContent:{ok:true,value:{}}};
@@ -45,9 +45,10 @@ const sameProjectResult=await mounts[0].services.connection.rpc.call('/api','dsw
 assert.deepEqual(sameProjectResult,{ok:true,value:{}});
 assert.equal(lastPayload.expectedThreadId,'project-a-2');
 for (const target of ['active', 'new']) {
-  await assert.rejects(mounts[0].services.codexActions.prefill(target,'same-project draft'), /可靠|读取|确认/);
+  assert.equal((await mounts[0].services.codexActions.prefill(target,'same-project draft')).status,'requested');
 }
-assert.equal(messages.length,0,'native ui/message cannot safely read existing input or verify the result');
+assert.equal(messages.length,2,'native draft requests restore the original append path');
+assert.ok(messages.every(message=>message._meta['openai/message'].send===false));
 const preparation=await mounts[0].services.skillPreparation.prepare('tdd');
 assert.equal(preparation.status,'source-unbound');
 assert.equal(preparations[0].name,'deck_upstream_write');

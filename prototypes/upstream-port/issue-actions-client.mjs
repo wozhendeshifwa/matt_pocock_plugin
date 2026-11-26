@@ -69,7 +69,7 @@ export function supplementalActionRequest(skill, request, context) {
 }
 
 function canFillIssueActionDraft(actions, target) {
-  return typeof actions?.prefill === 'function' && actions.capabilities?.reliableDraft === true && actions.capabilities[target] !== false;
+  return typeof actions?.prefill === 'function' && (actions.capabilities?.reliableDraft === true || actions.capabilities?.nativeDraftRequest === true) && actions.capabilities[target] !== false;
 }
 
 export async function sendIssueActionDraft(st, target, finalText) {
@@ -80,7 +80,7 @@ export async function sendIssueActionDraft(st, target, finalText) {
   const actions = ctx.get('codexActions');
   if (!canFillIssueActionDraft(actions, target)) throw new Error('宿主未提供可靠的草稿读取与结果确认，请明确选择复制');
   const result = await actions.prefill(target, finalText);
-  if (!result || result.status !== 'filled') throw new Error('宿主填入结果无法确认；草稿已保留');
+  if (!result || !['filled', 'requested'].includes(result.status)) throw new Error('宿主填入结果无法确认；草稿已保留');
   if (result.target !== target) throw new Error('宿主返回的目标与所选聊天不一致；草稿已保留');
   return result;
 }
@@ -159,6 +159,11 @@ export function showIssueActionDraft(request, send) {
   updateRecommendations();
   panel.append(choice, recommendations, contextBox, applyContext);
   const actions = ctx.get('codexActions');
+  if (actions?.capabilities?.notice) {
+    const notice = document.createElement('p');
+    notice.textContent = actions.capabilities.notice;
+    panel.append(notice);
+  }
   const unavailableChats = [['active', '当前聊天'], ['new', '新聊天']].filter(([target]) => !canFillIssueActionDraft(actions, target));
   let availability;
   if (unavailableChats.length) {
@@ -179,8 +184,13 @@ export function showIssueActionDraft(request, send) {
     }
     button.onclick = async () => {
       if (target === 'close') { panel.remove(); return; }
-      try { await send(target, editor.value); note.textContent = target === 'copy' ? '已复制' : target === 'active' ? '已填入当前聊天' : '已填入新聊天'; }
+      try {
+        button.disabled = true;
+        const result = await send(target, editor.value);
+        note.textContent = target === 'copy' ? '已复制' : result?.status === 'requested' ? '已请求填入' + (target === 'active' ? '当前聊天' : '新聊天') + '，请检查输入框后发送' : target === 'active' ? '已填入当前聊天' : '已填入新聊天';
+      }
       catch (error) { note.textContent = '操作失败：' + String(error.message || error) + '。草稿已保留。'; }
+      finally { button.disabled = false; }
     };
     panel.append(button);
   }
