@@ -32,7 +32,10 @@ async function fixture({ detail = false } = {}) {
     connection: { rpc: { async call(c, e, r) {
       if (['snapshot', 'refresh'].includes(r.method)) return snapshot;
       if (r.method === 'cwd') return { ok: true, value: { ok: true, cwd: '/project', workspaceRoot: '/project' } };
-      if (r.method === 'issueDetail') return { ok: true, value: { ok: true, issue: { ...rows.find(row => row.number === r.payload.number), body: 'Recovery evidence' } } };
+      if (r.method === 'issueDetail') {
+        const row = rows.find(row => row.number === r.payload.number);
+        return { ok: true, value: { ok: true, issue: { ...row, labels: { nodes: row.labels.map(name => ({ name, color: '' })) }, body: 'Recovery evidence' } } };
+      }
       if (r.method === 'skill.readDoc') return { ok: true, value: { ok: true, path: '/rules/' + controls.source, md: '# ' + controls.source, source: { kind: 'host-resolved' }, execution: { allowed: controls.allowed } } };
       return { ok: true, value: { ok: false } };
     } } },
