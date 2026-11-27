@@ -13,12 +13,14 @@ async function scenario(detail = false, exercise = null, options = {}) {
   const session = { id: 'direct', cwd: '/direct' }, sessions = { current: 'direct', byId: { direct: session }, items: [session] };
   const snapshot = { ok: true, value: { ok: true, workspaceRoot: '/direct', repoRoot: '/direct', repo: { owner: 'fixture', name: 'repo' }, repository: { name: 'fixture/repo', refId: 'fixture/repo' }, selection: { backendId: 'github' }, backendModules: [{ id: 'github' }], issues: [row], maps: [], labels: [] } };
   const writes = [], copies = [], controls = { prepares: 0, detailReads: 0, source: 'A', allowed: true, result: 'requested', reliable: false, fail: false, reasonsByRead: [], sourceReads: 0 };
+  controls.snapshot = snapshot;
   Object.defineProperty(w.navigator, 'clipboard', { value: { async writeText(text) { if (controls.copyFailure) throw new Error(controls.copyFailure); copies.push(text); } } });
   w.eval(client);
   const dispose = w.MattSkillsCodex.mount(w.document.getElementById('root'), {
     codexActions: { capabilities: { nativeDraftRequest: true, active: options.active !== false, new: options.new === true, reason: '当前宿主缺少可用追加接口', get reliableDraft() { return controls.reliable; } }, async prefill(target, text) {
       if (controls.fail) throw new Error('host unavailable');
       writes.push({ target, text });
+      if (controls.hostGate) await controls.hostGate;
       return controls.result === 'unknown' ? {} : { status: controls.result, target };
     } },
     skillPreparation: { async prepare() { controls.prepares++; if (controls.prepareFailure) throw new Error('source prepare transport failed'); return { status: 'checked', bindings: [] }; } },
@@ -87,4 +89,35 @@ await scenario(false, async ({w,active,until,writes}) => {
   w.document.querySelector('[aria-label="填入新聊天"]').click(); await until(() => writes.length===2);
   assert.equal(writes[0].text,writes[1].text,'both outlets use identical plain generated text');
 }, {new:true});
+await scenario(false, async ({w,active,until,writes,controls,notice}) => {
+  let release;
+  controls.hostGate = new Promise(resolve => { release = resolve; });
+  active.click(); await until(() => writes.length === 1);
+  const refresh = async name => {
+    controls.snapshot.value.repo = { owner:'fixture', name };
+    controls.snapshot.value.repository = { name:'fixture/'+name, refId:'fixture/'+name };
+    [...w.document.querySelectorAll('button')].find(b => b.title === '刷新' || b.textContent === '刷新').click();
+    await until(() => w.document.body.textContent.includes('fixture/'+name));
+  };
+  await refresh('other'); release();
+  await until(() => !w.document.querySelector('[aria-label="填入当前聊天"]').disabled);
+  assert.equal(notice(), null, 'late old-repository receipt must not appear on the new repository');
+  await refresh('repo');
+  await until(() => notice()?.textContent.includes('已请求'));
+  assert.equal(writes.length,1,'returning restores feedback without resending');
+});
+await scenario(false, async ({w,active,until,writes,controls,notice}) => {
+  controls.result='unknown'; active.click(); await until(() => notice()?.textContent.includes('无法确认'));
+  [...notice().querySelectorAll('button')].find(b => b.textContent==='重试').click();
+  await until(() => [...notice().querySelectorAll('button')].some(b => b.textContent==='已检查输入框，重试'));
+  const retry=[...notice().querySelectorAll('button')].find(b => b.textContent==='已检查输入框，重试');
+  assert.ok(retry);
+  controls.snapshot.value.repo={owner:'fixture',name:'other'};
+  controls.snapshot.value.repository={name:'fixture/other',refId:'fixture/other'};
+  retry.click();
+  [...w.document.querySelectorAll('button')].find(b=>b.title==='刷新'||b.textContent==='刷新').click();
+  await until(()=>w.document.body.textContent.includes('fixture/other'));
+  assert.equal(writes.length,1,'a stale retry never writes an Issue URL from another repository');
+  assert.equal(notice(),null,'the old failure never acquires the new repository scope');
+});
 console.log('PASS plain direct fill without plugin verification or row captions');
