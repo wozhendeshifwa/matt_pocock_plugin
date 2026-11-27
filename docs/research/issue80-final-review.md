@@ -37,3 +37,7 @@ root 的真实 GitHub 公开快照补验位于主工作区 `.scratch/issue80/liv
 - root 在最终产品代码上再次通过公开 snapshot composer 读取真实 GitHub：#44=0/0、#60=2/2、#61=4/4、#62=4/5、#80=2/3，均为 complete；#84 原生依赖 #83、#86 原生依赖 #83／#84 均完整保留。补验脚本首次把依赖引用对象误按字符串断言，校正为按公开引用的 key 核对后退出 0；不是产品修复或原生验收。
 - 最终版本的部署差异预检通过并备份具体目标，回执位于 `.scratch/issue80/deployment/2026-11-27T03-52-12.500Z/receipt.json`，状态仍为 check-only。未 apply、未更新现用 MCP 服务、未重启桌面。
 - 主工作区 `main` 保持 `edd19db`；原用户 `GLOSSARY.md` SHA-256 仍为 `0760bb8efc3ec9e593c283be6de09257e35aaa9618a03c8e60f2ceebdbb425e3`。其他任务的工作树、provider 配置与 DeepSeek 回退均未修改。
+
+## 部署与原生门槛补齐
+
+用户恢复授权后已部署最终构建，并完成真实 Codex 381px 窄侧栏全部必需验收。此前未部署及 Esc 停止记录为历史状态；当前门槛已补齐，具体部署回执、实际点击矩阵及证据边界见 issue80-native-acceptance.md。未新增产品代码，保留主工作区用户修改及 provider 配置。
