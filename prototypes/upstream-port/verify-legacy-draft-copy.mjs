@@ -34,24 +34,21 @@ for (const detail of [false, true]) {
     view.button('填入当前聊天').click();
     await f.until(() => f.writes.length === 1);
     await f.until(() => !view.button('填入当前聊天').disabled);
-    view.button('复制').click();
-    await f.until(() => f.copies.length === 1);
-    assert.equal(f.copies[0], f.writes[0].text, 'normal copy uses the current generated request');
-    assert.notEqual(f.copies[0], original);
-    await f.until(() => !view.button('填入当前聊天').disabled);
+    assert.equal(view.button('复制'),undefined,'regular copying is removed');
     view.button('复制旧草稿原文').click();
-    await f.until(() => f.copies.length === 2);
-    assert.equal(f.copies[1], original, 'generating and copying a current request never overwrites history');
+    await f.until(() => f.copies.length === 1);
+    assert.equal(f.copies[0], original, 'generating and copying a current request never overwrites history');
     await f.until(() => !view.button('复制旧草稿原文').disabled);
     f.failCopy(true);
     view.button('复制旧草稿原文').click();
     await f.until(() => view.group.textContent.includes('clipboard unavailable'));
-    assert.equal(f.copies.length, 2, 'a failed copy is not retried or redirected');
+    assert.equal(f.copies.length, 1, 'a failed copy is not retried or redirected');
     assert.equal(f.writes.length, 1);
     f.failCopy(false);
     view.button('复制旧草稿原文').click();
-    await f.until(() => f.copies.length === 3);
-    assert.equal(f.copies[2], original, 'failure preserves the exact historical text for a deliberate retry');
+    await f.until(() => f.copies.length === 2);
+    assert.equal(f.copies[1], original, 'failure preserves the exact historical text for a deliberate retry');
+    await f.until(() => !view.button('复制旧草稿原文').disabled);
 
     const delay = new Promise(resolve => { release = resolve; });
     f.delayHost(delay);
@@ -60,8 +57,8 @@ for (const detail of [false, true]) {
     assert.equal(view.button('填入当前聊天').disabled, true);
     assert.equal(view.button('复制旧草稿原文').disabled, false, 'deliberate historical copying stays available while injection waits');
     view.button('复制旧草稿原文').click();
-    await f.until(() => f.copies.length === 4);
-    assert.equal(f.copies[3], original);
+    await f.until(() => f.copies.length === 3);
+    assert.equal(f.copies[2], original);
     release();
     await f.until(() => !view.button('填入当前聊天').disabled);
 
@@ -71,8 +68,8 @@ for (const detail of [false, true]) {
     }
     view = await f.menu({ detail: true });
     view.button('复制旧草稿原文').click();
-    await f.until(() => f.copies.length === 5);
-    assert.equal(f.copies[4], original, 'returning in a new chat for the same project and Issue preserves history');
+    await f.until(() => f.copies.length === 4);
+    assert.equal(f.copies[3], original, 'returning in a new chat for the same project and Issue preserves history');
     await f.seed('');
     view = await f.menu();
     assert.equal(view.button('复制旧草稿原文'), undefined, 'an explicitly empty legacy draft does not invent historical content');

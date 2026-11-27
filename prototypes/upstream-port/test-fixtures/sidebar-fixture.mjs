@@ -39,8 +39,8 @@ export function fixture() {
     await until(() => w.document.querySelector('[aria-label="#' + number + ' Legacy fixture ' + number + '"]'));
     const rowButton = w.document.querySelector('[aria-label="#' + number + ' Legacy fixture ' + number + '"]');
     if (detail) { rowButton.click(); await until(() => w.document.querySelector('[data-bottom-action-bar]')); }
-    const group = w.document.querySelector('[data-issue-direct-actions]');
-    return { group, rowButton, button: text => [...group.querySelectorAll('button')].find(b => b.textContent === text) };
+    const group = w.document.body;
+    return { group, rowButton, button: text => [...group.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === text) || [...group.querySelectorAll('button')].find(b => b.textContent === text) };
   }
   async function seed(text, options = {}) {
     dispose?.(); dispose = undefined;
@@ -70,9 +70,10 @@ export function fixture() {
     w.eval(finalRenderer);
   }
   async function menu(options = {}) {
-    const view = await open(options);
+    const view = await open({ ...options, detail: true });
+    await until(() => view.button('更多动作') && !view.button('更多动作').disabled);
     view.button('更多动作').click();
-    await until(() => view.group.querySelector('[aria-label="更多动作"]'));
+    await until(() => view.group.querySelector('[role="group"][aria-label="更多动作"]'));
     return view;
   }
   return { w, copies, writes, observations, controls, until, open, seed, menu, setSource(value) { source = value; }, failCopy(value) { copyFails = value; }, delayHost(value) { hostDelay = value; }, close() { dispose?.(); w.close(); } };

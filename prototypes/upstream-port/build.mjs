@@ -77,11 +77,16 @@ adapted = adapted.replace(boardComponentAnchor, `const CodexBoardActions = funct
       const operations = ctx.get('draftOperations')
       React.useSyncExternalStore(operations.subscribe, operations.getSnapshot)
       const draftPending = operations.pending
+      const top = (st.navStack || []).slice(-1)[0]
+      const selected = ['list', 'pr'].includes(st.tab) ? (top ? (top.kind === 'issue' ? top.n : null) : st.activeIssue) : null
+      const effort = String(top && top.kind === 'issue' ? top.effortId || '' : st.activeEffortId || '')
+      const issue = st.issueDetail && st.issueDetail.number === selected && String(st.issueDetail.effortId || '') === effort ? st.issueDetail : null
       const en = tr('nav.handoff') === 'Handoff'
       return h('div', { className: 'mattskills-board-actions', role: 'group', 'aria-label': en ? 'Chat actions' : '聊天操作' }, [
         h('button', { key: 'fixate', type: 'button', className: 'dsws-btn', 'data-board-action': 'fixate', 'aria-label': tr('nav.word'), disabled: draftPending, title: tr('nav.fixateTitle'), onClick: function () { injectFixate(st) } }, Ic({ n: 'note', size: 14 })),
         h('button', { key: 'handoff', type: 'button', className: 'dsws-btn', 'data-board-action': 'handoff', 'aria-label': tr('nav.handoff'), disabled: draftPending, title: tr('nav.handoffTitle'), onClick: function () { doHandoff(st) } }, Ic({ n: 'handoff', size: 14 })),
-        h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'data-board-action': 'new', 'aria-label': en ? 'New chat' : '开新对话', disabled: draftPending || !!st.handoffSearching, title: st.handoffReady ? tr('nav.handoffReadyTitle') : tr('nav.handoffGreyTitle'), onClick: function () { doHandoffOpen(st) } }, Ic({ n: 'external-link', size: 14 }))
+        h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'data-board-action': 'new', 'aria-label': en ? 'New chat' : '开新对话', disabled: draftPending || !!st.handoffSearching, title: st.handoffReady ? tr('nav.handoffReadyTitle') : tr('nav.handoffGreyTitle'), onClick: function () { doHandoffOpen(st) } }, Ic({ n: 'external-link', size: 14 })),
+        h(DirectIssueActions, { key: 'issue-more', st, issue, toolbar: true })
       ])
     }
     ` + boardComponentAnchor);

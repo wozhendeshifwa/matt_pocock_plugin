@@ -12,21 +12,21 @@ async function scenario(detail = false, exercise = null, options = {}) {
   const row = { key: '10', number: 10, type: 'issue', title: 'Direct fixture', state: 'OPEN', labels: ['needs-triage'], assignees: [], comments: { nodes: [] }, blockedBy: [], url: 'https://github.com/fixture/repo/issues/10' };
   const session = { id: 'direct', cwd: '/direct' }, sessions = { current: 'direct', byId: { direct: session }, items: [session] };
   const snapshot = { ok: true, value: { ok: true, workspaceRoot: '/direct', repoRoot: '/direct', repo: { owner: 'fixture', name: 'repo' }, repository: { name: 'fixture/repo', refId: 'fixture/repo' }, selection: { backendId: 'github' }, backendModules: [{ id: 'github' }], issues: [row], maps: [], labels: [] } };
-  const writes = [], copies = [], controls = { source: 'A', allowed: true, result: 'requested', reliable: false, fail: false, reasonsByRead: [], sourceReads: 0 };
+  const writes = [], copies = [], controls = { prepares: 0, detailReads: 0, source: 'A', allowed: true, result: 'requested', reliable: false, fail: false, reasonsByRead: [], sourceReads: 0 };
   Object.defineProperty(w.navigator, 'clipboard', { value: { async writeText(text) { if (controls.copyFailure) throw new Error(controls.copyFailure); copies.push(text); } } });
   w.eval(client);
   const dispose = w.MattSkillsCodex.mount(w.document.getElementById('root'), {
-    codexActions: { capabilities: { nativeDraftRequest: true, active: options.active !== false, new: false, reason: '当前宿主缺少可用追加接口', get reliableDraft() { return controls.reliable; } }, async prefill(target, text) {
+    codexActions: { capabilities: { nativeDraftRequest: true, active: options.active !== false, new: options.new === true, reason: '当前宿主缺少可用追加接口', get reliableDraft() { return controls.reliable; } }, async prefill(target, text) {
       if (controls.fail) throw new Error('host unavailable');
       writes.push({ target, text });
       return controls.result === 'unknown' ? {} : { status: controls.result, target };
     } },
-    skillPreparation: { async prepare() { if (controls.prepareFailure) throw new Error('source prepare transport failed'); return { status: 'checked', bindings: [] }; } },
+    skillPreparation: { async prepare() { controls.prepares++; if (controls.prepareFailure) throw new Error('source prepare transport failed'); return { status: 'checked', bindings: [] }; } },
     sessions: { list: { getSnapshot: () => sessions, subscribe: () => () => {} }, get: () => session },
     connection: { rpc: { async call(c, e, r) {
       if (['snapshot', 'refresh'].includes(r.method)) return snapshot;
       if (r.method === 'cwd') return { ok: true, value: { ok: true, cwd: '/direct', workspaceRoot: '/direct' } };
-      if (r.method === 'issueDetail') return { ok: true, value: { ok: true, issue: { ...row, labels: controls.detailLabels || { nodes: row.labels.map(name => ({ name, color: '' })) }, body: 'Direct evidence' } } };
+      if (r.method === 'issueDetail') { controls.detailReads++; return { ok: true, value: { ok: true, issue: { ...row, labels: controls.detailLabels || { nodes: row.labels.map(name => ({ name, color: '' })) }, body: 'Direct evidence' } } }; }
       if (r.method === 'skill.readDoc') {
         if (controls.readFailure) throw new Error('source read transport failed');
         if (controls.missingRule) return { ok: true, value: { ok: false, missing: true } };
@@ -39,135 +39,52 @@ async function scenario(detail = false, exercise = null, options = {}) {
   try {
     await until(() => w.document.querySelector('[aria-label="#10 Direct fixture"]'));
     if (detail) { w.document.querySelector('[aria-label="#10 Direct fixture"]').click(); await until(() => w.document.querySelector('[data-bottom-action-bar]')); }
-    const active = [...w.document.querySelectorAll('button')].find(b => b.textContent === '填入当前聊天');
+    const active = w.document.querySelector('button[aria-label="填入当前聊天"]');
     assert.ok(active, 'the primary action must be explicitly named and directly available');
     const group = active.closest('[data-issue-direct-actions]');
     assert.ok(group, 'direct feedback and copy belong to the same visible action group');
-    if (exercise) await exercise({ w, active, group, until, writes, copies, controls });
+    const notice = () => w.document.querySelector('[data-draft-toast]');
+    if (exercise) await exercise({ w, active, group, until, writes, copies, controls, notice });
     else {
+      const detailReads = controls.detailReads;
       active.click(); await until(() => writes.length === 1 || group.textContent.includes('操作失败'));
       assert.equal(writes.length, 1, 'fresh native issue detail must reach the draft outlet: ' + group.textContent);
-      await until(() => group.textContent.includes('已请求'));
+      assert.equal(controls.prepares, 0, 'filling a draft does not run plugin source verification');
+      assert.equal(controls.sourceReads, 0, 'filling a draft does not read skill rules');
+      assert.equal(controls.detailReads, detailReads, 'filling uses the visible Issue without an extra remote verification');
+      assert.doesNotMatch(writes[0].text, /未核验草稿|技能 triage：|发送后，目标 Agent 必须先核验/);
+      await until(() => notice()?.textContent.includes('已请求'));
       assert.equal(writes[0].target, 'active');
       assert.ok(writes[0].text.startsWith('$triage\n\n目标：Direct fixture\nIssue：https://github.com/fixture/repo/issues/10\n'));
       assert.equal(w.document.querySelector('[data-issue-action-preview]'), null, 'direct fill must not mount the old editor');
-      const copy = [...group.querySelectorAll('button')].find(b => b.textContent === '复制');
-      copy.click(); await until(() => copies.length === 1);
-      assert.equal(copies[0], writes[0].text, 'normal copy must use the same generated request');
-      assert.doesNotMatch(group.textContent, /已填入|任务已执行/);
+      assert.equal(group.querySelectorAll('button').length, 2, 'each task shows only its two fill outlets');
+      assert.equal(group.querySelector('[role="status"]'), null, 'no text is rendered underneath fill buttons');
+      assert.equal(group.querySelector('[data-issue-more-actions]'), null);
+      assert.equal(w.document.querySelector('button[aria-label="更多动作"]').closest('[aria-label="聊天操作"]') !== null, true);
+      assert.equal(w.document.querySelectorAll('button[aria-label="复制"]').length, 0);
+      assert.doesNotMatch(w.document.querySelector('[data-draft-toast]').textContent, /已填入|任务已执行/);
     }
   } finally { dispose(); w.close(); }
 }
-
 for (const detail of [false, true]) await scenario(detail);
-await scenario(false, async ({ active, group, until, controls, writes, copies }) => {
-  controls.detailLabels = { unexpected: [] };
-  active.click(); await until(() => group.textContent.includes('无法读取最新标签'));
-  assert.equal(writes.length, 0, 'malformed fresh labels stop the stale request instead of becoming an empty label set');
-  assert.equal(copies.length, 0, 'a failed refresh never silently copies');
-});
-for (const detail of [false, true]) await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
-  controls.allowed = false;
-  controls.reasonsByRead = Array(8).fill(['必要工具不可用：GitHub；必要资料尚未核验']);
+for (const detail of [false, true]) await scenario(detail, async ({active, until, controls, writes, notice}) => {
+  controls.prepareFailure = true; controls.readFailure = true; controls.allowed = false;
   active.click(); await until(() => writes.length === 1);
-  assert.match(writes[0].text, /未核验草稿/);
-  assert.match(writes[0].text, /发送后.*目标 Agent.*核验/);
-  assert.match(writes[0].text, /必要工具不可用：GitHub；必要资料尚未核验/);
-  assert.match(writes[0].text, /暂停依赖/);
-  assert.doesNotMatch(group.textContent, /任务已执行|已填入/);
-  await until(() => group.textContent.includes('已请求'));
-  [...group.querySelectorAll('button')].find(b => b.textContent === '复制').click();
-  await until(() => copies.length === 1);
-  assert.equal(copies[0], writes[0].text, 'unverified fill and deliberate Copy retain the same warning-bearing text');
+  assert.doesNotMatch(writes[0].text, /未核验草稿|技能 triage：/);
+  assert.equal(controls.prepares, 0); assert.equal(controls.sourceReads, 0);
+  await until(() => notice()?.textContent.includes('已请求'));
 });
-await scenario(false, async ({ active, group, until, controls }) => {
-  controls.result = 'filled';
-  controls.reliable = false;
-  active.click(); await until(() => group.textContent.includes('已请求'));
-  assert.doesNotMatch(group.textContent, /已填入/, 'an unverified filled receipt cannot grant a native-only outlet reliable confirmation');
+for (const result of ['filled', 'unknown', 'failure']) await scenario(false, async ({ active, until, controls, writes, notice }) => {
+  controls.result = result; controls.reliable = result === 'filled'; controls.fail = result === 'failure';
+  active.click();
+  await until(() => notice()?.textContent.includes(result === 'filled' ? '已填入' : result === 'unknown' ? '无法确认是否填入' : 'host unavailable'));
+  assert.equal(writes.length, result === 'failure' ? 0 : 1);
+  assert.doesNotMatch(notice().textContent, /任务已执行/);
 });
-await scenario(false, async ({ active, group, until, copies, writes }) => {
-  assert.equal(active.disabled, true);
-  assert.match(group.textContent, /当前宿主缺少可用追加接口/, 'unavailable direct output explains its reason before a click');
-  [...group.querySelectorAll('button')].find(b => b.textContent === '复制').click();
-  await until(() => copies.length === 1);
-  assert.equal(writes.length, 0);
-}, { active: false });
-for (const detail of [false, true]) {
-  await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
-    const reasons = ['triage', 'implement-spec', 'to-spec', 'to-tickets'].map(name => name + '：工具及其他必要资料要求未核验；先查证，暂停依赖步骤。');
-    controls.allowed = false;
-    controls.reasonsByRead = Array(12).fill(reasons);
-    active.click();
-    await until(() => writes.length === 1);
-    await until(() => group.textContent.includes('已请求'));
-    for (const reason of reasons) assert.ok(writes[0].text.includes(reason), 'the unverified draft retains every prerequisite explanation for the target Agent');
-    controls.copyFailure = 'Failed to execute writeText on Clipboard: Write permission denied.';
-    [...group.querySelectorAll('button')].find(b => b.textContent === '复制').click();
-    await until(() => group.textContent.includes(controls.copyFailure));
-    assert.match(group.textContent, /未核验草稿/, 'copy failure does not replace the original request status');
-    assert.equal(writes.length, 1, 'copy failure does not resubmit the host request');
-    assert.equal(copies.length, 0);
-    controls.copyFailure = null;
-    [...group.querySelectorAll('button')].find(b => b.textContent === '复制').click();
-    await until(() => copies.length === 1);
-    assert.equal(copies[0], writes[0].text, 'an intentional retry can copy the retained warning-bearing text');
-  });
-  for (const more of [false, true]) await scenario(detail, async ({ w, active, group, until, controls, writes, copies }) => {
-    controls.allowed = false;
-    controls.reasonsByRead = [['旧的未核验原因'], ...Array(12).fill(['缺少 GitHub 工具授权；请连接 GitHub 后重试'])];
-    if (more) {
-      [...group.querySelectorAll('button')].find(b => b.textContent === '更多动作').click();
-      await until(() => group.querySelector('select[aria-label="选择其他动作"]'));
-      const choice = group.querySelector('select');
-      choice.value = 'skill:tdd';
-      choice.dispatchEvent(new w.Event('change', { bubbles: true }));
-      await until(() => group.querySelector('[aria-label="更多动作"] button:not([disabled])'));
-      [...group.querySelector('[aria-label="更多动作"]').querySelectorAll('button')].find(b => b.textContent === '填入当前聊天').click();
-    } else active.click();
-    await until(() => group.textContent.includes('操作失败'));
-    assert.match(group.textContent, /已变化/, 'changed prerequisite observations still stop the stale draft until explicit regeneration');
-    assert.doesNotMatch(group.textContent, /旧的未核验原因/, 'the earlier preparation diagnosis must not replace the latest check');
-    assert.equal(writes.length, 0, 'a changed observation cannot silently reuse the old warning text');
-    assert.equal(copies.length, 0);
-    [...group.querySelectorAll('button')].find(b => b.textContent === '按最新来源重新生成并填入').click();
-    await until(() => writes.length === 1);
-    assert.match(writes[0].text, /缺少 GitHub 工具授权；请连接 GitHub 后重试/);
-  });
-  for (const failure of ['prepareFailure', 'readFailure', 'missingRule']) await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
-    controls[failure] = true;
-    active.click(); await until(() => group.textContent.includes('来源准备未完成'));
-    assert.equal(writes.length, 0, 'a real source preparation/read failure still stops the host request');
-    assert.equal(copies.length, 0, 'a stopped injection must not silently choose copying');
-    assert.match(group.textContent, /生成文本已保留/);
-  });
-  await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
-    active.click(); await until(() => group.textContent.includes('已请求'));
-    controls.source = 'B';
-    [...group.querySelectorAll('button')].find(b => b.textContent === '复制').click();
-    await until(() => group.textContent.includes('已变化'));
-    assert.equal(writes.length, 1);
-    assert.equal(copies.length, 0, 'changed sources stop the previous generated request');
-  });
-  for (const result of ['filled', 'unknown', 'failure']) await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
-    controls.result = result;
-    controls.reliable = result === 'filled';
-    controls.fail = result === 'failure';
-    active.click();
-    await until(() => group.textContent.includes(result === 'filled' ? '已填入当前聊天' : result === 'unknown' ? '无法确认是否填入' : 'host unavailable'));
-    if (result === 'filled') assert.match(group.textContent, /已填入当前聊天/);
-    if (result === 'unknown') {
-      assert.match(group.textContent, /无法确认是否填入，请先检查输入框/);
-      assert.doesNotMatch(group.textContent, /已填入当前聊天/);
-    }
-    if (result === 'failure') {
-      assert.match(group.textContent, /host unavailable/);
-      assert.equal(writes.length, 0);
-      [...group.querySelectorAll('button')].find(b => b.textContent === '复制').click();
-      await until(() => copies.length === 1);
-      assert.match(copies[0], /^\$triage\n\n目标：Direct fixture/);
-    }
-    assert.doesNotMatch(group.textContent, /任务已执行/);
-  });
-}
-console.log('PASS direct current-chat actions and same-text copy through production sidebar');
+await scenario(false, async ({active,group}) => { assert.equal(active.disabled,true); assert.match(active.title,/当前宿主缺少可用追加接口/); assert.equal(group.querySelectorAll('button').length,2); }, {active:false});
+await scenario(false, async ({w,active,until,writes}) => {
+  active.click(); await until(() => writes.length===1); await until(() => w.document.querySelector('[data-draft-toast]')?.textContent.includes('已请求')); await until(() => !active.disabled);
+  w.document.querySelector('[aria-label="填入新聊天"]').click(); await until(() => writes.length===2);
+  assert.equal(writes[0].text,writes[1].text,'both outlets use identical plain generated text');
+}, {new:true});
+console.log('PASS plain direct fill without plugin verification or row captions');

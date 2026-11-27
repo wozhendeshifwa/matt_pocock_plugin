@@ -20,7 +20,7 @@ export function MoreIssueActions({ st, issue, pending, run }) {
     setCopyingLegacy(true);
     try {
       await navigator.clipboard.writeText(legacyText);
-      setLegacyStatus('已复制旧草稿原文（历史文本，未重新核验）');
+      setLegacyStatus('已复制旧草稿原文');
     } catch (error) {
       setLegacyStatus('旧草稿复制失败：' + String(error.message || error) + '。原文已保留。');
     } finally {
@@ -47,7 +47,7 @@ export function MoreIssueActions({ st, issue, pending, run }) {
   const h = React.createElement;
   const actions = ctx.get('codexActions');
   return h('span', { 'data-issue-more-actions': true, onClick: e => e.stopPropagation(), style: { minWidth: 0 } }, [
-    h('button', { key: 'toggle', type: 'button', className: 'dsws-btn ghost', 'aria-expanded': String(open), onClick: () => setOpen(!open), style: { fontSize: 11 } }, '更多动作'),
+    h('button', { key: 'toggle', type: 'button', className: 'dsws-btn ghost', 'aria-label': '更多动作', title: '更多动作', 'aria-expanded': String(open), onClick: () => setOpen(!open), style: { fontSize: 11 } }, '更多动作'),
     open ? h('span', { key: 'options', role: 'group', 'aria-label': '更多动作', style: { display: 'flex', flexWrap: 'wrap', gap: 4, minWidth: 0 } }, [
       legacyText.length ? h('button', { key: 'legacy-copy', type: 'button', className: 'dsws-btn ghost', disabled: copyingLegacy, onClick: copyLegacy }, '复制旧草稿原文') : null,
       legacyStatus ? h('span', { key: 'legacy-status', role: 'status', 'aria-live': 'polite' }, legacyStatus) : null,
@@ -64,7 +64,7 @@ export function MoreIssueActions({ st, issue, pending, run }) {
         ? h('select', { key: name, 'aria-label': '阶段／观察', value: context[name] || '', disabled: pending, onChange: e => change(name, e.target.value) }, ['', '成功结束', '失败结束', '中止', '反复返工', '导航困难', '工具低效'].map(value => h('option', { key: value, value }, value || '选择阶段／观察')))
         : h('input', { key: name, 'aria-label': ACTION_CONTEXT_LABELS[name], placeholder: ACTION_CONTEXT_LABELS[name], value: context[name] || '', disabled: pending, required: true, onInput: e => change(name, e.target.value), style: { minWidth: 0, maxWidth: '100%' } })),
       choice && !ready ? h('span', { key: 'missing', role: 'status' }, '请补齐：' + supplementalRequirements(skill, context).missing.join('、')) : null,
-      ...[['active', '填入当前聊天'], ['new', '填入新聊天'], ['copy', '复制']].map(([target, label]) => h('button', { key: target, type: 'button', className: 'dsws-btn', disabled: !ready || target !== 'copy' && (pending || !canFillIssueActionDraft(actions, target)), onClick: () => execute(target) }, label)),
+      ...[['active', '填入当前聊天'], ['new', '填入新聊天']].map(([target, label]) => h('button', { key: target, type: 'button', className: 'dsws-btn', disabled: !ready || target !== 'copy' && (pending || !canFillIssueActionDraft(actions, target)), onClick: () => execute(target) }, label)),
       h('button', { key: 'cancel', type: 'button', className: 'dsws-btn ghost', onClick: () => setOpen(false) }, '取消'),
     ]) : null,
   ]);
