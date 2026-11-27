@@ -9110,7 +9110,7 @@ const _installLateSnapshot = function (st, snap, reqNorm, mine) {
         h('button', { key: 'fixate', type: 'button', className: 'dsws-btn', 'data-board-action': 'fixate', 'aria-label': tr('nav.word'), disabled: draftPending, title: tr('nav.fixateTitle'), onClick: function () { injectFixate(st) } }, Ic({ n: 'note', size: 14 })),
         h('button', { key: 'handoff', type: 'button', className: 'dsws-btn', 'data-board-action': 'handoff', 'aria-label': tr('nav.handoff'), disabled: draftPending, title: tr('nav.handoffTitle'), onClick: function () { doHandoff(st) } }, Ic({ n: 'handoff', size: 14 })),
         h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'data-board-action': 'new', 'aria-label': en ? 'New chat' : '开新对话', disabled: draftPending || !!st.handoffSearching, title: st.handoffReady ? tr('nav.handoffReadyTitle') : tr('nav.handoffGreyTitle'), onClick: function () { doHandoffOpen(st) } }, Ic({ n: 'external-link', size: 14 })),
-        h(DirectIssueActions, { key: 'issue-more', st, issue, toolbar: true })
+        h(DirectIssueActions, { key: 'issue-more', st, issue, toolbar: true, unavailableReason: selected == null ? '请先打开一张 Issue，再选择更多动作。' : st.issueMode === 'loading' ? 'Issue 详情正在加载，请稍后再试。' : st.issueMode === 'err' ? 'Issue 详情加载失败，请在详情中点击“重试”。' : '当前 Issue 详情尚不可用，请重新打开该 Issue。' })
       ])
     }
     const DeckSidebarTab = function (props) {
@@ -21449,7 +21449,7 @@ function MoreIssueActions({ st, issue, pending, run }) {
   const h = React.createElement;
   const actions = ctx.get('codexActions');
   return h('span', { 'data-issue-more-actions': true, onClick: e => e.stopPropagation(), style: { minWidth: 0 } }, [
-    h('button', { key: 'toggle', type: 'button', className: 'dsws-btn ghost', 'aria-label': '更多动作', title: '更多动作', 'aria-expanded': String(open), onClick: () => setOpen(!open), style: { fontSize: 11 } }, '更多动作'),
+    h('button', { key: 'toggle', type: 'button', className: 'dsws-btn ghost', 'aria-label': '更多动作', title: '更多动作', 'aria-expanded': String(open), onClick: () => setOpen(!open) }, h('span', { 'aria-hidden': 'true', style: { fontSize: 18, lineHeight: 1 } }, '⋯')),
     open ? h('span', { key: 'options', role: 'group', 'aria-label': '更多动作', style: { display: 'flex', flexWrap: 'wrap', gap: 4, minWidth: 0 } }, [
       legacyText.length ? h('button', { key: 'legacy-copy', type: 'button', className: 'dsws-btn ghost', disabled: copyingLegacy, onClick: copyLegacy }, '复制旧草稿原文') : null,
       legacyStatus ? h('span', { key: 'legacy-status', role: 'status', 'aria-live': 'polite' }, legacyStatus) : null,
@@ -21471,15 +21471,22 @@ function MoreIssueActions({ st, issue, pending, run }) {
     ]) : null,
   ]);
 }
-function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
+function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false, unavailableReason }) {
   const state = actionDraftState(st, issue?.number || '', issue?.effortId || '');
   const scope = actionDraftKey(st, '', '');
+  const [help, setHelp] = React.useState(null);
+  const activeHelp = help?.scope === scope ? help : null;
+  React.useEffect(() => {
+    if (!activeHelp) return;
+    const timer = setTimeout(() => setHelp(null), 3500);
+    return () => clearTimeout(timer);
+  }, [activeHelp]);
   const operations = ctx.get('draftOperations');
   React.useSyncExternalStore(operations.subscribe, operations.getSnapshot);
   const pending = operations.pending;
   const update = next => {
     state.directFeedback = { ...(state.directFeedback || {}), ...next };
-    operations.notice = { feedback: state.directFeedback, run, issueNumber: issue.number, scope };
+    operations.notice = { feedback: state.directFeedback, run, issueNumber: issue?.number, scope };
     operations.changed();
   };
   const actions = ctx.get('codexActions');
@@ -21512,11 +21519,11 @@ function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
     return () => clearTimeout(timer);
   }, [toolbar, notice]);
   if (toolbar) {
-    const current = notice?.feedback;
+    const current = activeHelp ? { status: activeHelp.status } : notice?.feedback;
     return h('span', { 'data-issue-toolbar-actions': '', style: { display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, minWidth: 0, maxWidth: '100%' } }, [
-      issue ? h(MoreIssueActions, { key: actionDraftKey(st, issue.number, issue.effortId || ''), st, issue, pending, run }) : h('button', { key: 'disabled', className: 'dsws-btn', disabled: true, title: '请先打开一个 Issue', 'aria-label': '更多动作' }, '更多动作'),
+      issue ? h(MoreIssueActions, { key: actionDraftKey(st, issue.number, issue.effortId || ''), st, issue, pending, run }) : h('button', { key: 'unavailable', type: 'button', className: 'dsws-btn', title: unavailableReason || '更多动作：请先打开一张 Issue', 'aria-label': '更多动作', onClick: () => setHelp({ scope, status: unavailableReason || '请先打开一张 Issue，再选择更多动作。' }) }, h('span', { 'aria-hidden': 'true', style: { fontSize: 18, lineHeight: 1 } }, '⋯')),
       current?.status ? h('span', { key: 'toast', 'data-draft-toast': '', style: { position: 'fixed', bottom: 16, right: 16, zIndex: 1000, maxWidth: 'min(360px, calc(100vw - 32px))', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2)', color: 'var(--foreground, inherit)', border: '1px solid var(--dsw-alias-border-l1)', boxShadow: '0 2px 12px #0002', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 } }, [
-      current?.status ? h('span', { key: 'notice', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' } }, '#' + notice.issueNumber + ' · ' + current.status) : null,
+      current?.status ? h('span', { key: 'notice', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' } }, (!activeHelp && notice?.issueNumber ? '#' + notice.issueNumber + ' · ' : '') + current.status) : null,
       current?.retry ? h('button', { key: 'retry', type: 'button', className: 'dsws-btn', disabled: pending, onClick: e => {
         e.stopPropagation();
         if (current.retry.unknown && !current.retryConfirmed) {
@@ -21524,7 +21531,7 @@ function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
         }
         notice.run(current.retry.target, current.retry.requestOverride, current.retry.expectedIdentity);
       } }, current.retry.unknown && current.retryConfirmed ? '已检查输入框，重试' : '重试') : null,
-      h('button', { key: 'close', className: 'dsws-btn ghost', 'aria-label': '关闭提示', onClick: () => { operations.notice = null; operations.changed(); } }, '×'),
+      h('button', { key: 'close', className: 'dsws-btn ghost', 'aria-label': '关闭提示', onClick: () => { if (activeHelp) setHelp(null); else { operations.notice = null; operations.changed(); } } }, '×'),
       ]) : null,
     ]);
   }
