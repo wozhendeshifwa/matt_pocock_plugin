@@ -201,4 +201,30 @@ for (const target of ['填入当前聊天', '填入新聊天']) {
     assert.equal(f.writes.length, 1, 'retry rechecks prerequisites before sending another host request');
   } finally { f.close(); }
 }
+{
+  const f = await fixture();
+  try {
+    f.controls.hostFailure = new Error('transport timed out');
+    f.button('填入当前聊天').click(); await f.until(() => f.group(10).textContent.includes('无法确认'));
+    f.controls.hostFailure = null;
+    f.controls.current = { ...f.controls.current, threadId: 'another-thread' };
+    f.button('重试').click(); await f.until(() => f.button('已检查输入框，重试'));
+    f.button('已检查输入框，重试').click();
+    await f.until(() => /切换|已请求/.test(f.group(10).textContent));
+    assert.equal(f.writes.length, 1, 'retry cannot silently move the retained operation into a different chat');
+  } finally { f.close(); }
+}
+{
+  const f = await fixture();
+  try {
+    f.button('填入当前聊天').click(); await f.until(() => f.writes.length === 1);
+    await f.until(() => !f.button('填入当前聊天').disabled);
+    f.button('复制').click(); await f.until(() => f.copies.length === 1);
+    f.controls.source = 'B';
+    f.button('复制').click(); await f.until(() => f.button('按最新来源重新生成并填入'));
+    f.button('按最新来源重新生成并填入').click(); await f.until(() => f.copies.length === 2);
+    assert.match(f.copies[1], /路径：\/rules\/B/);
+    assert.equal(f.writes.length, 1, 'explicit copy regeneration does not switch into chat injection');
+  } finally { f.close(); }
+}
 console.log('PASS direct recovery, result isolation and sidebar waiting through production UI');
