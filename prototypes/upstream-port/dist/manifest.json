@@ -16,7 +16,6 @@
     "skills.beforeUse",
     "issueActions.bottomBar",
     "versionControl.fullPaths",
-    "issueActions.directCurrent",
-    "issueActions.more"
+    "issueActions.directCurrent"
   ]
 }

@@ -12,7 +12,6 @@ import { adaptBottomActionBar } from "./bottom-action-bar-client.mjs";
 import { adaptSkillPreparation } from "./skill-preparation-client.mjs";
 import { adaptVersionControlPaths } from "./version-control-style-client.mjs";
 import { adaptDirectIssueActions } from "./direct-issue-actions-client.mjs";
-import { adaptMoreIssueActions } from "./more-issue-actions-client.mjs";
 
 const runtime = await build({
   entryPoints: [new URL("browser-runtime.mjs", import.meta.url).pathname.replace(/^\/(\w:)/, "$1")],
@@ -42,7 +41,6 @@ adapted = adaptSkillSourceDisplay(adapted);
 adapted = adaptIssueActions(adapted);
 adapted = adaptBottomActionBar(adapted);
 adapted = adaptDirectIssueActions(adapted);
-adapted = adaptMoreIssueActions(adapted);
 for (const [anchor, target] of [
   ["const inject = (st, text) => {", "active"],
   ["const openTextInNewSession = function (st, text, title, opts) {", "new"],
@@ -77,16 +75,12 @@ adapted = adapted.replace(boardComponentAnchor, `const CodexBoardActions = funct
       const operations = ctx.get('draftOperations')
       React.useSyncExternalStore(operations.subscribe, operations.getSnapshot)
       const draftPending = operations.pending
-      const top = (st.navStack || []).slice(-1)[0]
-      const selected = ['list', 'pr'].includes(st.tab) ? (top ? (top.kind === 'issue' ? top.n : null) : st.activeIssue) : null
-      const effort = String(top && top.kind === 'issue' ? top.effortId || '' : st.activeEffortId || '')
-      const issue = st.issueDetail && st.issueDetail.number === selected && String(st.issueDetail.effortId || '') === effort ? st.issueDetail : null
       const en = tr('nav.handoff') === 'Handoff'
       return h('div', { className: 'mattskills-board-actions', role: 'group', 'aria-label': en ? 'Chat actions' : '聊天操作' }, [
         h('button', { key: 'fixate', type: 'button', className: 'dsws-btn', 'data-board-action': 'fixate', 'aria-label': tr('nav.word'), disabled: draftPending, title: tr('nav.fixateTitle'), onClick: function () { injectFixate(st) } }, Ic({ n: 'note', size: 14 })),
         h('button', { key: 'handoff', type: 'button', className: 'dsws-btn', 'data-board-action': 'handoff', 'aria-label': tr('nav.handoff'), disabled: draftPending, title: tr('nav.handoffTitle'), onClick: function () { doHandoff(st) } }, Ic({ n: 'handoff', size: 14 })),
         h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'data-board-action': 'new', 'aria-label': en ? 'New chat' : '开新对话', disabled: draftPending || !!st.handoffSearching, title: st.handoffReady ? tr('nav.handoffReadyTitle') : tr('nav.handoffGreyTitle'), onClick: function () { doHandoffOpen(st) } }, Ic({ n: 'external-link', size: 14 })),
-        h(DirectIssueActions, { key: 'issue-more', st, issue, toolbar: true, unavailableReason: selected == null ? '请先打开一张 Issue，再选择更多动作。' : st.issueMode === 'loading' ? 'Issue 详情正在加载，请稍后再试。' : st.issueMode === 'err' ? 'Issue 详情加载失败，请在详情中点击“重试”。' : '当前 Issue 详情尚不可用，请重新打开该 Issue。' })
+        h(DirectIssueActions, { key: 'draft-feedback', st, toolbar: true })
       ])
     }
     ` + boardComponentAnchor);
@@ -111,6 +105,6 @@ await writeFile(new URL("manifest.json", output), JSON.stringify({
   upstreamVersion: "1.8.0-rc.7",
   upstreamClientSha256: createHash("sha256").update(original).digest("hex"),
   output: "client.js",
-  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay", "skills.beforeUse", "issueActions.bottomBar", "versionControl.fullPaths", "issueActions.directCurrent", "issueActions.more"],
+  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay", "skills.beforeUse", "issueActions.bottomBar", "versionControl.fullPaths", "issueActions.directCurrent"],
 }, null, 2) + "\n");
 console.log("Built original MattSkills client with Codex mounting adapter");
