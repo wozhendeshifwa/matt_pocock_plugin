@@ -21883,8 +21883,10 @@ const IssueDetail = function (props) {
       })()
       const actColor = (typeof actionColorOf === 'function') ? actionColorOf(fakeIssue, colorOf) : stateColor
       const actTextColor = (typeof isLightHex === 'function' && isLightHex(actColor)) ? '#140a1e' : '#ffffff'
-      const subNodes = (src.subIssues && src.subIssues.nodes) ? src.subIssues.nodes : []
-      const subTotal = (src.subIssues && typeof src.subIssues.totalCount === 'number') ? src.subIssues.totalCount : subNodes.length
+      const spec = specInfo(st, src)
+      const parentSpec = specFor(st, snapIssue || src)
+      const subNodes = spec ? (spec.children || []) : ((src.subIssues && src.subIssues.nodes) ? src.subIssues.nodes : [])
+      const subTotal = spec ? (spec.childrenRead && spec.childrenRead.total) : ((src.subIssues && typeof src.subIssues.totalCount === 'number') ? src.subIssues.totalCount : subNodes.length)
       const blockedNodes = (src.blockedBy && src.blockedBy.nodes) ? src.blockedBy.nodes : []
       // #693 评论也只认详情那次取数：快照那一行可能不带评论，拿它当「没有评论」会说错话。
       const commentsSource = detail ? detail.comments : undefined
@@ -21967,9 +21969,10 @@ const IssueDetail = function (props) {
           h('div', { style: { fontSize: 11, fontWeight: 600, color: 'var(--dsw-alias-label-secondary,#a1a1aa)', marginBottom: 4 } }, '描述'),
           bodySlot,
         ]),
+        parentSpec ? h('div', { 'data-parent-spec': 1, style: { padding: '6px 0', fontSize: 12 } }, ['所属规格：', h('a', { href: '#', onClick: function(e) { e.preventDefault(); pushNav(st, 'issue', parentSpec.number, effortOf(parentSpec)) } }, '#' + parentSpec.number + ' ' + parentSpec.title)]) : null,
         // sub-issues
-        subNodes.length || subTotal ? h('div', { style: { padding: '6px 0' } }, [
-          h('div', { style: { fontSize: 11, fontWeight: 600, color: 'var(--dsw-alias-label-secondary,#a1a1aa)', marginBottom: 6 } }, '子票 ' + subTotal + (subNodes.length ? '' : '（无加载）')),
+        (spec || subTotal > 0) ? h('div', { 'data-spec-children': spec ? 1 : undefined, style: { padding: '6px 0' } }, [
+          h('div', { style: { fontSize: 11, fontWeight: 600, color: 'var(--dsw-alias-label-secondary,#a1a1aa)', marginBottom: 6 } }, spec ? ('子票 ' + subNodes.filter(function(x) { return x.state === 'CLOSED' }).length + '/' + subTotal) : ('子票 ' + subTotal + (subNodes.length ? '' : '（无加载）'))),
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } }, subNodes.map(function (s) {
             const sc = s.state === 'CLOSED' ? '#3fb950' : '#8b8b95'
             // T4 整改 #554：子票按上面 enterSubDetail 分流（有标签按标签，无标签按快照找图）。
@@ -22654,6 +22657,8 @@ const listIssueRow = function (h, st, x, isOpen, narrow, blockOf, colorOf, multi
             truthWriteWindowOpen(st.writeAt && (st.writeAt[String(x.number)] || st.writeAt[idOf(x)]), Date.now()) ? h('span', { className: 'dsws-chip dsws-writing', style: { fontSize: 9, lineHeight: 1.5, padding: '0 4px', flex: 'none', opacity: 0.75, background: 'rgba(88,166,255,.10)', color: '#58a6ff', border: '1px dashed rgba(88,166,255,.45)' } }, tr('truth.writing')) : null,
           ]),
           h('span', { style: { flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 } }, [h(Tip, { content: h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2 } }, [h('div', { style: { fontSize: 10, color: '#8b8b95', lineHeight: '14px' } }, tr('tip.header.fullTitle')), h('div', { style: { fontSize: 11, color: '#e6edf3', lineHeight: '16px', wordBreak: 'break-word', whiteSpace: 'normal' } }, x.title)]) }, h('span', { className: 'dsws-tt-wrap', style: { flex: 1, minWidth: 0, fontWeight: isMap ? 600 : undefined, color: isOpen ? undefined : 'var(--dsw-alias-label-secondary,#a1a1aa)' } }, x.title)), (x.author && x.author.login && x.author.login !== ((st.snapshot && (st.snapshot.viewer && st.snapshot.viewer.login || st.snapshot.viewerLogin)) || '')) ? (x.author.avatarUrl ? h(Tip, { content: (x.author.name ? x.author.name + ' (@' + x.author.login + ')' : '@' + x.author.login) }, h('img', { src: x.author.avatarUrl, style: { width: 16, height: 16, borderRadius: '50%', border: '2px solid ' + authorColor(x.author.login), flex: 'none' }, alt: x.author.login })) : h(Tip, { content: (x.author.name ? x.author.name + ' (@' + x.author.login + ')' : '@' + x.author.login) }, h('span', { style: { width: 16, height: 16, borderRadius: '50%', background: hexA(authorColor(x.author.login), 0.18), border: '2px solid ' + authorColor(x.author.login), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' } }, [Ic({ n: 'person', size: 10 })]))) : null]),
+          specInfo(st, x) ? h('span', { 'data-spec-count': 1, style: { fontSize: 11, flex: 'none' } }, '子票 ' + (specInfo(st, x).children || []).filter(function(c) { return c.state === 'CLOSED' }).length + '/' + specInfo(st, x).childrenRead.total) : null,
+          specFor(st, x) ? h('span', { 'data-spec-owner': 1, style: { fontSize: 11, flex: 'none' } }, '所属规格 #' + specFor(st, x).number) : null,
           (isMap && mapObj && mapObj.stats && !mapClosed) ? ringOf(mapObj.stats) : null,
           !isOpen ? h('span', { className: 'dsws-chip', style: { fontSize: 10, marginRight: 0, flex: 'none', background: 'rgba(139,139,149,.12)', color: '#8b8b95', border: '1px solid rgba(139,139,149,.35)' } }, [Ic({ n: 'check', size: 9 }), h('span', null, tr('map.subClosed'))]) : null,
         ]),
@@ -22730,6 +22735,44 @@ const fitMapRows = function () {
         if (!it.fits) it.idcol.classList.remove('h')
       }
     }
+function specPool(st, extras) {
+  const snapshot = st.snapshot || {};
+  const byId = new Map();
+  const put = row => { if (row && row.number != null) byId.set(String(row.effortId || '') + '#' + row.number, row); };
+  (snapshot.issues || []).forEach(row => { put(row); (row.children || []).forEach(put); });
+  (snapshot.maps || []).forEach(map => (map.tickets || []).forEach(row => { put(row); (row.children || []).forEach(put); }));
+  (snapshot.specs || []).forEach(spec => { put(spec); (spec.children || []).forEach(put); });
+  (extras || []).forEach(put);
+  return [...byId.values()];
+}
+function specTagged(row) {
+  const labels = Array.isArray(row?.labels) ? row.labels : (row?.labels?.nodes || []);
+  return !!row && labels.some(label => (typeof label === 'string' ? label : label.name) === 'spec') && row.type !== 'map';
+}
+function specFor(st, row) {
+  if (!row || row.parentKey == null) return null;
+  return specPool(st).find(parent => specTagged(parent) && String(parent.key || parent.number) === String(row.parentKey) && String(parent.effortId || '') === String(row.effortId || '')) || null;
+}
+function specInfo(st, row) {
+  if (!specTagged(row)) return null;
+  const id = String(row.key || row.number);
+  const spec = (st.snapshot?.specs || []).find(item => String(item.key || item.number) === id && String(item.effortId || '') === String(row.effortId || ''));
+  return spec || specPool(st).find(item => specTagged(item) && String(item.key || item.number) === id && String(item.effortId || '') === String(row.effortId || '') && item.childrenRead) || null;
+}
+function specListRows(st, rows) {
+  const pool = specPool(st, rows);
+  const base = rows.concat(pool.filter(specTagged));
+  const seen = new Set();
+  const query = String(st.specSearch || '').trim().toLowerCase();
+  return (query ? pool : base).filter(row => {
+    const id = String(row.effortId || '') + '#' + row.number;
+    if (seen.has(id) || row.isPullRequest === true) return false;
+    seen.add(id);
+    if (query) return ('#' + row.number + ' ' + row.title).toLowerCase().includes(query);
+    if (!specTagged(row) && (st.snapshot?.maps || []).some(map => String(map.effortId || '') === String(row.effortId || '') && (map.tickets || []).some(child => String(child.key || child.number) === String(row.key || row.number)))) return false;
+    return !specFor(st, row);
+  });
+}
 const ListTab = ({ st, narrow }) => {
       const cx = React.useContext(DswsCtx)
       const h = cx ? cx.h : React.createElement
@@ -22791,7 +22834,7 @@ const ListTab = ({ st, narrow }) => {
       //   isTicketRow，与 KPI、状态栏共用同一处）。池子（snapshot.issues）本身不动，仍是原样全收。
       // #690：再并上「按需翻回来的那些页」里池子没有的行（issuePageRowsOf 已按身份去掉重复的），
       //   于是已关闭那一堆里既有首屏那一百条、也有用户翻出来的更早的票；静默刷新只换池子，页数据不动。
-      const issues = ticketRowsOf((st.snapshot && Array.isArray(st.snapshot.issues)) ? st.snapshot.issues : []).concat(issuePageRowsOf(st, 'list'))
+      const issues = specListRows(st, ticketRowsOf((st.snapshot && Array.isArray(st.snapshot.issues)) ? st.snapshot.issues : []).concat(issuePageRowsOf(st, 'list')))
       const openIssues = issues.filter(function (x) { return x.state !== 'CLOSED' })
       const closedIssues = issues.filter(function (x) { return x.state === 'CLOSED' })
       // #374：多维排序 —— map 行恒置顶，map 组与普通组各自按所选维度排序；默认 更新时间↓（与现状一致）
@@ -22849,7 +22892,7 @@ const ListTab = ({ st, narrow }) => {
       // #374：状态过滤（全部/Open/阻塞/已关闭）与 label 过滤叠加
       // v1.3.3 T3：blocked 过滤真正实现 —— open 且存在 open 阻塞者（blockOf 命中）
       const showOpen = st.stateFilter !== 'closed'
-      const showClosedList = st.stateFilter === 'closed'
+      const showClosedList = st.stateFilter === 'closed' || !!String(st.specSearch || '').trim()
       // v1.5：多选标签过滤（OR 语义：命中任一选中标签即显示）
       const byLabel = function (x) {
         const ls = st.lblFilters || []
@@ -22927,7 +22970,8 @@ const ListTab = ({ st, narrow }) => {
         ]) : null,
         // B Timeline 定版（2026-08-28）：全屏红卡（NoRepoCard）不再挂载于列表页顶部——
         //   远端未关联/环境未就绪由检查页行内红卡表达，列表页保持 KPI + 列表（无顶部错误信息）
-        // KPI 行 + 环境提示（v18-30：可接/占用 = 列表 open issue 口径）
+        h('input', { type: 'search', 'aria-label': '搜索任务', 'data-spec-search': 1, placeholder: '搜索任务（含规格子票）', value: st.specSearch || '', onInput: function(e) { st.specSearch = e.target.value; emit(st) }, style: { width: '100%', boxSizing: 'border-box', marginBottom: 8, padding: '5px 8px', background: 'var(--dsw-alias-bg-layer-1)', color: 'var(--dsw-alias-label-primary)', border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 6 } }),
+      // KPI 行 + 环境提示（v18-30：可接/占用 = 列表 open issue 口径）
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap', position: 'relative' } }, [
           kpi(kpiFrontier, tr('list.kpi.takeable'), 'target', '#4ade80'),
           kpi(kpiOcc, tr('list.kpi.occupied'), 'lock', '#f0883e'),
@@ -23023,7 +23067,7 @@ const ListTab = ({ st, narrow }) => {
         // v14-4⑤：列表底部「已关闭 (N)」折叠行（仅「全部」状态显示；默认收起，只占一行，展开可见）
         // #689：文案改成「已关闭 N（已加载 x）」—— N 是后端计数说的总数，x 是列表里真加载到的行数；
         //   两个不一样时（本仓现在就是）用户一眼能看出「还有多少没装进来」，而不是以为列表就是全部。
-        (st.stateFilter === 'all' && closedRows.length) ? h('details', { style: { marginTop: 8 }, onToggle: function (e) { const open = !!(e && e.target && e.target.open); st.closedFoldOpen = open; emit(st); if (open) loadIssuePage(st, { view: 'list' }) } }, [
+        (st.stateFilter === 'all' && !String(st.specSearch || '').trim() && closedRows.length) ? h('details', { style: { marginTop: 8 }, onToggle: function (e) { const open = !!(e && e.target && e.target.open); st.closedFoldOpen = open; emit(st); if (open) loadIssuePage(st, { view: 'list' }) } }, [
           h('summary', { style: { fontSize: 11, color: 'var(--dsw-alias-label-caption,#8b8b95)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 2px', userSelect: 'none' } }, [
             Ic({ n: 'check', size: 11 }),
             h('span', null, tr('list.closedN', { n: foldCounts ? foldCounts.closed : closedRows.length, x: closedRows.length })),

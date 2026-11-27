@@ -22,8 +22,13 @@ function normalizeBlockerRef(ref) {
 }
 
 function normalizeTicket(ticket) {
-  if (!ticket || typeof ticket !== "object" || !Array.isArray(ticket.blockedBy)) return;
-  ticket.blockedBy = ticket.blockedBy.map(normalizeBlockerRef);
+  if (!ticket || typeof ticket !== "object") return;
+  if (Array.isArray(ticket.blockedBy)) ticket.blockedBy = ticket.blockedBy.map(normalizeBlockerRef);
+  if (Array.isArray(ticket.children)) ticket.children.forEach(child => {
+    if (child.number == null && NUMERIC_KEY.test(String(child.key))) child.number = Number(child.key);
+    child.state = String(child.state || '').toUpperCase();
+    normalizeTicket(child);
+  });
 }
 
 export function normalizePanelPayload(method, envelope) {

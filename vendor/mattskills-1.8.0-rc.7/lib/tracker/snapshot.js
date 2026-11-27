@@ -114,7 +114,7 @@ function assembleSnapshot(repo, all) {
       // 大写的 CLOSED 是本仓库的统一口径（upcaseSnapStates 在电话层再盖一次），这里自己也认小写，免得看后端脸色。
       const isClosed = String((m && m.state) || '').toUpperCase() === 'CLOSED'
       if (isClosed) for (const t of own) {
-        closedMapTickets.add(poolIdOf(t))
+        if (!(t.labels || []).some(label => label.name === 'spec')) closedMapTickets.add(poolIdOf(t))
         const thin = thinRowOf(t)
         if (thin) thinTickets.push(thin)
       }

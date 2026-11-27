@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { adaptCommentPagination } from "./comment-pagination-client.mjs";
+import { adaptSpecList } from "./spec-list-client.mjs";
 import { adaptSkillPrefixes } from "./skill-prefix-client.mjs";
 import { adaptIssueActions } from "./issue-actions-client.mjs";
 import { adaptContextRequests } from "./context-request-client.mjs";
@@ -37,6 +38,7 @@ adapted = adapted.replaceAll('在新会话打开，继承工作区并推进', '�
 adapted = adaptContextRequests(adapted);
 adapted = adaptSkillSourceDisplay(adapted);
 adapted = adaptIssueActions(adapted);
+adapted = adaptSpecList(adapted);
 adapted = adaptBottomActionBar(adapted);
 for (const [anchor, target] of [
   ["const inject = (st, text) => {", "active"],
