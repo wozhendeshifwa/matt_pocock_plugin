@@ -1,14 +1,35 @@
 // This projection keeps the issue pool intact: search and actions still use
 // each child's identity. Only verified native ownership folds a default row.
-function specPool(st, extras) {
+function specIdentity(row) {
+  return String(row?.effortId || '') + '#' + String(row?.key || row?.number);
+}
+function buildSpecIndex(st, extras) {
   const snapshot = st.snapshot || {};
   const byId = new Map();
-  const put = row => { if (row && row.number != null) byId.set(String(row.effortId || '') + '#' + row.number, row); };
-  (snapshot.issues || []).forEach(row => { put(row); (row.children || []).forEach(put); });
-  (snapshot.maps || []).forEach(map => (map.tickets || []).forEach(row => { put(row); (row.children || []).forEach(put); }));
-  (snapshot.specs || []).forEach(spec => { put(spec); (spec.children || []).forEach(put); });
+  const put = row => { if (row && row.number != null) byId.set(specIdentity(row), row); };
+  const roots = (snapshot.issues || []).concat((snapshot.maps || []).flatMap(map => map.tickets || []), snapshot.specs || []);
+  roots.forEach(row => (row.children || []).forEach(put));
+  // Root/paginated rows own their full metadata; a nested projection must not
+  // replace dependency or action information for the same issue identity.
+  roots.forEach(put);
   (extras || []).forEach(put);
-  return [...byId.values()];
+  const specs = new Map();
+  const mapChildren = new Set();
+  const childrenOf = new Map();
+  for (const row of byId.values()) if (specTagged(row)) {
+    specs.set(specIdentity(row), row);
+    childrenOf.set(specIdentity(row), new Set((row.children || []).map(specIdentity)));
+  }
+  for (const map of snapshot.maps || []) for (const child of map.tickets || []) mapChildren.add(specIdentity(child));
+  return { snapshot: st.snapshot, byId, specs, mapChildren, childrenOf, pool: [...byId.values()] };
+}
+function specIndex(st) {
+  let index = specIndexes.get(st);
+  if (!index || index.snapshot !== st.snapshot) {
+    index = buildSpecIndex(st, issuePageRowsOf(st, 'list'));
+    specIndexes.set(st, index);
+  }
+  return index;
 }
 function specTagged(row) {
   const labels = Array.isArray(row?.labels) ? row.labels : (row?.labels?.nodes || []);
@@ -16,13 +37,19 @@ function specTagged(row) {
 }
 function specFor(st, row) {
   if (!row || row.parentKey == null) return null;
-  return specPool(st).find(parent => specTagged(parent) && String(parent.key || parent.number) === String(row.parentKey) && String(parent.effortId || '') === String(row.effortId || '')) || null;
+  return specIndex(st).specs.get(specIdentity({ key: row.parentKey, effortId: row.effortId })) || null;
 }
 function specInfo(st, row) {
   if (!specTagged(row)) return null;
-  const id = String(row.key || row.number);
-  const spec = (st.snapshot?.specs || []).find(item => String(item.key || item.number) === id && String(item.effortId || '') === String(row.effortId || ''));
-  return spec || specPool(st).find(item => specTagged(item) && String(item.key || item.number) === id && String(item.effortId || '') === String(row.effortId || '')) || row;
+  return specIndex(st).specs.get(specIdentity(row)) || row;
+}
+function specDependenciesUnknown(st, row) {
+  const current = specIndex(st).byId.get(specIdentity(row)) || row;
+  return !!current?.dependenciesRead && current.dependenciesRead.state !== 'complete';
+}
+function specExecutionHeld(st, row) {
+  const current = specIndex(st).byId.get(specIdentity(row)) || row;
+  return specDependenciesUnknown(st, current) || !!current?.dependenciesRead?.openKeys?.length;
 }
 function specComplete(spec) {
   return !!spec && spec.childrenRead?.state === 'complete' && Number.isInteger(spec.childrenRead.total) && spec.childrenRead.total === (spec.children || []).length;
@@ -40,19 +67,21 @@ function specStateText(st, row) {
   return (spec?.children || []).some(child => child.state !== 'CLOSED') ? '规格已关闭 · 还有未完成子票' : '规格已关闭 · 子票读取未完成';
 }
 function specListRows(st, rows) {
-  const pool = specPool(st, rows);
+  const index = buildSpecIndex(st, rows);
+  specIndexes.set(st, index);
+  const pool = index.pool;
   const base = rows.concat(pool.filter(row => specTagged(row) || specFor(st, row)));
   const seen = new Set();
   const query = String(st.specSearch || '').trim().toLowerCase();
   return (query ? pool : base).filter(row => {
-    const id = String(row.effortId || '') + '#' + row.number;
+    const id = specIdentity(row);
     if (seen.has(id) || row.isPullRequest === true) return false;
     seen.add(id);
     if (query) return ('#' + row.number + ' ' + row.title).toLowerCase().includes(query);
-    if (!specTagged(row) && (st.snapshot?.maps || []).some(map => String(map.effortId || '') === String(row.effortId || '') && (map.tickets || []).some(child => String(child.key || child.number) === String(row.key || row.number)))) return false;
+    if (!specTagged(row) && index.mapChildren.has(id)) return false;
     const parent = specFor(st, row);
     const info = parent && specInfo(st, parent);
-    return !specComplete(info) || !(info.children || []).some(child => String(child.key || child.number) === String(row.key || row.number) && String(child.effortId || '') === String(row.effortId || ''));
+    return !specComplete(info) || !index.childrenOf.get(specIdentity(info))?.has(id);
   });
 }
 
@@ -61,7 +90,12 @@ export function adaptSpecList(source) {
     if (source.split(anchor).length !== 2) throw new Error('Spec boundary changed: ' + anchor.slice(0, 80));
     source = source.replace(anchor, replacement);
   };
-  replace('const ListTab = ({ st, narrow }) => {', [specPool, specTagged, specFor, specInfo, specComplete, specCount, specOpenWork, specStateText, specListRows].map(fn => fn.toString()).join('\n') + '\nconst ListTab = ({ st, narrow }) => {');
+  replace('const ListTab = ({ st, narrow }) => {', 'const specIndexes = new WeakMap();\n' + [specIdentity, buildSpecIndex, specIndex, specTagged, specFor, specInfo, specDependenciesUnknown, specExecutionHeld, specComplete, specCount, specOpenWork, specStateText, specListRows].map(fn => fn.toString()).join('\n') + '\nconst ListTab = ({ st, narrow }) => {');
+  replace("      if (!x || x.state === 'CLOSED') return false\n      if (x.assignees", "      if (!x || x.state === 'CLOSED') return false\n      if (specExecutionHeld(st, x)) return true\n      if (x.assignees");
+  replace("isOpen && !blocked ? h('div'", "isOpen && !blocked && !specExecutionHeld(st, x) ? h('div'");
+  replace("const fakeIssue = { number: issueNumber, ['title']: title, labels: labelArr.map(function (l) { return typeof l === 'string' ? { name: l } : l }), state: stateRaw }", "const fakeIssue = { number: issueNumber, effortId: issueEffort, ['title']: title, labels: labelArr.map(function (l) { return typeof l === 'string' ? { name: l } : l }), state: stateRaw, dependenciesRead: (specIndex(st).byId.get(specIdentity({ number: issueNumber, effortId: issueEffort })) || {}).dependenciesRead }");
+  replace("className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); try { previewIssueAction(st, fakeIssue)", "className: 'dsws-btn primary', disabled: specExecutionHeld(st, fakeIssue), onClick: function (e) { e.stopPropagation(); try { previewIssueAction(st, fakeIssue)");
+  replace("className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); openInNewSession(st, { number: issueNumber", "className: 'dsws-btn primary', disabled: specExecutionHeld(st, fakeIssue), onClick: function (e) { e.stopPropagation(); openInNewSession(st, { number: issueNumber");
   const listAnchor = "const issues = ticketRowsOf((st.snapshot && Array.isArray(st.snapshot.issues)) ? st.snapshot.issues : []).concat(issuePageRowsOf(st, 'list'))";
   replace(listAnchor, "const issues = specListRows(st, ticketRowsOf((st.snapshot && Array.isArray(st.snapshot.issues)) ? st.snapshot.issues : []).concat(issuePageRowsOf(st, 'list')))" );
   replace("const openIssues = issues.filter(function (x) { return x.state !== 'CLOSED' })", "const openIssues = issues.filter(function (x) { return x.state !== 'CLOSED' || specOpenWork(st, x) })");
@@ -79,6 +113,8 @@ export function adaptSpecList(source) {
   replace("          (isMap && mapObj && mapObj.stats && !mapClosed) ? ringOf(mapObj.stats) : null,", `          specInfo(st, x) ? h('span', { 'data-spec-count': 1, style: { fontSize: 11, flex: 'none' } }, specCount(specInfo(st, x))) : null,
           specOpenWork(st, x) && x.state === 'CLOSED' ? h('span', { 'data-spec-status': 1, style: { fontSize: 11 } }, specStateText(st, x)) : null,
           specFor(st, x) ? h('span', { 'data-spec-owner': 1, style: { fontSize: 11, flex: 'none' } }, '所属规格 #' + specFor(st, x).number) : null,
+          specDependenciesUnknown(st, x) ? h('span', { 'data-dependencies-unknown': 1, style: { fontSize: 11 } }, '依赖读取未知 · 暂停执行') : null,
+          !specDependenciesUnknown(st, x) && specExecutionHeld(st, x) ? h('span', { 'data-dependencies-blocked': 1, style: { fontSize: 11 } }, '被阻塞 · ' + (x.dependenciesRead?.openKeys || []).map(key => '#' + key).join('、')) : null,
           (isMap && mapObj && mapObj.stats && !mapClosed) ? ringOf(mapObj.stats) : null,`);
   return source;
 }

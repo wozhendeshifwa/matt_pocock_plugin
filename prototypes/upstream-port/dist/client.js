@@ -7571,6 +7571,7 @@ const RULES_SOURCE = "version-control-core/src/rules.ts";
     }
     const isOccupied = function (st, x) {
       if (!x || x.state === 'CLOSED') return false
+      if (specExecutionHeld(st, x)) return true
       if (x.assignees && x.assignees.length) return true
       const maps = (st.snapshot && st.snapshot.maps) || []
       let inMap = false
@@ -7695,9 +7696,10 @@ const RULES_SOURCE = "version-control-core/src/rules.ts";
     // #361：行级动作注入文本的单一真源（诊断/接手/补充/修复/讨论/研究/原型/执行）—— 新会话打开与行内动作共用
     const rowActionText = (st, x) => issueActionRequest(x, issueUrlFor(st, x.number) || '#' + x.number).text;
     const previewIssueAction = (st, issue) => {
+      if (specExecutionHeld(st, issue)) { flash(st, '依赖尚未满足，暂停执行并保留查看入口', 'warn'); return; }
       const bottom = bottomActionControllers.get(st);
       if (bottom) return bottom.open();
-      return showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), (target, finalText) => sendIssueActionDraft(st, target, finalText), { state: actionDraftState(st, issue.number, issue.effortId || '') });
+      return showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), (target, finalText) => { if (specExecutionHeld(st, issue)) throw new Error('依赖未满足，本次出口已停止'); return sendIssueActionDraft(st, target, finalText); }, { state: actionDraftState(st, issue.number, issue.effortId || '') });
     };
     // v19：共享 —— 行级动作（列表与 map 详情共用）：按一处分类八选一（诊断/接手/补充/修复/讨论/研究/原型/执行），预填输入框；
     // 按钮主体色 = 对应 label 的 GitHub 配置色（字色按对比度在深白两色里择优，见 isLightHex）；接手跟 ready-for-human、补充跟 needs-info（#785），取不到时兜底 #c084fc
@@ -21647,8 +21649,9 @@ const useIssueDetailFold = function (st, issueNumber, issueEffort) {
       const request = issueActionRequest(props.issue, issueUrlFor(st, props.issue.number, props.effortId));
       const sourceNotice = '技能来源与更新状态尚未核验；执行前读取当前项目解析来源并检查更新，缺合格来源或必要工具时暂停依赖步骤，不将目录可见当作已加载。';
       const ensurePreview = function () {
+        if (specExecutionHeld(st, props.issue)) return;
         if (!mounted.current && content.current) {
-          mounted.current = showIssueActionDraft(request, function (target, finalText) { return sendIssueActionDraft(st, target, finalText); }, { container: content.current, state: state, sourceNotice: sourceNotice, onClose: function () { setExpanded(false); } });
+          mounted.current = showIssueActionDraft(request, function (target, finalText) { if (specExecutionHeld(st, props.issue)) throw new Error('依赖未满足，本次出口已停止'); return sendIssueActionDraft(st, target, finalText); }, { container: content.current, state: state, sourceNotice: sourceNotice, onClose: function () { setExpanded(false); } });
         }
       };
       React.useEffect(function () {
@@ -21661,7 +21664,7 @@ const useIssueDetailFold = function (st, issueNumber, issueEffort) {
         React.createElement('div', { key: 'header', style: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, minWidth: 0 } }, [
           React.createElement('strong', { key: 'action' }, props.label || '主动作'),
           React.createElement('span', { key: 'context', style: { fontSize: 11, overflowWrap: 'anywhere', flex: '1 1 120px' } }, '当前 Issue · ' + (request.skill ? '$' + request.skill : '保持不做边界') + '；先核对上下文与缺项'),
-          React.createElement('button', { key: 'toggle', type: 'button', 'data-bottom-action-toggle': true, 'aria-expanded': String(open), onClick: function () { ensurePreview(); setExpanded(!open); } }, open ? '收起动作／预览' : '选择动作／预览'),
+          React.createElement('button', { key: 'toggle', type: 'button', disabled: specExecutionHeld(st, props.issue), 'data-bottom-action-toggle': true, 'aria-expanded': String(open), onClick: function () { ensurePreview(); setExpanded(!open); } }, open ? '收起动作／预览' : '选择动作／预览'),
         ]),
         React.createElement('div', { key: 'preview', ref: content, hidden: !open, style: { minWidth: 0 } }),
       ]);
@@ -21838,7 +21841,7 @@ const IssueDetail = function (props) {
           ])
       const has = function (nm) { return labelArr.some(function (l) { return (l.name || l) === nm }) }
       const _isTriageLikeLocal = !labelArr.length || has('needs-triage')
-      const fakeIssue = { number: issueNumber, ['title']: title, labels: labelArr.map(function (l) { return typeof l === 'string' ? { name: l } : l }), state: stateRaw }
+      const fakeIssue = { number: issueNumber, effortId: issueEffort, ['title']: title, labels: labelArr.map(function (l) { return typeof l === 'string' ? { name: l } : l }), state: stateRaw, dependenciesRead: (specIndex(st).byId.get(specIdentity({ number: issueNumber, effortId: issueEffort })) || {}).dependenciesRead }
       // #763 顶栏主动作按钮：与列表行同口径（图标/文字/注入文本），但自建按钮以便折叠机逐字裁字。
       // 复用行动作的注入文本，不复用它的按钮节点（那个节点写死 flex:none，折叠机裁不动它）。
       // #771 分类走一处 rowActionKind（状态优先于类型：未分流 → 接手 → 补充 → 修复 → 讨论 → 研究 → 原型 → 执行）。
@@ -21919,8 +21922,8 @@ const IssueDetail = function (props) {
           h('span', { style: { flex: 1, minWidth: 8 } }),
           h('div', { style: { display: 'flex', alignItems: 'center', gap: 3, flex: 'none', minWidth: 0, overflow: 'hidden', flexWrap: 'nowrap' } }, [
             detail ? h('span', { 'data-detail-snapshot': 1, 'data-full': (isStale ? '快照' : (mode === 'loading' ? tr('list.loading') : '')), style: { fontSize: 10, color: isStale ? '#f59e0b' : '#8b8b95', flex: 'none', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' } }, isStale ? '快照' : (mode === 'loading' ? tr('list.loading') : '')) : null,
-            h(Tip, { content: primaryInfo.tip }, h('button', { className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); try { previewIssueAction(st, fakeIssue) } catch (err2) {} }, style: { display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 11, background: actColor, borderColor: 'transparent', color: actTextColor, flex: 'none', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' } }, [Ic({ n: primaryInfo.icon, size: primaryInfo.icon === 'prototype' ? 12 : 10 }), h('span', { 'data-detail-primary-text': 1, 'data-full': primaryInfo.label, style: { overflow: 'hidden', whiteSpace: 'nowrap', minWidth: 0 } }, primaryInfo.label)])),
-            h(Tip, { content: tr('tip.newSession', { n: issueNumber }) }, h('button', { className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); openInNewSession(st, { number: issueNumber, ['title']: title, labels: labelArr }) }, style: { display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 11, background: actColor, borderColor: 'transparent', color: actTextColor, flex: 'none', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' } }, [Ic({ n: 'external-link', size: 10 }), h('span', { 'data-detail-new-text': 1, 'data-full': tr('list.newSessionLabel'), style: { overflow: 'hidden', whiteSpace: 'nowrap', minWidth: 0 } }, tr('list.newSessionLabel'))])),
+            h(Tip, { content: primaryInfo.tip }, h('button', { className: 'dsws-btn primary', disabled: specExecutionHeld(st, fakeIssue), onClick: function (e) { e.stopPropagation(); try { previewIssueAction(st, fakeIssue) } catch (err2) {} }, style: { display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 11, background: actColor, borderColor: 'transparent', color: actTextColor, flex: 'none', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' } }, [Ic({ n: primaryInfo.icon, size: primaryInfo.icon === 'prototype' ? 12 : 10 }), h('span', { 'data-detail-primary-text': 1, 'data-full': primaryInfo.label, style: { overflow: 'hidden', whiteSpace: 'nowrap', minWidth: 0 } }, primaryInfo.label)])),
+            h(Tip, { content: tr('tip.newSession', { n: issueNumber }) }, h('button', { className: 'dsws-btn primary', disabled: specExecutionHeld(st, fakeIssue), onClick: function (e) { e.stopPropagation(); openInNewSession(st, { number: issueNumber, ['title']: title, labels: labelArr }) }, style: { display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 11, background: actColor, borderColor: 'transparent', color: actTextColor, flex: 'none', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' } }, [Ic({ n: 'external-link', size: 10 }), h('span', { 'data-detail-new-text': 1, 'data-full': tr('list.newSessionLabel'), style: { overflow: 'hidden', whiteSpace: 'nowrap', minWidth: 0 } }, tr('list.newSessionLabel'))])),
             h(Tip, { content: tr('tip.copyLink') }, h('button', { className: 'dsws-btn ghost', onClick: function (e) { e.stopPropagation(); copyUrl(issueNumber) }, style: { display: 'inline-flex', alignItems: 'center', padding: '2px 4px', flex: 'none' } }, Ic({ n: 'clipboard', size: 13 }))),
             h(Tip, { content: tr('tip.openInTracker', { n: issueNumber }) }, h('a', { className: 'dsws-btn ghost', href: issueUrlFor(st, issueNumber), target: '_blank', rel: 'noreferrer', style: { display: 'inline-flex', alignItems: 'center', padding: '2px 4px', flex: 'none' } }, Ic({ n: 'link', size: 13 }))),
           ]),
@@ -22660,6 +22663,8 @@ const listIssueRow = function (h, st, x, isOpen, narrow, blockOf, colorOf, multi
           specInfo(st, x) ? h('span', { 'data-spec-count': 1, style: { fontSize: 11, flex: 'none' } }, specCount(specInfo(st, x))) : null,
           specOpenWork(st, x) && x.state === 'CLOSED' ? h('span', { 'data-spec-status': 1, style: { fontSize: 11 } }, specStateText(st, x)) : null,
           specFor(st, x) ? h('span', { 'data-spec-owner': 1, style: { fontSize: 11, flex: 'none' } }, '所属规格 #' + specFor(st, x).number) : null,
+          specDependenciesUnknown(st, x) ? h('span', { 'data-dependencies-unknown': 1, style: { fontSize: 11 } }, '依赖读取未知 · 暂停执行') : null,
+          !specDependenciesUnknown(st, x) && specExecutionHeld(st, x) ? h('span', { 'data-dependencies-blocked': 1, style: { fontSize: 11 } }, '被阻塞 · ' + (x.dependenciesRead?.openKeys || []).map(key => '#' + key).join('、')) : null,
           (isMap && mapObj && mapObj.stats && !mapClosed) ? ringOf(mapObj.stats) : null,
           !isOpen ? h('span', { className: 'dsws-chip', style: { fontSize: 10, marginRight: 0, flex: 'none', background: 'rgba(139,139,149,.12)', color: '#8b8b95', border: '1px solid rgba(139,139,149,.35)' } }, [Ic({ n: 'check', size: 9 }), h('span', null, tr('map.subClosed'))]) : null,
         ]),
@@ -22675,7 +22680,7 @@ const listIssueRow = function (h, st, x, isOpen, narrow, blockOf, colorOf, multi
               : h(Tip, { content: tr('list.blockedTitle', { by: blockedTip }) }, h('span', chipProps({ key: 'blk', className: 'dsws-chip dsws-blocked', onClick: function (e) { e.stopPropagation(); openBlocked(blk) }, style: { fontSize: 10, background: 'rgba(248,113,113,.16)', color: '#f87171', border: '1px solid rgba(248,113,113,.55)', cursor: 'pointer' } }), [Ic({ n: 'lock', size: 10 }), h('span', null, tr('list.blocked'))]))) : null,
           ]),
           h('div', { style: { display: 'flex', alignItems: 'center', gap: 3, flex: 'none', marginLeft: 'auto' } }, [
-            isOpen && !blocked ? h('div', { style: { display: 'flex', gap: 3, alignItems: 'center', flex: 'none' } }, [mapEmpty?h(Tip, { content: tr('map.inspectTitle') }, h('button',{className:'dsws-btn primary'+(narrow?' narrow-icon':''),onClick:function(e){e.stopPropagation();let t='';try{t=inspectPrompt(st,x.number,x.title)}catch{const u=typeof issueUrlFor==='function'?(function(){try{return issueUrlFor(st,x.number,effortOf(x))}catch(_){return''}})():'',uu=u||(x.number!=null?'#'+String(x.number):'');t=uu?'/wayfinder '+uu:'/wayfinder';try{t=promptTextFor(st,'mapInspect',{n:String(x.number||''),['title']:String(x.title||''),url:u});if(u)t='/wayfinder '+u+'\n\n'+t}catch(_){}}inject(st,t)},style:{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',fontSize:11,flex:'none',background:'#f59e0b',borderColor:'transparent',color:'#140a1e',fontWeight:600}},[Ic({n:'search',size:10}),narrow?null:h('span',null,tr('act.inspect'))])):mapDone?h(Tip, { content: tr('map.doneTitle') }, h('button',{className:'dsws-btn primary'+(narrow?' narrow-icon':''),onClick:function(e){e.stopPropagation();const t=completePrompt(st,x.number,x.title,mapObj.stats.total,mapObj.stats.closed);inject(st,t)},style:{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',fontSize:11,flex:'none',background:'#3fb950',borderColor:'transparent',color:'#0c1a10',fontWeight:600}},[Ic({n:'check',size:10}),narrow?null:h('span',null,tr('act.done'))])):mkRowAction(st,x,narrow,colorOf),h(Tip, { content: tr('tip.newSession', { n: x.number }) }, h('button',{className:'dsws-btn primary'+(narrow?' narrow-icon':''),onClick:function(e){e.stopPropagation();openInNewSession(st,x)},style:{textDecoration:'none',display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',fontSize:11,flex:'none',marginLeft:4,background:mapEmpty?'#f59e0b':mapDone?'#3fb950':actionColorOf(x,colorOf),borderColor:'transparent',color:mapEmpty?'#140a1e':mapDone?'#0c1a10':(isLightHex(actionColorOf(x,colorOf))?'#140a1e':'#ffffff')}},[Ic({n:'external-link',size:10}),narrow?null:h('span',null,tr('list.newSessionLabel'))])),]) : null,
+            isOpen && !blocked && !specExecutionHeld(st, x) ? h('div', { style: { display: 'flex', gap: 3, alignItems: 'center', flex: 'none' } }, [mapEmpty?h(Tip, { content: tr('map.inspectTitle') }, h('button',{className:'dsws-btn primary'+(narrow?' narrow-icon':''),onClick:function(e){e.stopPropagation();let t='';try{t=inspectPrompt(st,x.number,x.title)}catch{const u=typeof issueUrlFor==='function'?(function(){try{return issueUrlFor(st,x.number,effortOf(x))}catch(_){return''}})():'',uu=u||(x.number!=null?'#'+String(x.number):'');t=uu?'/wayfinder '+uu:'/wayfinder';try{t=promptTextFor(st,'mapInspect',{n:String(x.number||''),['title']:String(x.title||''),url:u});if(u)t='/wayfinder '+u+'\n\n'+t}catch(_){}}inject(st,t)},style:{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',fontSize:11,flex:'none',background:'#f59e0b',borderColor:'transparent',color:'#140a1e',fontWeight:600}},[Ic({n:'search',size:10}),narrow?null:h('span',null,tr('act.inspect'))])):mapDone?h(Tip, { content: tr('map.doneTitle') }, h('button',{className:'dsws-btn primary'+(narrow?' narrow-icon':''),onClick:function(e){e.stopPropagation();const t=completePrompt(st,x.number,x.title,mapObj.stats.total,mapObj.stats.closed);inject(st,t)},style:{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',fontSize:11,flex:'none',background:'#3fb950',borderColor:'transparent',color:'#0c1a10',fontWeight:600}},[Ic({n:'check',size:10}),narrow?null:h('span',null,tr('act.done'))])):mkRowAction(st,x,narrow,colorOf),h(Tip, { content: tr('tip.newSession', { n: x.number }) }, h('button',{className:'dsws-btn primary'+(narrow?' narrow-icon':''),onClick:function(e){e.stopPropagation();openInNewSession(st,x)},style:{textDecoration:'none',display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',fontSize:11,flex:'none',marginLeft:4,background:mapEmpty?'#f59e0b':mapDone?'#3fb950':actionColorOf(x,colorOf),borderColor:'transparent',color:mapEmpty?'#140a1e':mapDone?'#0c1a10':(isLightHex(actionColorOf(x,colorOf))?'#140a1e':'#ffffff')}},[Ic({n:'external-link',size:10}),narrow?null:h('span',null,tr('list.newSessionLabel'))])),]) : null,
             isOpen ? h('div', { className: 'dsws-aux', style: { display: 'flex', gap: 2, alignItems: 'center', flex: 'none' } }, [
               // v1.3.3：复制/外链图标增大 11 → 13；Q6 解耦：复制=绝对路径/链接，跳转=按 url 前缀分流（https 开网页，file 盘符调 wf.openPath）
               h(Tip, { content: tr('tip.copyLink') }, h('button', { className: 'dsws-btn ghost' + (copyRes === 'ok' ? ' dsws-fb-okflash dsws-fb-success-ring dsws-fb-pop' : '') + (copyRes === 'fail' ? ' dsws-fb-errflash dsws-fb-shake' : ''), onClick: function (e) { e.stopPropagation(); copyUrl(x) }, style: { textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '2px 4px', flex: 'none' } }, copyRes === 'ok' ? Ic({ n: 'check', size: 13 }) : (copyRes === 'fail' ? Ic({ n: 'x', size: 13 }) : Ic({ n: 'clipboard', size: 13 })))),
@@ -22736,15 +22741,37 @@ const fitMapRows = function () {
         if (!it.fits) it.idcol.classList.remove('h')
       }
     }
-function specPool(st, extras) {
+const specIndexes = new WeakMap();
+function specIdentity(row) {
+  return String(row?.effortId || '') + '#' + String(row?.key || row?.number);
+}
+function buildSpecIndex(st, extras) {
   const snapshot = st.snapshot || {};
   const byId = new Map();
-  const put = row => { if (row && row.number != null) byId.set(String(row.effortId || '') + '#' + row.number, row); };
-  (snapshot.issues || []).forEach(row => { put(row); (row.children || []).forEach(put); });
-  (snapshot.maps || []).forEach(map => (map.tickets || []).forEach(row => { put(row); (row.children || []).forEach(put); }));
-  (snapshot.specs || []).forEach(spec => { put(spec); (spec.children || []).forEach(put); });
+  const put = row => { if (row && row.number != null) byId.set(specIdentity(row), row); };
+  const roots = (snapshot.issues || []).concat((snapshot.maps || []).flatMap(map => map.tickets || []), snapshot.specs || []);
+  roots.forEach(row => (row.children || []).forEach(put));
+  // Root/paginated rows own their full metadata; a nested projection must not
+  // replace dependency or action information for the same issue identity.
+  roots.forEach(put);
   (extras || []).forEach(put);
-  return [...byId.values()];
+  const specs = new Map();
+  const mapChildren = new Set();
+  const childrenOf = new Map();
+  for (const row of byId.values()) if (specTagged(row)) {
+    specs.set(specIdentity(row), row);
+    childrenOf.set(specIdentity(row), new Set((row.children || []).map(specIdentity)));
+  }
+  for (const map of snapshot.maps || []) for (const child of map.tickets || []) mapChildren.add(specIdentity(child));
+  return { snapshot: st.snapshot, byId, specs, mapChildren, childrenOf, pool: [...byId.values()] };
+}
+function specIndex(st) {
+  let index = specIndexes.get(st);
+  if (!index || index.snapshot !== st.snapshot) {
+    index = buildSpecIndex(st, issuePageRowsOf(st, 'list'));
+    specIndexes.set(st, index);
+  }
+  return index;
 }
 function specTagged(row) {
   const labels = Array.isArray(row?.labels) ? row.labels : (row?.labels?.nodes || []);
@@ -22752,13 +22779,19 @@ function specTagged(row) {
 }
 function specFor(st, row) {
   if (!row || row.parentKey == null) return null;
-  return specPool(st).find(parent => specTagged(parent) && String(parent.key || parent.number) === String(row.parentKey) && String(parent.effortId || '') === String(row.effortId || '')) || null;
+  return specIndex(st).specs.get(specIdentity({ key: row.parentKey, effortId: row.effortId })) || null;
 }
 function specInfo(st, row) {
   if (!specTagged(row)) return null;
-  const id = String(row.key || row.number);
-  const spec = (st.snapshot?.specs || []).find(item => String(item.key || item.number) === id && String(item.effortId || '') === String(row.effortId || ''));
-  return spec || specPool(st).find(item => specTagged(item) && String(item.key || item.number) === id && String(item.effortId || '') === String(row.effortId || '')) || row;
+  return specIndex(st).specs.get(specIdentity(row)) || row;
+}
+function specDependenciesUnknown(st, row) {
+  const current = specIndex(st).byId.get(specIdentity(row)) || row;
+  return !!current?.dependenciesRead && current.dependenciesRead.state !== 'complete';
+}
+function specExecutionHeld(st, row) {
+  const current = specIndex(st).byId.get(specIdentity(row)) || row;
+  return specDependenciesUnknown(st, current) || !!current?.dependenciesRead?.openKeys?.length;
 }
 function specComplete(spec) {
   return !!spec && spec.childrenRead?.state === 'complete' && Number.isInteger(spec.childrenRead.total) && spec.childrenRead.total === (spec.children || []).length;
@@ -22776,19 +22809,21 @@ function specStateText(st, row) {
   return (spec?.children || []).some(child => child.state !== 'CLOSED') ? '规格已关闭 · 还有未完成子票' : '规格已关闭 · 子票读取未完成';
 }
 function specListRows(st, rows) {
-  const pool = specPool(st, rows);
+  const index = buildSpecIndex(st, rows);
+  specIndexes.set(st, index);
+  const pool = index.pool;
   const base = rows.concat(pool.filter(row => specTagged(row) || specFor(st, row)));
   const seen = new Set();
   const query = String(st.specSearch || '').trim().toLowerCase();
   return (query ? pool : base).filter(row => {
-    const id = String(row.effortId || '') + '#' + row.number;
+    const id = specIdentity(row);
     if (seen.has(id) || row.isPullRequest === true) return false;
     seen.add(id);
     if (query) return ('#' + row.number + ' ' + row.title).toLowerCase().includes(query);
-    if (!specTagged(row) && (st.snapshot?.maps || []).some(map => String(map.effortId || '') === String(row.effortId || '') && (map.tickets || []).some(child => String(child.key || child.number) === String(row.key || row.number)))) return false;
+    if (!specTagged(row) && index.mapChildren.has(id)) return false;
     const parent = specFor(st, row);
     const info = parent && specInfo(st, parent);
-    return !specComplete(info) || !(info.children || []).some(child => String(child.key || child.number) === String(row.key || row.number) && String(child.effortId || '') === String(row.effortId || ''));
+    return !specComplete(info) || !index.childrenOf.get(specIdentity(info))?.has(id);
   });
 }
 const ListTab = ({ st, narrow }) => {

@@ -184,8 +184,8 @@ export function createSnapshotComposer(registry, opts = {}) {
   // Parent links and relation-read recovery can change without issue.updatedAt.
   // Keep them in the public snapshot validator so refresh cannot retain old UI.
   function relationSigOf(issue) {
-    const children = (issue.children || []).map(child => [child.key, child.parentKey, child.state, child.title]).sort((a, b) => String(a[0]).localeCompare(String(b[0])))
-    return JSON.stringify([issue.parentKey, issue.childrenRead, children])
+    const children = (issue.children || []).map(child => [child.key, child.parentKey, child.state, child.title, child.dependenciesRead, child.blockedBy]).sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+    return JSON.stringify([issue.parentKey, issue.childrenRead, issue.dependenciesRead, issue.blockedBy, children])
   }
   const snapshotTtl = (opts && opts.snapshotTtl != null) ? opts.snapshotTtl : 5000
   const depsTtl = (opts && opts.depsTtl != null) ? opts.depsTtl : 5000

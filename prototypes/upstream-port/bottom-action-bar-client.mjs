@@ -49,8 +49,8 @@ export function adaptBottomActionBar(source) {
     panel.insertBefore(clear, editor);
     review.refresh();`);
   const preview = 'const previewIssueAction = (st, issue) => showIssueActionDraft(';
-  once(preview, "const previewIssueAction = (st, issue) => {\n      const bottom = bottomActionControllers.get(st);\n      if (bottom) return bottom.open();\n      return showIssueActionDraft(");
-  once('(target, finalText) => sendIssueActionDraft(st, target, finalText));', "(target, finalText) => sendIssueActionDraft(st, target, finalText), { state: actionDraftState(st, issue.number, issue.effortId || '') });\n    };");
+  once(preview, "const previewIssueAction = (st, issue) => {\n      if (specExecutionHeld(st, issue)) { flash(st, '依赖尚未满足，暂停执行并保留查看入口', 'warn'); return; }\n      const bottom = bottomActionControllers.get(st);\n      if (bottom) return bottom.open();\n      return showIssueActionDraft(");
+  once('(target, finalText) => sendIssueActionDraft(st, target, finalText));', "(target, finalText) => { if (specExecutionHeld(st, issue)) throw new Error('依赖未满足，本次出口已停止'); return sendIssueActionDraft(st, target, finalText); }, { state: actionDraftState(st, issue.number, issue.effortId || '') });\n    };");
   const component = `
     const bottomActionControllers = new WeakMap();
     const actionDraftKey = function (st, number, effortId) {
@@ -76,8 +76,9 @@ export function adaptBottomActionBar(source) {
       const request = issueActionRequest(props.issue, issueUrlFor(st, props.issue.number, props.effortId));
       const sourceNotice = '技能来源与更新状态尚未核验；执行前读取当前项目解析来源并检查更新，缺合格来源或必要工具时暂停依赖步骤，不将目录可见当作已加载。';
       const ensurePreview = function () {
+        if (specExecutionHeld(st, props.issue)) return;
         if (!mounted.current && content.current) {
-          mounted.current = showIssueActionDraft(request, function (target, finalText) { return sendIssueActionDraft(st, target, finalText); }, { container: content.current, state: state, sourceNotice: sourceNotice, onClose: function () { setExpanded(false); } });
+          mounted.current = showIssueActionDraft(request, function (target, finalText) { if (specExecutionHeld(st, props.issue)) throw new Error('依赖未满足，本次出口已停止'); return sendIssueActionDraft(st, target, finalText); }, { container: content.current, state: state, sourceNotice: sourceNotice, onClose: function () { setExpanded(false); } });
         }
       };
       React.useEffect(function () {
@@ -90,7 +91,7 @@ export function adaptBottomActionBar(source) {
         React.createElement('div', { key: 'header', style: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, minWidth: 0 } }, [
           React.createElement('strong', { key: 'action' }, props.label || '主动作'),
           React.createElement('span', { key: 'context', style: { fontSize: 11, overflowWrap: 'anywhere', flex: '1 1 120px' } }, '当前 Issue · ' + (request.skill ? '$' + request.skill : '保持不做边界') + '；先核对上下文与缺项'),
-          React.createElement('button', { key: 'toggle', type: 'button', 'data-bottom-action-toggle': true, 'aria-expanded': String(open), onClick: function () { ensurePreview(); setExpanded(!open); } }, open ? '收起动作／预览' : '选择动作／预览'),
+          React.createElement('button', { key: 'toggle', type: 'button', disabled: specExecutionHeld(st, props.issue), 'data-bottom-action-toggle': true, 'aria-expanded': String(open), onClick: function () { ensurePreview(); setExpanded(!open); } }, open ? '收起动作／预览' : '选择动作／预览'),
         ]),
         React.createElement('div', { key: 'preview', ref: content, hidden: !open, style: { minWidth: 0 } }),
       ]);

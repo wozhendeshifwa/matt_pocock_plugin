@@ -68,14 +68,14 @@ try {
 // External GitHub responses are fixtures; the real list implementation reads
 // and normalizes every native child rather than counting a truncated pool.
 const rawSpec = { number: 80, title: 'Specification', state: 'open', labels: [{ name: 'spec' }], parent: { number: 77 } };
-const childPage = Array.from({ length: 100 }, (_, i) => ({ number: 1000 + i, title: 'Native child ' + i, state: 'closed', labels: [] }));
+const childPage = Array.from({ length: 100 }, (_, i) => ({ number: 1000 + i, title: 'Native child ' + i, state: 'closed', labels: [], issue_dependencies_summary: { total_blocked_by: 0 } }));
 const nativeList = await listIssues({ refId: 'fixture/repo' }, {}, {
   cwd: '/fixture', platform: { resolveExecutable: async () => 'gh' },
   async exec(command, args) {
     let data;
     if (args[1] === 'graphql') data = { data: { repository: { issues: { nodes: [rawSpec], pageInfo: { hasNextPage: false } }, pullRequests: { nodes: [], pageInfo: { hasNextPage: false } } } } };
     else if (args[1].endsWith('page=1')) data = childPage;
-    else if (args[1].endsWith('page=2')) data = [{ number: 1100, title: 'Last native child', state: 'open', labels: [] }];
+    else if (args[1].endsWith('page=2')) data = [{ number: 1100, title: 'Last native child', state: 'open', labels: [], issue_dependencies_summary: { total_blocked_by: 0 } }];
     else throw new Error('Unexpected external read: ' + args.join(' '));
     return { code: 0, stdout: JSON.stringify(data), stderr: '' };
   },

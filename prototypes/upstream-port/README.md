@@ -1,6 +1,6 @@
 # MattSkills 原版 Codex 适配
 
-基线为本机 DSH 已安装的 1.8.0-rc.7，完整原包位于 `../../vendor/mattskills-1.8.0-rc.7`，原文件不修改。此目录是 Codex 宿主适配；本机 `deck-sidebar-probe` 注册已指向本目录，旧 `sidebar-probe` 代码保留为回退路径。
+基线为本机 DSH 已安装的 1.8.0-rc.7，上游代码位于 `../../vendor/mattskills-1.8.0-rc.7`。上游 `lib/client.js` 保持不改，界面差异由本目录构建适配。Tracker 后端及快照编排保留本项目扩展，包括规格原生子票、依赖读取及完整性元数据；升级上游时须合并保留这些扩展，并运行仓库检查中的规格列表与异常回归，不能整目录覆盖。此目录是 Codex 宿主适配；本机 `deck-sidebar-probe` 注册已指向本目录，旧 `sidebar-probe` 代码保留为回退路径。
 
 ## 安装与健康检查
 
