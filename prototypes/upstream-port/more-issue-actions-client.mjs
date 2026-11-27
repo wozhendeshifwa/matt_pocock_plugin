@@ -47,7 +47,7 @@ export function MoreIssueActions({ st, issue, pending, run }) {
   const h = React.createElement;
   const actions = ctx.get('codexActions');
   return h('span', { 'data-issue-more-actions': true, onClick: e => e.stopPropagation(), style: { minWidth: 0 } }, [
-    h('button', { key: 'toggle', type: 'button', className: 'dsws-btn ghost', 'aria-label': '更多动作', title: '更多动作', 'aria-expanded': String(open), onClick: () => setOpen(!open), style: { fontSize: 11 } }, '更多动作'),
+    h('button', { key: 'toggle', type: 'button', className: 'dsws-btn ghost', 'aria-label': '更多动作', title: '更多动作', 'aria-expanded': String(open), onClick: () => setOpen(!open) }, h('span', { 'aria-hidden': 'true', style: { fontSize: 18, lineHeight: 1 } }, '⋯')),
     open ? h('span', { key: 'options', role: 'group', 'aria-label': '更多动作', style: { display: 'flex', flexWrap: 'wrap', gap: 4, minWidth: 0 } }, [
       legacyText.length ? h('button', { key: 'legacy-copy', type: 'button', className: 'dsws-btn ghost', disabled: copyingLegacy, onClick: copyLegacy }, '复制旧草稿原文') : null,
       legacyStatus ? h('span', { key: 'legacy-status', role: 'status', 'aria-live': 'polite' }, legacyStatus) : null,

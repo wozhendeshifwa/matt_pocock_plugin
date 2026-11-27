@@ -1,13 +1,20 @@
 // Plain generated requests go straight to the editable host draft.
-export function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
+export function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false, unavailableReason }) {
   const state = actionDraftState(st, issue?.number || '', issue?.effortId || '');
   const scope = actionDraftKey(st, '', '');
+  const [help, setHelp] = React.useState(null);
+  const activeHelp = help?.scope === scope ? help : null;
+  React.useEffect(() => {
+    if (!activeHelp) return;
+    const timer = setTimeout(() => setHelp(null), 3500);
+    return () => clearTimeout(timer);
+  }, [activeHelp]);
   const operations = ctx.get('draftOperations');
   React.useSyncExternalStore(operations.subscribe, operations.getSnapshot);
   const pending = operations.pending;
   const update = next => {
     state.directFeedback = { ...(state.directFeedback || {}), ...next };
-    operations.notice = { feedback: state.directFeedback, run, issueNumber: issue.number, scope };
+    operations.notice = { feedback: state.directFeedback, run, issueNumber: issue?.number, scope };
     operations.changed();
   };
   const actions = ctx.get('codexActions');
@@ -40,11 +47,11 @@ export function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = fals
     return () => clearTimeout(timer);
   }, [toolbar, notice]);
   if (toolbar) {
-    const current = notice?.feedback;
+    const current = activeHelp ? { status: activeHelp.status } : notice?.feedback;
     return h('span', { 'data-issue-toolbar-actions': '', style: { display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, minWidth: 0, maxWidth: '100%' } }, [
-      issue ? h(MoreIssueActions, { key: actionDraftKey(st, issue.number, issue.effortId || ''), st, issue, pending, run }) : h('button', { key: 'disabled', className: 'dsws-btn', disabled: true, title: '请先打开一个 Issue', 'aria-label': '更多动作' }, '更多动作'),
+      issue ? h(MoreIssueActions, { key: actionDraftKey(st, issue.number, issue.effortId || ''), st, issue, pending, run }) : h('button', { key: 'unavailable', type: 'button', className: 'dsws-btn', title: unavailableReason || '更多动作：请先打开一张 Issue', 'aria-label': '更多动作', onClick: () => setHelp({ scope, status: unavailableReason || '请先打开一张 Issue，再选择更多动作。' }) }, h('span', { 'aria-hidden': 'true', style: { fontSize: 18, lineHeight: 1 } }, '⋯')),
       current?.status ? h('span', { key: 'toast', 'data-draft-toast': '', style: { position: 'fixed', bottom: 16, right: 16, zIndex: 1000, maxWidth: 'min(360px, calc(100vw - 32px))', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2)', color: 'var(--foreground, inherit)', border: '1px solid var(--dsw-alias-border-l1)', boxShadow: '0 2px 12px #0002', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 } }, [
-      current?.status ? h('span', { key: 'notice', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' } }, '#' + notice.issueNumber + ' · ' + current.status) : null,
+      current?.status ? h('span', { key: 'notice', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' } }, (!activeHelp && notice?.issueNumber ? '#' + notice.issueNumber + ' · ' : '') + current.status) : null,
       current?.retry ? h('button', { key: 'retry', type: 'button', className: 'dsws-btn', disabled: pending, onClick: e => {
         e.stopPropagation();
         if (current.retry.unknown && !current.retryConfirmed) {
@@ -52,7 +59,7 @@ export function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = fals
         }
         notice.run(current.retry.target, current.retry.requestOverride, current.retry.expectedIdentity);
       } }, current.retry.unknown && current.retryConfirmed ? '已检查输入框，重试' : '重试') : null,
-      h('button', { key: 'close', className: 'dsws-btn ghost', 'aria-label': '关闭提示', onClick: () => { operations.notice = null; operations.changed(); } }, '×'),
+      h('button', { key: 'close', className: 'dsws-btn ghost', 'aria-label': '关闭提示', onClick: () => { if (activeHelp) setHelp(null); else { operations.notice = null; operations.changed(); } } }, '×'),
       ]) : null,
     ]);
   }

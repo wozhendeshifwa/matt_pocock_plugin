@@ -14,7 +14,7 @@ function fixture({ newAvailable = false } = {}) {
   Object.defineProperty(w.navigator, 'clipboard', { value: { async writeText(text) { copies.push(text); } } });
   w.eval(client);
   const until = async check => { for (let i = 0; i < 120; i++) { if (check()) return; await new Promise(r => setTimeout(r, 15)); } assert.fail('More-actions UI timed out: ' + w.document.body.textContent.slice(-700)); };
-  async function open({ project = '/more-a', number = 10, repo = 'fixture/repo', effortId = '', backend = 'github', detail = false, detailEffort, labels = ['needs-triage'] } = {}) {
+  async function open({ project = '/more-a', number = 10, repo = 'fixture/repo', effortId = '', backend = 'github', detail = false, detailEffort, labels = ['needs-triage'], listOnly = false, detailMode } = {}) {
     dispose?.();
     const session = { id: 'more-thread-' + (++sequence), cwd: project }, sessions = { current: session.id, byId: { [session.id]: session }, items: [session] };
     const row = { key: String(number), number, effortId, type: 'issue', title: 'More fixture ' + number, state: 'OPEN', labels, assignees: [], comments: { nodes: [] }, blockedBy: [], url: 'https://github.com/' + repo + '/issues/' + number };
@@ -26,13 +26,17 @@ function fixture({ newAvailable = false } = {}) {
       connection: { rpc: { async call(c, e, r) {
         if (['snapshot', 'refresh'].includes(r.method)) return snapshot;
         if (r.method === 'cwd') return { ok: true, value: { ok: true, cwd: project, workspaceRoot: project } };
-        if (r.method === 'issueDetail') return { ok: true, value: { ok: true, issue: { ...row, effortId: detailEffort ?? row.effortId, body: 'More action source' } } };
+        if (r.method === 'issueDetail') {
+          if (detailMode === 'loading') return new Promise(() => {});
+          if (detailMode === 'error') throw new Error('GitHub EOF');
+          return { ok: true, value: { ok: true, issue: { ...row, effortId: detailEffort ?? row.effortId, body: 'More action source' } } };
+        }
         if (r.method === 'skill.readDoc') return { ok: true, value: { ok: true, path: '/rules/' + r.payload.name, md: '# stable rules', source: { kind: 'host-resolved' }, execution: { allowed: true } } };
         return { ok: true, value: { ok: false } };
       } } },
     }, { sessionId: session.id, session, useSessions: select => typeof select === 'function' ? select(sessions) : sessions });
     await until(() => w.document.querySelector('[aria-label="#' + number + ' More fixture ' + number + '"]'));
-    { w.document.querySelector('[aria-label="#' + number + ' More fixture ' + number + '"]').click(); await until(() => w.document.querySelector('[data-bottom-action-bar]')); }
+    if (!listOnly) { w.document.querySelector('[aria-label="#' + number + ' More fixture ' + number + '"]').click(); await until(() => w.document.querySelector('[data-bottom-action-bar]')); }
     const group = w.document.body;
     const button = text => [...group.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === text) || [...group.querySelectorAll('button')].find(b => b.textContent === text);
     assert.ok(button('更多动作'), 'the production direct action group offers compact more actions');
@@ -42,10 +46,23 @@ function fixture({ newAvailable = false } = {}) {
   return { w, writes, copies, until, open, change, close() { dispose?.(); w.close(); } };
 }
 
+{
+ const f=fixture(); try {
+  const view=await f.open({listOnly:true});
+  assert.equal(view.button('更多动作').disabled,false,'unavailable More must respond with guidance');
+  assert.equal(view.button('更多动作').textContent.includes('更多动作'),false,'More is icon-only with an accessible label');
+  view.button('更多动作').click();
+  await f.until(()=>view.group.querySelector('[role="status"]')?.textContent.includes('请先打开一张 Issue'));
+  assert.equal(f.writes.length,0,'unavailable More never guesses or writes a target');
+  assert.equal(view.group.querySelector('select[aria-label="选择其他动作"]'),null);
+ } finally {f.close()}
+}
+
 for (const detail of [false, true]) {
   const f = fixture();
   try {
     const { group, button } = await f.open({ detail });
+    assert.equal(button('更多动作').textContent.includes('更多动作'),false,'available More is also icon-only');
     button('更多动作').click();
     await f.until(() => group.querySelector('select[aria-label="选择其他动作"]'));
     const choice = group.querySelector('select[aria-label="选择其他动作"]');
@@ -171,8 +188,20 @@ for (const detail of [false, true]) {
 {
  const f=fixture();try {
   const view=await f.open({effortId:'selected',detailEffort:'stale-other'});
-  assert.equal(view.button('更多动作').disabled,true,'a same-number detail from another effort cannot supply More context');
+  view.button('更多动作').click();
+  await f.until(()=>view.group.querySelector('[role="status"]')?.textContent.includes('当前 Issue 详情尚不可用'));
+  assert.equal(f.writes.length,0,'a same-number detail from another effort cannot supply More context');
   assert.equal(view.group.querySelector('select[aria-label="选择其他动作"]'),null);
  }finally {f.close()}
+}
+for (const [detailMode, expected] of [['loading','Issue 详情正在加载'],['error','Issue 详情加载失败']]) {
+ const f=fixture(); try {
+  const view=await f.open({detailMode});
+  await f.until(()=>view.button('更多动作').title.includes(expected));
+  view.button('更多动作').click();
+  await f.until(()=>view.group.querySelector('[role="status"]')?.textContent.includes(expected));
+  assert.equal(f.writes.length,0);
+  assert.equal(view.group.querySelector('select[aria-label="选择其他动作"]'),null);
+ } finally {f.close()}
 }
 console.log('PASS more actions through production sidebar');

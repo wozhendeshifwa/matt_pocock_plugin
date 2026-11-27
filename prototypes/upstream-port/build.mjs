@@ -86,7 +86,7 @@ adapted = adapted.replace(boardComponentAnchor, `const CodexBoardActions = funct
         h('button', { key: 'fixate', type: 'button', className: 'dsws-btn', 'data-board-action': 'fixate', 'aria-label': tr('nav.word'), disabled: draftPending, title: tr('nav.fixateTitle'), onClick: function () { injectFixate(st) } }, Ic({ n: 'note', size: 14 })),
         h('button', { key: 'handoff', type: 'button', className: 'dsws-btn', 'data-board-action': 'handoff', 'aria-label': tr('nav.handoff'), disabled: draftPending, title: tr('nav.handoffTitle'), onClick: function () { doHandoff(st) } }, Ic({ n: 'handoff', size: 14 })),
         h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'data-board-action': 'new', 'aria-label': en ? 'New chat' : '开新对话', disabled: draftPending || !!st.handoffSearching, title: st.handoffReady ? tr('nav.handoffReadyTitle') : tr('nav.handoffGreyTitle'), onClick: function () { doHandoffOpen(st) } }, Ic({ n: 'external-link', size: 14 })),
-        h(DirectIssueActions, { key: 'issue-more', st, issue, toolbar: true })
+        h(DirectIssueActions, { key: 'issue-more', st, issue, toolbar: true, unavailableReason: selected == null ? '请先打开一张 Issue，再选择更多动作。' : st.issueMode === 'loading' ? 'Issue 详情正在加载，请稍后再试。' : st.issueMode === 'err' ? 'Issue 详情加载失败，请在详情中点击“重试”。' : '当前 Issue 详情尚不可用，请重新打开该 Issue。' })
       ])
     }
     ` + boardComponentAnchor);
