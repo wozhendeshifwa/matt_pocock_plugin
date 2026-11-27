@@ -15564,7 +15564,7 @@ const vcRowViewOf = function (row, t, diffBlock) {
   return {
     key: row.path,
     path: row.path,
-    pathText: vcMiddle(row.path, 46),
+    pathText: row.path,
     pathTip: row.path,
     origPath: row.origPath || '',
     changeKey: vcChangeKeyOf(row.change),
@@ -16656,7 +16656,7 @@ const vcBlocksOf = function (screen, reads, ui, env) {
     branchTone: identity.detached === true ? 'caption' : 'success',
     oidText: identity.detached === true ? t('vc.detachedAt', { oid: vcShortOid(identity.oid) }) : '',
     oidTip: String(identity.oid || ''),
-    pathText: fold.state.path || '',
+    pathText: String(identity.worktreePath || ''),
     pathTip: String(identity.worktreePath || ''),
     sync: vcSyncViewOf(identity, t, nowMs),
     // 这份首屏读数是什么时候取的（#819 发现 3）：存着不画，用户就不知道手上这几个数有多旧。
@@ -17716,7 +17716,7 @@ const VersionControlTab = function (props) {
       h('div', { key: 'main', className: 'dsws-vc-row', onClick: function () { toggleDiff(row) }, style: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' } }, [
         showBadge ? tipNode(row.changeText, h('span', { key: 'badge', className: 'dsws-vc-badge ' + String(row.badgeClass || ''), 'data-vc-badge': row.badge }, row.badge)) : null,
         h('div', { key: 'main', style: { flex: 1, minWidth: 0 } }, [
-          tipNode(row.rowTip + (row.origPath ? '\n' + row.origPath : ''), h('span', { key: 'path', className: 'dsws-vc-mono', style: { display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, row.pathText)),
+          tipNode(row.rowTip + (row.origPath ? '\n' + row.origPath : ''), h('span', { key: 'path', className: 'dsws-vc-mono', 'data-vc-file-path': 1, style: { display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, row.pathText)),
           row.changeText ? h('span', { key: 'change', className: 'dsws-vc-mono', 'data-vc-change': 1, style: { fontSize: 11, color: row.conflict ? tone('error') : tone('caption') } }, row.changeText) : null,
         ]),
         row.conflict ? h('span', { key: 'conflict', style: { flex: 'none', fontSize: 10.5, color: tone('warning'), border: '1px solid ' + tone('warning'), borderRadius: 4, padding: '0 4px' } }, row.conflictText) : null,
