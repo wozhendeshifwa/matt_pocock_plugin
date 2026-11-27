@@ -62,7 +62,7 @@ async function scenario(detail = false, exercise = null, options = {}) {
       assert.equal(group.querySelectorAll('button').length, 2, 'each task shows only its two fill outlets');
       assert.equal(group.querySelector('[role="status"]'), null, 'no text is rendered underneath fill buttons');
       assert.equal(group.querySelector('[data-issue-more-actions]'), null);
-      assert.equal(w.document.querySelector('button[aria-label="更多动作"]').closest('[aria-label="聊天操作"]') !== null, true);
+      assert.equal(w.document.querySelector('button[aria-label="更多动作"]'), null);
       assert.equal(w.document.querySelectorAll('button[aria-label="复制"]').length, 0);
       assert.doesNotMatch(w.document.querySelector('[data-draft-toast]').textContent, /已填入|任务已执行/);
     }

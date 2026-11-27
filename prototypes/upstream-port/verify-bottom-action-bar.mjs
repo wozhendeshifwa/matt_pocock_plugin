@@ -43,7 +43,7 @@ try{
   assert.deepEqual([...group.querySelectorAll('button')].map(b=>b.textContent),['填入当前聊天','填入新聊天']);
   assert.equal(group.querySelector('[role="status"]'),null,'nothing is displayed below the buttons');
   assert.equal(group.querySelector('[data-issue-more-actions]'),null);
-  assert.equal(w.document.querySelector('[aria-label="聊天操作"] [aria-label="更多动作"]') !== null,true,'More sits beside handoff');
+  assert.equal(w.document.querySelector('[aria-label="更多动作"]'),null,'More is removed from all action groups');
   assert.equal(hostRequests.length,0);assert.equal(copies.length,0);
   console.log('PASS compact two-button footer with no captions or ordinary copy');
 
