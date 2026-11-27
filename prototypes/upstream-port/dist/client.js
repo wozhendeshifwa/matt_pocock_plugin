@@ -21473,18 +21473,23 @@ function MoreIssueActions({ st, issue, pending, run }) {
 }
 function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
   const state = actionDraftState(st, issue?.number || '', issue?.effortId || '');
+  const scope = actionDraftKey(st, '', '');
   const operations = ctx.get('draftOperations');
   React.useSyncExternalStore(operations.subscribe, operations.getSnapshot);
   const pending = operations.pending;
   const update = next => {
     state.directFeedback = { ...(state.directFeedback || {}), ...next };
-    operations.notice = { feedback: state.directFeedback, run, issueNumber: issue.number, scope: actionDraftKey(st, '', '') };
+    operations.notice = { feedback: state.directFeedback, run, issueNumber: issue.number, scope };
     operations.changed();
   };
   const actions = ctx.get('codexActions');
   const available = canFillIssueActionDraft(actions, 'active');
   const newAvailable = canFillIssueActionDraft(actions, 'new');
   const run = async (target, requestOverride, pinnedIdentity) => {
+    if (scope !== actionDraftKey(st, '', '')) {
+      update({ status: '项目或仓库已切换，原请求已停止。', retry: null });
+      return;
+    }
     const token = operations.begin();
     if (!token) return;
     let expectedIdentity;
