@@ -12,7 +12,7 @@ async function scenario(detail = false, exercise = null, options = {}) {
   const row = { key: '10', number: 10, type: 'issue', title: 'Direct fixture', state: 'OPEN', labels: ['needs-triage'], assignees: [], comments: { nodes: [] }, blockedBy: [], url: 'https://github.com/fixture/repo/issues/10' };
   const session = { id: 'direct', cwd: '/direct' }, sessions = { current: 'direct', byId: { direct: session }, items: [session] };
   const snapshot = { ok: true, value: { ok: true, workspaceRoot: '/direct', repoRoot: '/direct', repo: { owner: 'fixture', name: 'repo' }, repository: { name: 'fixture/repo', refId: 'fixture/repo' }, selection: { backendId: 'github' }, backendModules: [{ id: 'github' }], issues: [row], maps: [], labels: [] } };
-  const writes = [], copies = [], controls = { source: 'A', allowed: true, result: 'requested', reliable: false, fail: false };
+  const writes = [], copies = [], controls = { source: 'A', allowed: true, result: 'requested', reliable: false, fail: false, reasonsByRead: [], sourceReads: 0 };
   Object.defineProperty(w.navigator, 'clipboard', { value: { async writeText(text) { copies.push(text); } } });
   w.eval(client);
   const dispose = w.MattSkillsCodex.mount(w.document.getElementById('root'), {
@@ -27,7 +27,7 @@ async function scenario(detail = false, exercise = null, options = {}) {
       if (['snapshot', 'refresh'].includes(r.method)) return snapshot;
       if (r.method === 'cwd') return { ok: true, value: { ok: true, cwd: '/direct', workspaceRoot: '/direct' } };
       if (r.method === 'issueDetail') return { ok: true, value: { ok: true, issue: { ...row, body: 'Direct evidence' } } };
-      if (r.method === 'skill.readDoc') return { ok: true, value: { ok: true, path: '/rules/' + controls.source, md: '# source ' + controls.source, source: { kind: 'host-resolved' }, execution: { allowed: controls.allowed } } };
+      if (r.method === 'skill.readDoc') return { ok: true, value: { ok: true, path: '/rules/' + controls.source, md: '# source ' + controls.source, source: { kind: 'host-resolved' }, execution: { allowed: controls.allowed, reasons: controls.reasonsByRead[controls.sourceReads++] || [] } } };
       return { ok: true, value: { ok: false } };
     } } },
   }, { sessionId: session.id, session, useSessions: select => typeof select === 'function' ? select(sessions) : sessions });
@@ -69,6 +69,24 @@ await scenario(false, async ({ active, group, until, copies, writes }) => {
   assert.equal(writes.length, 0);
 }, { active: false });
 for (const detail of [false, true]) {
+  for (const more of [false, true]) await scenario(detail, async ({ w, active, group, until, controls, writes, copies }) => {
+    controls.allowed = false;
+    controls.reasonsByRead = [['旧的未核验原因'], ['缺少 GitHub 工具授权；请连接 GitHub 后重试']];
+    if (more) {
+      [...group.querySelectorAll('button')].find(b => b.textContent === '更多动作').click();
+      await until(() => group.querySelector('select[aria-label="选择其他动作"]'));
+      const choice = group.querySelector('select');
+      choice.value = 'skill:tdd';
+      choice.dispatchEvent(new w.Event('change', { bubbles: true }));
+      await until(() => group.querySelector('[aria-label="更多动作"] button:not([disabled])'));
+      [...group.querySelector('[aria-label="更多动作"]').querySelectorAll('button')].find(b => b.textContent === '填入当前聊天').click();
+    } else active.click();
+    await until(() => group.textContent.includes('操作失败'));
+    assert.match(group.textContent, /缺少 GitHub 工具授权；请连接 GitHub 后重试/, 'blocked actions show the latest specific reason and remedy beside their buttons');
+    assert.doesNotMatch(group.textContent, /旧的未核验原因/, 'the earlier preparation diagnosis must not replace the latest check');
+    assert.equal(writes.length, 0, 'specific diagnostics do not relax the blocked host boundary');
+    assert.equal(copies.length, 0);
+  });
   await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
     controls.allowed = false;
     active.click(); await until(() => group.textContent.includes('必要来源'));

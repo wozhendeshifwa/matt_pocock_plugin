@@ -42,7 +42,10 @@ export function DirectIssueActions({ st, issue, colorHex, narrow }) {
       }
       candidate = state[cacheKey];
       const checked = await preparation.check({ draftId: candidate.id, text: candidate.text });
-      if (checked.dependenciesAllowed !== true) throw new Error('必要来源、工具或资料未核验，请先补齐；本次填入已停止');
+      if (checked.dependenciesAllowed !== true) {
+        const reasons = Array.isArray(checked.blockingReasons) ? checked.blockingReasons.filter(reason => typeof reason === 'string' && reason.trim()) : [];
+        throw new Error('必要来源、工具或资料未核验：' + (reasons.length ? reasons.join('；') : checked.reason || '请查证并补齐必要来源、工具及资料后重试') + '；本次填入已停止');
+      }
       if (checked.allowed !== true || checked.status !== 'unchanged' || checked.dependenciesAllowed !== true) {
         if (checked.dependenciesAllowed === true && (target !== 'copy' || !pending && !feedback.retry)) update({ recovery: { target, requestOverride, expectedIdentity } });
         throw new Error('技能来源或必要条件已变化，请核对后重新生成；本次出口已停止');
