@@ -3,8 +3,15 @@
 export function createNativeDraftOutputs({ capabilities, getIdentity, readIdentity, request } = {}) {
   const supported = !!capabilities?.experimental?.['openai/message']?.draft;
   const projectLinks = !!capabilities?.openLinks;
+  const newReason = () => {
+    if (!supported) return '新聊天草稿接口不可用。';
+    if (!projectLinks) return '新聊天所需项目链接能力不可用。';
+    const identity = getIdentity();
+    return identity?.threadId && identity?.projectRoot && identity?.projectId && typeof identity.cwd === 'string' && identity.cwd.trim()
+      ? '' : '无法确认新聊天的来源项目或实际目录。';
+  };
   return {
-    capabilities: Object.freeze({ nativeDraftRequest: supported, reliableDraft: false, active: supported, new: supported && projectLinks,
+    capabilities: Object.freeze({ nativeDraftRequest: supported, reliableDraft: false, active: supported, get new() { return !newReason(); }, get newReason() { return newReason(); },
       reason: supported ? '' : '宿主未提供聊天草稿接口。',
       notice: supported ? '当前聊天追加并保留已有输入；新聊天按来源项目和目录打开并预填原文，均不会自动发送。' : '' }),
     async prefill(target, text) {
@@ -13,14 +20,14 @@ export function createNativeDraftOutputs({ capabilities, getIdentity, readIdenti
       if (typeof text !== 'string') throw new Error('缺少可见草稿文本。');
       const expected = { ...getIdentity() };
       if (!expected.threadId || !expected.projectRoot) throw new Error('无法确认目标项目或聊天。');
-      if (target === 'new' && (!projectLinks || !expected.projectId)) throw new Error('无法确认新聊天的来源项目或宿主项目链接能力。');
-      const same = value => value?.threadId === expected.threadId && value?.projectRoot === expected.projectRoot && value?.projectId === expected.projectId;
+      if (target === 'new' && newReason()) throw new Error(newReason());
+      const same = value => value?.threadId === expected.threadId && value?.projectRoot === expected.projectRoot && value?.projectId === expected.projectId && value?.cwd === expected.cwd;
       const active = await readIdentity();
       if (!same(active) || !same(getIdentity())) throw new Error('聊天或项目已切换，旧注入已停止；请重新确认目标。');
       let response;
       if (target === 'new') {
         const url = new URL('codex://new');
-        url.search = new URLSearchParams({ mode: 'codex', projectId: expected.projectId, path: expected.projectRoot, prompt: text }).toString();
+        url.search = new URLSearchParams({ mode: 'codex', projectId: expected.projectId, path: expected.cwd, prompt: text }).toString();
         response = await request('ui/open-link', { url: url.href });
       } else {
         // No await between the final identity check and posting the draft request.

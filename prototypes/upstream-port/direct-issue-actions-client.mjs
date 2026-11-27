@@ -8,6 +8,7 @@ export function DirectIssueActions({ st, issue, colorHex, narrow }) {
   React.useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const actions = ctx.get('codexActions');
   const available = canFillIssueActionDraft(actions, 'active');
+  const newAvailable = canFillIssueActionDraft(actions, 'new');
   const run = async target => {
     if (pending) return;
     setPending(true);
@@ -29,7 +30,7 @@ export function DirectIssueActions({ st, issue, colorHex, narrow }) {
       if (!alive.current) return;
       const result = await sendIssueActionDraft(st, target, candidate.text);
       if (!alive.current) return;
-      setStatus(target === 'copy' ? '已复制' : result.status === 'filled' ? '已填入当前聊天' : '已请求，请检查输入框后发送');
+      setStatus(target === 'copy' ? '已复制' : result.status === 'filled' ? (target === 'new' ? '已填入新聊天' : '已填入当前聊天') : '已请求，请检查输入框后发送');
     } catch (error) {
       if (alive.current) setStatus(error.code === 'draft-result-unknown' ? '无法确认是否填入，请先检查输入框。生成文本已保留。' : '操作失败：' + String(error.message || error) + '。生成文本已保留。');
     } finally {
@@ -38,8 +39,9 @@ export function DirectIssueActions({ st, issue, colorHex, narrow }) {
   };
   return React.createElement('span', { 'data-issue-direct-actions': true, style: { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, minWidth: 0 } }, [
     React.createElement('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '追加到可编辑输入框，不会自动发送' : actions?.capabilities?.reason || '当前聊天填入不可用，请主动选择复制', onClick: e => { e.stopPropagation(); run('active'); }, style: { background: colorHex, fontSize: 11 } }, '填入当前聊天'),
+    React.createElement('button', { key: 'new', type: 'button', className: 'dsws-btn', 'aria-label': '填入新聊天', disabled: pending || !newAvailable, title: newAvailable ? '沿用来源项目及实际目录打开可编辑新草稿，不会自动发送' : actions?.capabilities?.newReason || actions?.capabilities?.reason || '新聊天填入不可用，请主动选择复制', onClick: e => { e.stopPropagation(); run('new'); }, style: { fontSize: 11 } }, '填入新聊天'),
     React.createElement('button', { key: 'copy', type: 'button', className: 'dsws-btn ghost', disabled: pending, onClick: e => { e.stopPropagation(); run('copy'); }, style: { fontSize: 11 } }, '复制'),
-    React.createElement('span', { key: 'status', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, overflowWrap: 'anywhere' } }, status || (!available ? (actions?.capabilities?.reason || '当前聊天填入不可用') + '；可主动选择复制。' : '')),
+    React.createElement('span', { key: 'status', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, overflowWrap: 'anywhere' } }, status || [!available ? (actions?.capabilities?.reason || '当前聊天填入不可用') + '；可主动选择复制。' : '', !newAvailable ? (actions?.capabilities?.newReason || '新聊天填入能力不可用') + '；可主动选择复制。' : ''].filter(Boolean).join(' ')),
   ]);
 }
 
@@ -53,6 +55,12 @@ export function adaptDirectIssueActions(source) {
   if (rowStart < 0 || rowReturn < 0 || rowEnd < 0) throw new Error('Direct Issue row boundary changed');
   source = source.slice(0, rowReturn) + "return h(DirectIssueActions, { st: st, issue: x, colorHex: colorHex, narrow: narrow })\n      }\n" + source.slice(rowEnd);
   const lines = source.split('\n');
+  for (let index = 0; index < lines.length; index++) {
+    if (lines[index].includes('openInNewSession(st,') && lines[index].includes("tr('list.newSessionLabel')")) {
+      lines[index] = lines[index].replaceAll("tr('list.newSessionLabel')", "'旧草稿预览'")
+        .replace(/tr\('tip\.newSession',\s*\{[^}]*\}\)/g, "'旧草稿预览（兼容入口）'");
+    }
+  }
   const detail = lines.findIndex(line => line.includes("h(Tip, { content: primaryInfo.tip }") && line.includes('previewIssueAction(st, fakeIssue)'));
   if (detail < 0) throw new Error('Direct Issue primary boundary changed');
   lines[detail] = "            h(DirectIssueActions, { key: 'direct', st: st, issue: fakeIssue, colorHex: actColor }),";
