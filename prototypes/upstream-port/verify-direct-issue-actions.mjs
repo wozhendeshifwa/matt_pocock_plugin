@@ -13,7 +13,7 @@ async function scenario(detail = false, exercise = null, options = {}) {
   const session = { id: 'direct', cwd: '/direct' }, sessions = { current: 'direct', byId: { direct: session }, items: [session] };
   const snapshot = { ok: true, value: { ok: true, workspaceRoot: '/direct', repoRoot: '/direct', repo: { owner: 'fixture', name: 'repo' }, repository: { name: 'fixture/repo', refId: 'fixture/repo' }, selection: { backendId: 'github' }, backendModules: [{ id: 'github' }], issues: [row], maps: [], labels: [] } };
   const writes = [], copies = [], controls = { source: 'A', allowed: true, result: 'requested', reliable: false, fail: false, reasonsByRead: [], sourceReads: 0 };
-  Object.defineProperty(w.navigator, 'clipboard', { value: { async writeText(text) { copies.push(text); } } });
+  Object.defineProperty(w.navigator, 'clipboard', { value: { async writeText(text) { if (controls.copyFailure) throw new Error(controls.copyFailure); copies.push(text); } } });
   w.eval(client);
   const dispose = w.MattSkillsCodex.mount(w.document.getElementById('root'), {
     codexActions: { capabilities: { nativeDraftRequest: true, active: options.active !== false, new: false, reason: '当前宿主缺少可用追加接口', get reliableDraft() { return controls.reliable; } }, async prefill(target, text) {
@@ -69,6 +69,21 @@ await scenario(false, async ({ active, group, until, copies, writes }) => {
   assert.equal(writes.length, 0);
 }, { active: false });
 for (const detail of [false, true]) {
+  await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
+    const reasons = ['triage', 'implement-spec', 'to-spec', 'to-tickets'].map(name => name + '：工具及其他必要资料要求未核验；先查证，暂停依赖步骤。');
+    controls.allowed = false;
+    controls.reasonsByRead = [reasons, reasons, reasons, reasons];
+    active.click();
+    await until(() => group.textContent.includes('本次填入已停止'));
+    for (const reason of reasons) assert.ok(group.textContent.includes(reason), 'long diagnostics retain every prerequisite explanation');
+    controls.copyFailure = 'Failed to execute writeText on Clipboard: Write permission denied.';
+    [...group.querySelectorAll('button')].find(b => b.textContent === '复制').click();
+    await until(() => group.textContent.includes(controls.copyFailure));
+    for (const reason of reasons) assert.ok(group.textContent.includes(reason), 'copy failure does not replace the original prerequisite explanations');
+    assert.equal([...group.querySelectorAll('button')].find(b => b.textContent === '重试').disabled, false);
+    assert.equal(writes.length, 0);
+    assert.equal(copies.length, 0);
+  });
   for (const more of [false, true]) await scenario(detail, async ({ w, active, group, until, controls, writes, copies }) => {
     controls.allowed = false;
     controls.reasonsByRead = [['旧的未核验原因'], ['缺少 GitHub 工具授权；请连接 GitHub 后重试']];
