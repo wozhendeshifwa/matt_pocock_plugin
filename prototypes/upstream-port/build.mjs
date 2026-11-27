@@ -12,6 +12,7 @@ import { adaptBottomActionBar } from "./bottom-action-bar-client.mjs";
 import { adaptSkillPreparation } from "./skill-preparation-client.mjs";
 import { adaptVersionControlPaths } from "./version-control-style-client.mjs";
 import { adaptDirectIssueActions } from "./direct-issue-actions-client.mjs";
+import { adaptSpecList } from "./spec-list-client.mjs";
 
 const runtime = await build({
   entryPoints: [new URL("browser-runtime.mjs", import.meta.url).pathname.replace(/^\/(\w:)/, "$1")],
@@ -39,6 +40,7 @@ adapted = adapted.replaceAll('在新会话打开，继承工作区并推进', '�
 adapted = adaptContextRequests(adapted);
 adapted = adaptSkillSourceDisplay(adapted);
 adapted = adaptIssueActions(adapted);
+adapted = adaptSpecList(adapted);
 adapted = adaptBottomActionBar(adapted);
 adapted = adaptDirectIssueActions(adapted);
 for (const [anchor, target] of [
@@ -108,3 +110,4 @@ await writeFile(new URL("manifest.json", output), JSON.stringify({
   adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay", "skills.beforeUse", "issueActions.bottomBar", "versionControl.fullPaths", "issueActions.directCurrent"],
 }, null, 2) + "\n");
 console.log("Built original MattSkills client with Codex mounting adapter");
+

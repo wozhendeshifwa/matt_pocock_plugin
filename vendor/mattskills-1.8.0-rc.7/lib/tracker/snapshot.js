@@ -114,7 +114,7 @@ function assembleSnapshot(repo, all) {
       // 大写的 CLOSED 是本仓库的统一口径（upcaseSnapStates 在电话层再盖一次），这里自己也认小写，免得看后端脸色。
       const isClosed = String((m && m.state) || '').toUpperCase() === 'CLOSED'
       if (isClosed) for (const t of own) {
-        closedMapTickets.add(poolIdOf(t))
+        if (!(t.labels || []).some(label => label.name === 'spec')) closedMapTickets.add(poolIdOf(t))
         const thin = thinRowOf(t)
         if (thin) thinTickets.push(thin)
       }
@@ -181,6 +181,12 @@ async function countsFromBackend(tracker, ref, ctx) {
  * }}
  */
 export function createSnapshotComposer(registry, opts = {}) {
+  // Parent links and relation-read recovery can change without issue.updatedAt.
+  // Keep them in the public snapshot validator so refresh cannot retain old UI.
+  function relationSigOf(issue) {
+    const children = (issue.children || []).map(child => [child.key, child.parentKey, child.state, child.title, child.dependenciesRead, child.blockedBy]).sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+    return JSON.stringify([issue.parentKey, issue.childrenRead, issue.dependenciesRead, issue.blockedBy, children])
+  }
   const snapshotTtl = (opts && opts.snapshotTtl != null) ? opts.snapshotTtl : 5000
   const depsTtl = (opts && opts.depsTtl != null) ? opts.depsTtl : 5000
   const SNAP_LRU_MAX = 20
@@ -188,7 +194,7 @@ export function createSnapshotComposer(registry, opts = {}) {
   function touchSnapLRU(k,v){ if(snapCache.has(k)) snapCache.delete(k); snapCache.set(k,v); if(snapCache.size>SNAP_LRU_MAX){ const f=snapCache.keys().next().value; snapCache.delete(f);} }
   function issueIndexVersion(idx){ try{ const keys=Object.keys(idx||{}).sort(); const str=keys.map(function(k){return k+':'+idx[k]}).join('|'); try{ const cr=require('crypto'); if(cr&&cr.createHash) return cr.createHash('sha1').update(str).digest('hex').slice(0,12); }catch(e){} let h=0; for(let i=0;i<str.length;i++) h=((h<<5)-h+str.charCodeAt(i))|0; return (h>>>0).toString(16).padStart(8,'0'); }catch(e){ return '0'; }}
   // 拉取请求三字段进版号（与 #508 口径一致：字段省略=MISSING 记一类，有值/空值按值记；只改拉取请求字段也换版号，不 served 陈旧 304）。
-  function prSigOf(x){ try{ const has=Object.prototype.hasOwnProperty; const pr=!has.call(x,'isPullRequest')?'MISSING':(x.isPullRequest===true?'pr':(x.isPullRequest===false?'issue':'BAD')); const mg=!has.call(x,'mergedAt')?'MISSING':(x.mergedAt==null?'null':String(x.mergedAt)); let rv='MISSING'; if(has.call(x,'reviews')){ rv=!Array.isArray(x.reviews)?'BAD':('n'+x.reviews.length+':'+x.reviews.map(function(r){ try{ return String((r&&r.state)||'')+'@'+String((r&&r.reviewer&&r.reviewer.login)||'')+'@'+String((r&&r.submittedAt)||''); }catch(e){ return '?'; } }).sort().join(',').slice(0,200)); } return pr+'|'+mg+'|'+rv; }catch(e){ return 'ERR'; } }
+  function prSigOf(x){ try{ const has=Object.prototype.hasOwnProperty; const pr=!has.call(x,'isPullRequest')?'MISSING':(x.isPullRequest===true?'pr':(x.isPullRequest===false?'issue':'BAD')); const mg=!has.call(x,'mergedAt')?'MISSING':(x.mergedAt==null?'null':String(x.mergedAt)); let rv='MISSING'; if(has.call(x,'reviews')){ rv=!Array.isArray(x.reviews)?'BAD':('n'+x.reviews.length+':'+x.reviews.map(function(r){ try{ return String((r&&r.state)||'')+'@'+String((r&&r.reviewer&&r.reviewer.login)||'')+'@'+String((r&&r.submittedAt)||''); }catch(e){ return '?'; } }).sort().join(',').slice(0,200)); } return pr+'|'+mg+'|'+rv+'|'+relationSigOf(x); }catch(e){ return 'ERR'; } }
   function snapshotVersionOf(snap){ try{ const all=[]; const lblOf=function(x){ try{ return (x.labels||[]).map(function(l){ return typeof l==='string'?l:(l.name||''); }).slice().sort().join(','); }catch(e){ return ''; } }; (snap.maps||[]).forEach(function(m){ const mapTitle=String(m.title||''); const mapLbl=lblOf(m); const mapUpd=String(m.updatedAt||''); (m.tickets||[]).forEach(function(t){ all.push(effortOf(t)+'#'+String(t.key||t.number)+':'+String(t.state||'')+':'+String(t.title||'')+':'+lblOf(t)+':'+String(t.updatedAt||'')+':'+String(t.progress||'')+':'+String(t.claimedBy||'')+':'+prSigOf(t)); }); // map 自身变化也计入版号（标题/标签/时间）
       all.push('map:'+effortOf(m)+'#'+String(m.key||m.number)+':'+String(m.state||'')+':'+mapTitle+':'+mapLbl+':'+mapUpd); }); (snap.issues||[]).forEach(function(it){ all.push(effortOf(it)+'#'+String(it.key||it.number)+':'+String(it.state||'')+':'+String(it.title||'')+':'+lblOf(it)+':'+String(it.updatedAt||'')+':'+prSigOf(it)); }); const _dc=(snap.deck&&snap.deck.counts)||null; all.push('deck:'+(_dc?(_dc.open+','+_dc.closed+','+_dc.total):'none')+':'+((snap.deck&&snap.deck.partial===true)?'1':'0')); all.sort(); const str=all.join('|'); try{ const cr=require('crypto'); if(cr&&cr.createHash) return cr.createHash('sha1').update(str).digest('hex').slice(0,12);}catch(e){} let h=0; for(let i=0;i<str.length;i++) h=((h<<5)-h+str.charCodeAt(i))|0; return (h>>>0).toString(16).padStart(8,'0'); }catch(e){ return '0'; }}
   const depsCache = new Map() // `${backendId}:${refId}#${key}` -> {data, at}

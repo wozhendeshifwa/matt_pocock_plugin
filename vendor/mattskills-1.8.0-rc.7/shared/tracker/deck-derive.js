@@ -84,12 +84,16 @@ function candidatesOf(ref, byPool, byBase, effort) {
 }
 
 function hasOpenBlocker(ticket, byPool, byBase, keysAny) {
+  if (ticket.dependenciesRead && ticket.dependenciesRead.state !== 'complete') return true
   const refs = ticket.blockedBy
   if (!Array.isArray(refs) || refs.length === 0) return false
   const effort = effortOf(ticket)
   return refs.some((ref) => {
     const cands = candidatesOf(ref, byPool, byBase, effort)
     if (!cands.length) {
+      // Native dependencies fetched completely for a newly discovered child
+      // include authoritative states even when the blocker is outside the pool.
+      if (ticket.dependenciesRead?.state === 'complete' && ref?.state === CLOSED) return false
       // 同号票在别的 effort 里存在 → 跨 effort 引用，按留白处理，不算阻塞；
       // 带拉取请求身份的精确引用缺失，仍按破链处理（身份不同，不留白）；
       // 哪里都没有 → 破链依赖 → blocked（安全，绝不误判 frontier）。

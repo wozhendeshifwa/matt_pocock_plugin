@@ -1,0 +1,15 @@
+# #99 restore specification child grouping
+
+The running direct-fill integration omitted the already implemented and accepted #80 work. The root/main implementation comes from2527a2f (#83),05b729c (#84),a169b7a (#86) and42961d8 (#80); this slice restores their narrow client projection, backend native child pagination, normalization and relation versioning without overwriting current direct-fill adapters or theme/layout changes.
+
+Default list folds only confirmed native children under a matching spec identity and effort. Search can still surface an individual child and labels its owner. Spec details list open and closed children, with child-to-spec navigation. Unknown/missing/truncated ownership keeps work accessible instead of silently hiding rows. Confirmed empty sets show0/0; incomplete reads show unknown and never a fabricated loaded-subset total. Map status retains precedence and its existing progress ring.
+
+The user additionally asked for progress at the spec tag. The chip now reads `spec 1/2` with an explicit child-count hover/accessibility label, is first among the spec row's tags so greedy folding retains it, and no longer duplicates a known count on the title's right side. Unknown state reads `spec ?` with the explanatory status retained. Normal label-filter names stay `spec`.
+
+TDD seam is the existing production sidebar fed by public snapshot/GitHub boundaries. RED1 on d1ad19fa: verify-spec-list failed `known spec child is folded from default list`. After restoring grouping RED2 exposed old separate `子票1/2` rather than `spec1/2`; RED3 showed ready-for-agent preceding the summary chip. GREEN covers folding, chip/count/ordering, search of both states, bidirectional navigation,101 children across two native pages, empty/incomplete/failed/orphan/effort/map cases and relation/dependency refresh recovery.
+
+Original #80 legacy Execute-button assertions were deliberately adapted to the latest plain-fill contract: filling an editable prompt is not execution. This slice preserves dependency metadata and backend ready counts, but does not reinstall a plugin execution-check gate into DirectIssueActions. A failed dependency read can still fill the explicitly opened child's base prompt; no execution or allowed status is fabricated. Existing target/project/cwd/pending/unknown recovery remains owned by the direct-fill adapter.
+
+No native success is claimed by these controlled checks. Root must merge/review, pin a combined release with More removal, then verify the actual loaded resource and real list/count/detail behavior. No production config, service, provider, user draft, tracker state, push or main merge changed by this implementer. #70 standards remain independent.
+
+Final sync includes integrationa8e9b76 (More removal); the only source conflict was the import boundary where More was removed and Spec added. Retained Spec import, removed More import, rebuilt generated client. Ten changed JavaScript syntax checks, build, spec-list, spec-resilience, direct-current, direct-new, direct-recovery and no-More production UI checks all pass on the combined source. The unchanged sandbox suite was not rerun.
