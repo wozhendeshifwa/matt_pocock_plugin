@@ -110,4 +110,3 @@ await writeFile(new URL("manifest.json", output), JSON.stringify({
   adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay", "skills.beforeUse", "issueActions.bottomBar", "versionControl.fullPaths", "issueActions.directCurrent"],
 }, null, 2) + "\n");
 console.log("Built original MattSkills client with Codex mounting adapter");
-
