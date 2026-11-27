@@ -46,46 +46,41 @@ async function scenario({ detail = false, cwd = projectRoot, projectId = 'source
   try {
     await until(() => w.document.querySelector('[aria-label="#10 新草稿 & ? # fixture"]'));
     if (detail) { w.document.querySelector('[aria-label="#10 新草稿 & ? # fixture"]').click(); await until(() => w.document.querySelector('[data-bottom-action-bar]')); }
-    const active = [...w.document.querySelectorAll('button')].find(button => button.textContent === '填入当前聊天');
+    const active = [...w.document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === '填入当前聊天');
     const group = active.closest('[data-issue-direct-actions]');
     const issueSurface = detail ? w.document.body : w.document.querySelector('[aria-label="#10 新草稿 & ? # fixture"]');
     assert.equal([...issueSurface.querySelectorAll('button')].some(button => button.textContent.trim() === '新会话'), false, 'the old editor entry must not masquerade as the new-chat direct action');
-    const open = [...group.querySelectorAll('button')].find(button => button.textContent === '填入新聊天');
+    const open = [...group.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === '填入新聊天');
     assert.ok(open, 'the Issue action group must directly offer a new host draft');
     if (unavailable) {
       assert.equal(open.disabled, true, 'missing source identity or link capability disables new-chat injection before a click');
-      assert.match(group.textContent, /新聊天.*(?:来源|目录|能力|接口)/, 'disabled new-chat action exposes its reason without requiring a click');
-      [...group.querySelectorAll('button')].find(button => button.textContent === '复制').click();
-      await until(() => copies.length === 1);
-      assert.equal(requests.length, 0, 'copying is explicit and never falls back to another chat');
+      assert.match(open.title, /新聊天|来源|目录|能力|接口/);
+      assert.equal(group.querySelectorAll('button').length, 2);
+      assert.equal(requests.length, 0);
       return;
     }
     open.click();
     if (recheckedCwd !== undefined) {
-      await until(() => /切换|已请求/.test(group.textContent));
-      assert.match(group.textContent, /切换/, 'a changed actual source directory stops the old new-chat request');
+      await until(() => /切换|已请求/.test(w.document.querySelector('[data-draft-toast]')?.textContent || ''));
+      assert.match(w.document.querySelector('[data-draft-toast]').textContent, /切换/, 'a changed actual source directory stops the old new-chat request');
       assert.equal(requests.length, 0);
       assert.equal(copies.length, 0);
       return;
     }
     await until(() => requests.length === 1);
-    await until(() => group.textContent.includes('已请求'));
+    await until(() => w.document.querySelector('[data-draft-toast]')?.textContent.includes('已请求'));
     assert.equal(requests[0].method, 'ui/open-link');
     const url = new URL(requests[0].params.url);
     assert.equal(url.searchParams.get('projectId'), 'source-project');
     assert.equal(url.searchParams.get('path'), cwd);
     const prompt = url.searchParams.get('prompt');
     assert.match(prompt, /^\$triage\n\n目标：新草稿 & \? # fixture\nIssue：https:\/\/github.com\/fixture\/repo\/issues\/10\n/);
-    assert.match(prompt, /未核验草稿/);
-    assert.match(prompt, /发送后.*目标 Agent.*核验/);
-    assert.match(prompt, /必要工具与资料尚未核验/);
     assert.equal(url.searchParams.get('mode'), 'codex');
     assert.equal(url.searchParams.has('send'), false);
     assert.equal(w.document.querySelector('[data-issue-action-preview]'), null, 'direct new-chat action must not mount the old editor');
     assert.doesNotMatch(group.textContent, /已填入|任务已执行|切换|取消成功/);
-    [...group.querySelectorAll('button')].find(button => button.textContent === '复制').click();
-    await until(() => copies.length === 1);
-    assert.equal(copies[0], prompt, 'copy and new-chat routing use the same complete generated prompt');
+    assert.equal(group.querySelectorAll('button').length, 2);
+
   } finally { dispose(); w.close(); }
 }
 

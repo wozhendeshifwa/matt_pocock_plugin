@@ -40,19 +40,11 @@ try{
   const group=bar.querySelector('[data-issue-direct-actions]');
   assert.ok(group,'direct actions are at the end of detail content');
   assert.equal(w.document.querySelectorAll('[data-issue-direct-actions]').length,1,'detail has only one action group');
-  const children=[...group.children];
-  assert.equal(children[0].getAttribute('data-action-primary-row'),'');
-  assert.deepEqual([...children[0].querySelectorAll('button')].map(b=>b.textContent),['填入当前聊天','填入新聊天']);
-  assert.equal(children[1].getAttribute('role'),'status','feedback is immediately below the fill buttons');
-  assert.equal(children.at(-1).getAttribute('data-action-secondary-row'),'');
-  assert.deepEqual([...children.at(-1).querySelectorAll('button')].map(b=>b.textContent),['复制','更多动作']);
-  const copy=[...group.querySelectorAll('button')].find(b=>b.textContent==='复制');
-  assert.equal(hostRequests.length,0);assert.equal(copies.length,0);copy.click();
-  await until(()=>copies.length===1);
-  assert.match(copies[0],/Bottom bar fixture/);
-  assert.match(copies[0],/rules\/current/,'source check still happens through direct copy');
-  copyFails=true;copy.click();
-  await until(()=>group.textContent.includes('Clipboard denied'));
-  assert.equal(hostRequests.length,0);
-  console.log('PASS final A footer hierarchy, removal, direct copy and failure preservation');
+  assert.deepEqual([...group.querySelectorAll('button')].map(b=>b.textContent),['填入当前聊天','填入新聊天']);
+  assert.equal(group.querySelector('[role="status"]'),null,'nothing is displayed below the buttons');
+  assert.equal(group.querySelector('[data-issue-more-actions]'),null);
+  assert.equal(w.document.querySelector('[aria-label="聊天操作"] [aria-label="更多动作"]') !== null,true,'More sits beside handoff');
+  assert.equal(hostRequests.length,0);assert.equal(copies.length,0);
+  console.log('PASS compact two-button footer with no captions or ordinary copy');
+
 }finally{dispose();w.close();}

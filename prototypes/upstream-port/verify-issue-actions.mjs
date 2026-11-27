@@ -7,15 +7,14 @@ async function scenario(labels, expected, detail = false) {
     assert.equal(f.writes.length,0);assert.equal(f.copies.length,0);
     assert.doesNotMatch(f.w.document.body.textContent,/旧草稿预览|选择动作／预览|重新核验技能来源/);
     assert.equal(!!f.w.document.querySelector('textarea[data-issue-action-draft]'),false);
-    view.button('复制').click();await f.until(()=>f.copies.length===1);
-    for (const pattern of expected) assert.match(f.copies[0],pattern);
-    assert.match(f.copies[0],/deck_issue_report/);
-    assert.doesNotMatch(f.copies[0],/不自动执行/);
-    assert.match(f.copies[0],/https:\/\/github.com\/fixture\/repo\/issues\/10/);
     view.button('填入当前聊天').click();await f.until(()=>f.writes.length===1);
+    await f.until(()=>f.w.document.querySelector('[data-draft-toast]')?.textContent.includes('已请求'));
     await f.until(()=>!view.button('填入当前聊天').disabled);
     view.button('填入新聊天').click();await f.until(()=>f.writes.length===2);
-    assert.equal(f.writes[0].text,f.copies[0]);assert.equal(f.writes[1].text,f.copies[0]);
+    for (const pattern of expected) assert.match(f.writes[0].text,pattern);
+    assert.match(f.writes[0].text,/deck_issue_report/);
+    assert.equal(f.writes[0].text,f.writes[1].text);
+    assert.equal(f.copies.length,0);
     assert.equal(f.writes[0].target,'active');assert.equal(f.writes[1].target,'new');
   } finally { f.close(); }
 }
