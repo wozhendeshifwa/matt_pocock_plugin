@@ -9,6 +9,21 @@ export function MoreIssueActions({ st, issue, pending, run }) {
   const [open, setOpen] = React.useState(false);
   const [choice, setChoice] = React.useState(saved.choice);
   const [context, setContext] = React.useState(saved.context);
+  const [legacyStatus, setLegacyStatus] = React.useState('');
+  const [copyingLegacy, setCopyingLegacy] = React.useState(false);
+  const legacyText = typeof state.text === 'string' ? state.text : '';
+  const copyLegacy = async () => {
+    if (copyingLegacy || !legacyText.length) return;
+    setCopyingLegacy(true);
+    try {
+      await navigator.clipboard.writeText(legacyText);
+      setLegacyStatus('已复制旧草稿原文（历史文本，未重新核验）');
+    } catch (error) {
+      setLegacyStatus('旧草稿复制失败：' + String(error.message || error) + '。原文已保留。');
+    } finally {
+      setCopyingLegacy(false);
+    }
+  };
   const skill = choice.replace(/^skill:/, '');
   const action = SUPPLEMENTAL_ACTIONS[skill];
   const required = action?.required || [];
@@ -31,6 +46,8 @@ export function MoreIssueActions({ st, issue, pending, run }) {
   return h('span', { 'data-issue-more-actions': true, onClick: e => e.stopPropagation(), style: { minWidth: 0 } }, [
     h('button', { key: 'toggle', type: 'button', className: 'dsws-btn ghost', 'aria-expanded': String(open), onClick: () => setOpen(!open), style: { fontSize: 11 } }, '更多动作'),
     open ? h('span', { key: 'options', role: 'group', 'aria-label': '更多动作', style: { display: 'flex', flexWrap: 'wrap', gap: 4, minWidth: 0 } }, [
+      legacyText.length ? h('button', { key: 'legacy-copy', type: 'button', className: 'dsws-btn ghost', disabled: copyingLegacy, onClick: copyLegacy }, '复制旧草稿原文') : null,
+      legacyStatus ? h('span', { key: 'legacy-status', role: 'status', 'aria-live': 'polite' }, legacyStatus) : null,
       h('select', { key: 'choice', 'aria-label': '选择其他动作', value: choice, disabled: pending, onChange: e => choose(e.target.value), style: { maxWidth: '100%' } }, [
         h('option', { key: 'empty', value: '' }, '选择其他动作'),
         h('optgroup', { key: 'supplements', label: '补充动作' }, [
