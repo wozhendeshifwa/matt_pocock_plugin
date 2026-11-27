@@ -1,6 +1,7 @@
 (async function () {
   const root = document.documentElement;
-  const colorScheme = window.matchMedia?.("(prefers-color-scheme: dark)");
+  let colorScheme;
+  try { colorScheme = window.matchMedia?.("(prefers-color-scheme: dark)"); } catch { /* System theme is optional. */ }
   let hostTheme = null;
   let appliedVariables = new Set();
 
@@ -11,13 +12,29 @@
 
   function variableSource(context) {
     const globals = context?.globals ?? {};
-    return context?.styles?.variables ??
-      context?.styles?.cssVariables ??
-      context?.styleVariables ??
-      context?.themeVariables ??
-      globals.visualizationStyleVariables ??
-      globals.themeVariables ??
-      globals.styles?.variables;
+    for (const [owner, key] of [
+      [context?.styles, 'variables'], [context?.styles, 'cssVariables'],
+      [context, 'styleVariables'], [context, 'themeVariables'],
+      [globals, 'visualizationStyleVariables'], [globals, 'themeVariables'],
+      [globals.styles, 'variables'],
+    ]) {
+      if (owner && Object.hasOwn(owner, key)) return { present: true, value: owner[key] };
+    }
+    return { present: false };
+  }
+
+  function validVariable(name, value) {
+    if (!name.startsWith('--') || (typeof value !== 'string' && typeof value !== 'number') || !String(value).trim()) return false;
+    // Custom properties accept arbitrary text, so a malformed color would
+    // suppress the CSS var() fallback instead of falling back to the theme.
+    // Other host variables (fonts, sizes, etc.) retain their original grammar.
+    const isColor = /^--(?:background|foreground|card|popover|muted|accent|primary|border|green)(?:-foreground)?$/.test(name) ||
+      /^--dsw-alias-(?:bg-|label-|border-|interactive-|state-)/.test(name);
+    if (!isColor) return true;
+    if (window.CSS?.supports) return window.CSS.supports('color', String(value));
+    const probe = document.createElement('span').style;
+    probe.color = String(value);
+    return probe.color !== '';
   }
 
   function applyTheme(context = {}) {
@@ -25,21 +42,23 @@
     const theme = normalizeTheme(context.theme) ??
       normalizeTheme(context.colorScheme) ??
       normalizeTheme(globals.theme) ??
-      normalizeTheme(globals.visualizationTheme) ??
-      normalizeTheme(window.openai?.theme);
+      normalizeTheme(globals.visualizationTheme);
+    const previousTheme = root.dataset.theme;
     if (theme) {
       hostTheme = theme;
       root.dataset.theme = theme;
-    } else if (!hostTheme && colorScheme) {
-      root.dataset.theme = colorScheme.matches ? "dark" : "light";
+    } else if (!hostTheme) {
+      root.dataset.theme = colorScheme?.matches ? "dark" : "light";
     }
+    document.body.toggleAttribute('data-ds-dark-theme', root.dataset.theme === 'dark');
     if (window.MattSkillsCodex) window.MattSkillsCodex.hostTheme = root.dataset.theme ?? null;
 
-    const variables = variableSource(context);
-    if (variables && typeof variables === "object" && !Array.isArray(variables)) {
+    const palette = variableSource(context);
+    const variables = palette.value;
+    if (palette.present) {
       const nextVariables = new Set();
-      for (const [name, value] of Object.entries(variables)) {
-        if (!name.startsWith("--") || (typeof value !== "string" && typeof value !== "number")) continue;
+      for (const [name, value] of Object.entries(variables && typeof variables === 'object' && !Array.isArray(variables) ? variables : {})) {
+        if (!validVariable(name, value)) continue;
         root.style.setProperty(name, String(value));
         nextVariables.add(name);
       }
@@ -47,7 +66,7 @@
         if (!nextVariables.has(name)) root.style.removeProperty(name);
       }
       appliedVariables = nextVariables;
-    } else if (theme && appliedVariables.size) {
+    } else if (previousTheme !== root.dataset.theme && appliedVariables.size) {
       for (const name of appliedVariables) root.style.removeProperty(name);
       appliedVariables = new Set();
     }
@@ -119,7 +138,7 @@
     if (window.MattSkillsCodex) window.MattSkillsCodex.hostLocale = next;
   }
 
-  if (initialOpenAi) applyTheme({ theme: initialOpenAi.theme, styles: { variables: initialOpenAi.visualizationStyleVariables } });
+  if (initialOpenAi) applyTheme({ globals: initialOpenAi });
   else applyTheme();
   applyLocale({ locale: initialOpenAi?.locale, globals: { locale: initialOpenAi?.locale } });
 
@@ -175,7 +194,7 @@
   });
   window.addEventListener("openai:set_globals", event => {
     const globals = event.detail?.globals ?? {};
-    applyTheme({ globals, styles: { variables: globals.visualizationStyleVariables } });
+    applyTheme({ globals });
     applyLocale({ globals });
     void reportHostContext("openai:set_globals", globals);
   });
