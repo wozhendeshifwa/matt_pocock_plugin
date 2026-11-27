@@ -21972,7 +21972,7 @@ const IssueDetail = function (props) {
         parentSpec ? h('div', { 'data-parent-spec': 1, style: { padding: '6px 0', fontSize: 12 } }, ['所属规格：', h('a', { href: '#', onClick: function(e) { e.preventDefault(); pushNav(st, 'issue', parentSpec.number, effortOf(parentSpec)) } }, '#' + parentSpec.number + ' ' + parentSpec.title)]) : null,
         // sub-issues
         (spec || subTotal > 0) ? h('div', { 'data-spec-children': spec ? 1 : undefined, style: { padding: '6px 0' } }, [
-          h('div', { style: { fontSize: 11, fontWeight: 600, color: 'var(--dsw-alias-label-secondary,#a1a1aa)', marginBottom: 6 } }, spec ? ('子票 ' + subNodes.filter(function(x) { return x.state === 'CLOSED' }).length + '/' + subTotal) : ('子票 ' + subTotal + (subNodes.length ? '' : '（无加载）'))),
+          h('div', { style: { fontSize: 11, fontWeight: 600, color: 'var(--dsw-alias-label-secondary,#a1a1aa)', marginBottom: 6 } }, spec ? specCount(spec) : ('子票 ' + subTotal + (subNodes.length ? '' : '（无加载）'))),
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } }, subNodes.map(function (s) {
             const sc = s.state === 'CLOSED' ? '#3fb950' : '#8b8b95'
             // T4 整改 #554：子票按上面 enterSubDetail 分流（有标签按标签，无标签按快照找图）。
@@ -22657,7 +22657,8 @@ const listIssueRow = function (h, st, x, isOpen, narrow, blockOf, colorOf, multi
             truthWriteWindowOpen(st.writeAt && (st.writeAt[String(x.number)] || st.writeAt[idOf(x)]), Date.now()) ? h('span', { className: 'dsws-chip dsws-writing', style: { fontSize: 9, lineHeight: 1.5, padding: '0 4px', flex: 'none', opacity: 0.75, background: 'rgba(88,166,255,.10)', color: '#58a6ff', border: '1px dashed rgba(88,166,255,.45)' } }, tr('truth.writing')) : null,
           ]),
           h('span', { style: { flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 } }, [h(Tip, { content: h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2 } }, [h('div', { style: { fontSize: 10, color: '#8b8b95', lineHeight: '14px' } }, tr('tip.header.fullTitle')), h('div', { style: { fontSize: 11, color: '#e6edf3', lineHeight: '16px', wordBreak: 'break-word', whiteSpace: 'normal' } }, x.title)]) }, h('span', { className: 'dsws-tt-wrap', style: { flex: 1, minWidth: 0, fontWeight: isMap ? 600 : undefined, color: isOpen ? undefined : 'var(--dsw-alias-label-secondary,#a1a1aa)' } }, x.title)), (x.author && x.author.login && x.author.login !== ((st.snapshot && (st.snapshot.viewer && st.snapshot.viewer.login || st.snapshot.viewerLogin)) || '')) ? (x.author.avatarUrl ? h(Tip, { content: (x.author.name ? x.author.name + ' (@' + x.author.login + ')' : '@' + x.author.login) }, h('img', { src: x.author.avatarUrl, style: { width: 16, height: 16, borderRadius: '50%', border: '2px solid ' + authorColor(x.author.login), flex: 'none' }, alt: x.author.login })) : h(Tip, { content: (x.author.name ? x.author.name + ' (@' + x.author.login + ')' : '@' + x.author.login) }, h('span', { style: { width: 16, height: 16, borderRadius: '50%', background: hexA(authorColor(x.author.login), 0.18), border: '2px solid ' + authorColor(x.author.login), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' } }, [Ic({ n: 'person', size: 10 })]))) : null]),
-          specInfo(st, x) ? h('span', { 'data-spec-count': 1, style: { fontSize: 11, flex: 'none' } }, '子票 ' + (specInfo(st, x).children || []).filter(function(c) { return c.state === 'CLOSED' }).length + '/' + specInfo(st, x).childrenRead.total) : null,
+          specInfo(st, x) ? h('span', { 'data-spec-count': 1, style: { fontSize: 11, flex: 'none' } }, specCount(specInfo(st, x))) : null,
+          specOpenWork(st, x) && x.state === 'CLOSED' ? h('span', { 'data-spec-status': 1, style: { fontSize: 11 } }, specStateText(st, x)) : null,
           specFor(st, x) ? h('span', { 'data-spec-owner': 1, style: { fontSize: 11, flex: 'none' } }, '所属规格 #' + specFor(st, x).number) : null,
           (isMap && mapObj && mapObj.stats && !mapClosed) ? ringOf(mapObj.stats) : null,
           !isOpen ? h('span', { className: 'dsws-chip', style: { fontSize: 10, marginRight: 0, flex: 'none', background: 'rgba(139,139,149,.12)', color: '#8b8b95', border: '1px solid rgba(139,139,149,.35)' } }, [Ic({ n: 'check', size: 9 }), h('span', null, tr('map.subClosed'))]) : null,
@@ -22747,7 +22748,7 @@ function specPool(st, extras) {
 }
 function specTagged(row) {
   const labels = Array.isArray(row?.labels) ? row.labels : (row?.labels?.nodes || []);
-  return !!row && labels.some(label => (typeof label === 'string' ? label : label.name) === 'spec') && row.type !== 'map';
+  return !!row && labels.some(label => (typeof label === 'string' ? label : label.name) === 'spec') && row.type !== 'map' && !labels.some(label => (typeof label === 'string' ? label : label.name) === 'wayfinder:map');
 }
 function specFor(st, row) {
   if (!row || row.parentKey == null) return null;
@@ -22757,11 +22758,26 @@ function specInfo(st, row) {
   if (!specTagged(row)) return null;
   const id = String(row.key || row.number);
   const spec = (st.snapshot?.specs || []).find(item => String(item.key || item.number) === id && String(item.effortId || '') === String(row.effortId || ''));
-  return spec || specPool(st).find(item => specTagged(item) && String(item.key || item.number) === id && String(item.effortId || '') === String(row.effortId || '') && item.childrenRead) || null;
+  return spec || specPool(st).find(item => specTagged(item) && String(item.key || item.number) === id && String(item.effortId || '') === String(row.effortId || '')) || row;
+}
+function specComplete(spec) {
+  return !!spec && spec.childrenRead?.state === 'complete' && Number.isInteger(spec.childrenRead.total) && spec.childrenRead.total === (spec.children || []).length;
+}
+function specCount(spec) {
+  if (!specComplete(spec)) return spec.childrenRead?.state === 'failed' ? '子票读取失败 · 完成数未知' : '子票读取不完整 · 已读取 ' + (spec.children || []).length + ' 张，完成数未知';
+  return '子票 ' + (spec.children || []).filter(child => child.state === 'CLOSED').length + '/' + spec.childrenRead.total;
+}
+function specOpenWork(st, row) {
+  const spec = specInfo(st, row);
+  return !!spec && (!specComplete(spec) || (spec.children || []).some(child => child.state !== 'CLOSED'));
+}
+function specStateText(st, row) {
+  const spec = specInfo(st, row);
+  return (spec?.children || []).some(child => child.state !== 'CLOSED') ? '规格已关闭 · 还有未完成子票' : '规格已关闭 · 子票读取未完成';
 }
 function specListRows(st, rows) {
   const pool = specPool(st, rows);
-  const base = rows.concat(pool.filter(specTagged));
+  const base = rows.concat(pool.filter(row => specTagged(row) || specFor(st, row)));
   const seen = new Set();
   const query = String(st.specSearch || '').trim().toLowerCase();
   return (query ? pool : base).filter(row => {
@@ -22770,7 +22786,9 @@ function specListRows(st, rows) {
     seen.add(id);
     if (query) return ('#' + row.number + ' ' + row.title).toLowerCase().includes(query);
     if (!specTagged(row) && (st.snapshot?.maps || []).some(map => String(map.effortId || '') === String(row.effortId || '') && (map.tickets || []).some(child => String(child.key || child.number) === String(row.key || row.number)))) return false;
-    return !specFor(st, row);
+    const parent = specFor(st, row);
+    const info = parent && specInfo(st, parent);
+    return !specComplete(info) || !(info.children || []).some(child => String(child.key || child.number) === String(row.key || row.number) && String(child.effortId || '') === String(row.effortId || ''));
   });
 }
 const ListTab = ({ st, narrow }) => {
@@ -22835,8 +22853,8 @@ const ListTab = ({ st, narrow }) => {
       // #690：再并上「按需翻回来的那些页」里池子没有的行（issuePageRowsOf 已按身份去掉重复的），
       //   于是已关闭那一堆里既有首屏那一百条、也有用户翻出来的更早的票；静默刷新只换池子，页数据不动。
       const issues = specListRows(st, ticketRowsOf((st.snapshot && Array.isArray(st.snapshot.issues)) ? st.snapshot.issues : []).concat(issuePageRowsOf(st, 'list')))
-      const openIssues = issues.filter(function (x) { return x.state !== 'CLOSED' })
-      const closedIssues = issues.filter(function (x) { return x.state === 'CLOSED' })
+      const openIssues = issues.filter(function (x) { return x.state !== 'CLOSED' || specOpenWork(st, x) })
+      const closedIssues = issues.filter(function (x) { return x.state === 'CLOSED' && (st.stateFilter === 'closed' || !specOpenWork(st, x)) })
       // #374：多维排序 —— map 行恒置顶，map 组与普通组各自按所选维度排序；默认 更新时间↓（与现状一致）
       const sortIssues = function (arr) {
         const dir = st.sortDir === 'asc' ? 1 : -1
