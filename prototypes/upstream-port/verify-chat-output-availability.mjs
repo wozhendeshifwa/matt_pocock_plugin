@@ -31,7 +31,7 @@ for (const native of [false, true]) for (const detail of [false, true]) {
     await until(() => w.document.querySelector('[aria-label="#10 Unavailable chat outputs"]'));
     const rowButton = w.document.querySelector('[aria-label="#10 Unavailable chat outputs"]');
     if (detail) { rowButton.click(); await until(() => w.document.querySelector('[data-bottom-action-toggle]')); w.document.querySelector('[data-bottom-action-toggle]').click(); }
-    else [...rowButton.querySelectorAll('button')].find(button => button.textContent.includes('新会话')).click();
+    else [...rowButton.querySelectorAll('button')].find(button => button.textContent === '旧草稿预览').click();
     await until(() => w.document.querySelector('[data-issue-action-draft]'));
     const preview = w.document.querySelector('[data-issue-action-preview]');
     const editor = preview.querySelector('[data-issue-action-draft]');

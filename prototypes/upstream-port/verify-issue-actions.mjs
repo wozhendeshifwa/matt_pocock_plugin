@@ -38,7 +38,7 @@ async function scenario(labels, expected, detail = false, exercise = null, fixtu
       rowElement.click();
       await until(() => w.document.querySelector('[data-bottom-action-toggle]'));
       w.document.querySelector('[data-bottom-action-toggle]').click();
-    } else [...rowElement.querySelectorAll('button')].find(button => button.textContent.includes('新会话')).click();
+    } else [...rowElement.querySelectorAll('button')].find(button => button.textContent === '旧草稿预览').click();
     await until(() => w.document.querySelector('[data-issue-action-draft]'));
     await until(() => w.document.querySelector('[data-issue-action-source]').getAttribute('data-source-state') === 'ready');
     assert.equal(actions.length, 0, 'choosing an action opens an editable preview');
