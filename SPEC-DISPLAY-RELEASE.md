@@ -1,0 +1,7 @@
+# Spec display and More removal
+
+Fixed product integration ed2922c9. Sources: More removal d707b00; #99 source a76ddad plus integration6741ef6; whitespace-only7de53f4. Independent no-ff merges and Standards0/Spec0; finaldiffcheck clean. 10syntax/build/spec-list/resilience plus current/new/recovery/noMore/legacy-data protections pass at appropriate stages. Original #80 accepted grouping reused, completed/total attached first visible spec chip; incomplete relation data stays unknown. Search/direct child detail remains reachable. More icon/menu/fields/export removed; user data and independent skill library preserved.
+
+Real stdio smoke: resource board-7129f984117afb1a.html; HTML2507167 bytes, SHA256aad5945e84e2da506a25aa977aae6e82be07d02d36cc56937bcb4298f9bab8b7; script2114084/FNVa6f7eddc; clientSHAe5b13e178e3d4b9ff0b6f7c625d654e117457783096a6ddbf6eaa08813a65af0. Keep directory while config references it; own wrapper preserves candidate isolated state. Previous icon release retained for rollback.
+
+Native not yet loaded/accepted. Promote only owned82 config args/cwd after full backup and byte-check other settings; no provider/DeepSeek changes. Prior one-time backend reload was performed by user and consumed; do not automatically restart. Next obtain new one-time reload approval, expand owned82 panel and compare actual script, observe spec-child folding/label count/detail/search and noMore. No automatic sending. #99/#98/#82/#92 remain open until corresponding acceptance passes; #70 unchanged.
