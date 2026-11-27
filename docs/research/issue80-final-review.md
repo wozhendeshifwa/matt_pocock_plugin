@@ -1,6 +1,6 @@
 # #80 最终代码审查与修复记录
 
-规格：[#80](https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/80)。固定基线 `edd19db`，初次双轴审查候选 `a169b7a`（包含 #83 `2527a2f`、#84 `05b729c`、#86 受控接线）。两名独立只读审查者分别检查规范与规格。以下修复由单一独立 worktree `codex/issue80-review-fixes` 完成；原审查者定向复核及最终集成统一检查由 root 收口，本记录不提前声称这些后续步骤已通过。
+规格：[#80](https://github.com/wozhendeshifwa/matt_pocock_plugin/issues/80)。固定基线 `edd19db`，初次双轴审查候选 `a169b7a`（包含 #83 `2527a2f`、#84 `05b729c`、#86 受控接线）。两名独立只读审查者分别检查规范与规格。以下修复由单一独立 worktree `codex/issue80-review-fixes` 完成，提交 `42961d82537241f4ae3550468389953c4bd5285e` 已合入集成分支；原审查者定向复核及最终统一检查均已通过，详见末节。
 
 ## Standards
 
@@ -26,6 +26,14 @@
 
 ## 仍未完成的交付门槛
 
-用户物理 Esc 已停止界面自动化，本轮没有再操作真实 GUI，没有部署。真实 Codex 窄侧栏关系、完成数、搜索、独立操作与追踪的正式验收仍未完成；#80／#86 必须保持 open，#83 的重开审查缺陷待 root 合入并复核后才可结案。
+用户物理 Esc 已停止界面自动化，此后没有再操作真实 GUI，没有部署。真实 Codex 窄侧栏关系、完成数、搜索、独立操作与追踪的正式验收仍未完成；#80／#86 必须保持 open。#83 的重开审查缺陷已完成合入、原审查者复核及最终统一检查，现已重新关闭。
 
 root 的真实 GitHub 公开快照补验位于主工作区 `.scratch/issue80/live-snapshot-receipt.json`：五张规格原生子集合与计数读取完成，#62=4/5、#70 开放。该证据来自真实后端 API，不是原生宿主／窄侧栏验收，也不覆盖本次新补的依赖故障夹具。
+
+## 最终集成核验（2026-11-27）
+
+- 产品提交：`42961d82537241f4ae3550468389953c4bd5285e`，分支 `codex/issue80-integration`。Standards 原审查者复核剩余 0 项；Spec 原审查者复核剩余代码问题 0 项，保留 1 项真实侧栏交付门槛。两名审查者均独立核对整段基线 diff-check，规格审查者另跑两组规格回归通过。
+- root 在该最终集成提交运行 `node scripts/check.mjs`，退出 0：127 文件语法、沙箱 27 pass／0 fail／1 平台 skip，以及完整侧栏检查通过。日志 `.scratch/issue80/final-full-check.log`，SHA-256 `09edcaf94b2e6098d8aa122ca591fb14d71317c0b98d0dd11a56d89f134de953`。生成产物仅行尾触发的 Git stat 标记已规范化刷新，暂存差异为零，没有额外产品改动。
+- root 在最终产品代码上再次通过公开 snapshot composer 读取真实 GitHub：#44=0/0、#60=2/2、#61=4/4、#62=4/5、#80=2/3，均为 complete；#84 原生依赖 #83、#86 原生依赖 #83／#84 均完整保留。补验脚本首次把依赖引用对象误按字符串断言，校正为按公开引用的 key 核对后退出 0；不是产品修复或原生验收。
+- 最终版本的部署差异预检通过并备份具体目标，回执位于 `.scratch/issue80/deployment/2026-11-27T03-52-12.500Z/receipt.json`，状态仍为 check-only。未 apply、未更新现用 MCP 服务、未重启桌面。
+- 主工作区 `main` 保持 `edd19db`；原用户 `GLOSSARY.md` SHA-256 仍为 `0760bb8efc3ec9e593c283be6de09257e35aaa9618a03c8e60f2ceebdbb425e3`。其他任务的工作树、provider 配置与 DeepSeek 回退均未修改。
