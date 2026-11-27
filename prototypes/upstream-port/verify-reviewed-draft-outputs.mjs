@@ -32,7 +32,7 @@ for(const detail of [false,true]){
     await until(()=>w.document.querySelector('[aria-label="#10 Reviewed outputs"]'));
     const rowButton=w.document.querySelector('[aria-label="#10 Reviewed outputs"]');
     if(detail){rowButton.click();await until(()=>w.document.querySelector('[data-bottom-action-toggle]'));w.document.querySelector('[data-bottom-action-toggle]').click();}
-    else [...rowButton.querySelectorAll('button')].find(button => button.textContent.includes('新会话')).click();
+    else [...rowButton.querySelectorAll('button')].find(button => button.textContent === '旧草稿预览').click();
     await until(()=>w.document.querySelector('[data-issue-action-draft]'));
     const editor=w.document.querySelector('[data-issue-action-draft]');
     assert.equal(w.document.querySelector('[data-issue-action-export="active"]').disabled,false,'a reliable adapter keeps current chat available');
