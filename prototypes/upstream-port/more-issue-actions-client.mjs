@@ -6,6 +6,9 @@ export function MoreIssueActions({ st, issue, pending, run }) {
     choice: state.choice && state.choice !== 'main' ? state.choice : '',
     context: { ...(state.context || {}) },
   });
+  // Pre-upgrade fields can have been edited after the first menu render.
+  // Preserve explicit supplemental values while recovering untouched fields.
+  saved.context = { ...(state.context || {}), ...(saved.context || {}) };
   const [open, setOpen] = React.useState(false);
   const [choice, setChoice] = React.useState(saved.choice);
   const [context, setContext] = React.useState(saved.context);

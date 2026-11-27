@@ -71,18 +71,22 @@ export function DirectIssueActions({ st, issue, colorHex, narrow }) {
       if (token) operations.end(token);
     }
   };
-  return React.createElement('span', { 'data-issue-direct-actions': true, style: { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, minWidth: 0 } }, [
+  return React.createElement('span', { 'data-issue-direct-actions': true, style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, minWidth: 0 } }, [
+    React.createElement('span', { key: 'primary', 'data-action-primary-row': '', style: { display: 'flex', flexWrap: 'wrap', gap: 4, minWidth: 0 } }, [
     React.createElement('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '追加到可编辑输入框，不会自动发送' : actions?.capabilities?.reason || '当前聊天填入不可用，请主动选择复制', onClick: e => { e.stopPropagation(); run('active'); }, style: { background: colorHex, fontSize: 11 } }, '填入当前聊天'),
     React.createElement('button', { key: 'new', type: 'button', className: 'dsws-btn', 'aria-label': '填入新聊天', disabled: pending || !newAvailable, title: newAvailable ? '沿用来源项目及实际目录打开可编辑新草稿，不会自动发送' : actions?.capabilities?.newReason || actions?.capabilities?.reason || '新聊天填入不可用，请主动选择复制', onClick: e => { e.stopPropagation(); run('new'); }, style: { fontSize: 11 } }, '填入新聊天'),
-    React.createElement('button', { key: 'copy', type: 'button', className: 'dsws-btn ghost', onClick: e => { e.stopPropagation(); run('copy'); }, style: { fontSize: 11 } }, '复制'),
-    React.createElement(MoreIssueActions, { key: 'more-' + actionDraftKey(st, issue.number, issue.effortId || ''), st, issue, pending, run }),
+    ]),
+    React.createElement('span', { key: 'status', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, overflowWrap: 'anywhere' } }, [status || [!available ? (actions?.capabilities?.reason || '当前聊天填入不可用') + '；可主动选择复制。' : '', !newAvailable ? (actions?.capabilities?.newReason || '新聊天填入能力不可用') + '；可主动选择复制。' : ''].filter(Boolean).join(' '), state.directCopyNote || ''].filter(Boolean).join(' ')),
     recovery ? React.createElement('button', { key: 'regenerate', type: 'button', className: 'dsws-btn', disabled: pending, onClick: e => { e.stopPropagation(); run(recovery.target, recovery.requestOverride, true, recovery.expectedIdentity); } }, '按最新来源重新生成并填入') : null,
     feedback.retry ? React.createElement('button', { key: 'retry', type: 'button', className: 'dsws-btn', disabled: pending, onClick: e => {
       e.stopPropagation();
       if (feedback.retry.unknown && !feedback.retryConfirmed) { update({ retryConfirmed: true, status: '请先检查原目标输入框，避免重复追加或重复创建新聊天；检查后再重试。' }); return; }
       run(feedback.retry.target, feedback.retry.requestOverride, false, feedback.retry.expectedIdentity);
     } }, feedback.retry.unknown && feedback.retryConfirmed ? '已检查输入框，重试' : '重试') : null,
-    React.createElement('span', { key: 'status', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, overflowWrap: 'anywhere' } }, [status || [!available ? (actions?.capabilities?.reason || '当前聊天填入不可用') + '；可主动选择复制。' : '', !newAvailable ? (actions?.capabilities?.newReason || '新聊天填入能力不可用') + '；可主动选择复制。' : ''].filter(Boolean).join(' '), state.directCopyNote || ''].filter(Boolean).join(' ')),
+    React.createElement('span', { key: 'secondary', 'data-action-secondary-row': '', style: { display: 'flex', flexWrap: 'wrap', gap: 4, minWidth: 0 } }, [
+    React.createElement('button', { key: 'copy', type: 'button', className: 'dsws-btn ghost', onClick: e => { e.stopPropagation(); run('copy'); }, style: { fontSize: 11 } }, '复制'),
+    React.createElement(MoreIssueActions, { key: 'more-' + actionDraftKey(st, issue.number, issue.effortId || ''), st, issue, pending, run }),
+    ]),
   ]);
 }
 
@@ -96,14 +100,29 @@ export function adaptDirectIssueActions(source) {
   if (rowStart < 0 || rowReturn < 0 || rowEnd < 0) throw new Error('Direct Issue row boundary changed');
   source = source.slice(0, rowReturn) + "return h(DirectIssueActions, { st: st, issue: x, colorHex: colorHex, narrow: narrow })\n      }\n" + source.slice(rowEnd);
   const lines = source.split('\n');
+  // Remove the retired preview controls from every upstream list/detail variant.
+  let retiredEntries = 0, retiredMapEntries = 0;
   for (let index = 0; index < lines.length; index++) {
     if (lines[index].includes('openInNewSession(st,') && lines[index].includes("tr('list.newSessionLabel')")) {
-      lines[index] = lines[index].replaceAll("tr('list.newSessionLabel')", "'旧草稿预览'")
-        .replace(/tr\('tip\.newSession',\s*\{[^}]*\}\)/g, "'旧草稿预览（兼容入口）'");
+      retiredEntries++;
+      if (lines[index].includes('isOpen && !blocked')) {
+        lines[index] = "            isOpen && !blocked ? h('div', { style: { minWidth: 0 } }, mkRowAction(st,x,narrow,colorOf)) : null,";
+      } else lines[index] = '';
+    }
+    if (lines[index].includes("h(Tip, { content: tr('map.newSessionTitle') }")) {
+      retiredMapEntries++;
+      lines.splice(index, 4); index--;
     }
   }
-  const detail = lines.findIndex(line => line.includes("h(Tip, { content: primaryInfo.tip }") && line.includes('previewIssueAction(st, fakeIssue)'));
+  if (retiredEntries !== 4 || retiredMapEntries !== 1) throw new Error('Retired Issue preview controls changed');
+  const detail = lines.findIndex(line => line.includes("h(Tip, { content: primaryInfo.tip }") && line.includes('inject(st, primaryInfo.text)'));
   if (detail < 0) throw new Error('Direct Issue primary boundary changed');
-  lines[detail] = "            h(DirectIssueActions, { key: 'direct', st: st, issue: fakeIssue, colorHex: actColor }),";
-  return lines.join('\n');
+  lines[detail] = "";
+  source = lines.join('\n');
+  const legacyStart = source.indexOf('const openInNewSession = function (st, x) {');
+  const legacyEnd = source.indexOf('// 彻底移除：extractIssueRefs', legacyStart);
+  if (legacyStart < 0 || legacyEnd < 0) throw new Error('Retired Issue preview boundary changed');
+  source = source.slice(0, legacyStart) + source.slice(legacyEnd);
+  // The old shim is not exposed; all Issue entry points use DirectIssueActions.
+  return source;
 }
