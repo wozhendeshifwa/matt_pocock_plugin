@@ -89,119 +89,6 @@ export async function sendIssueActionDraft(st, target, finalText, options) {
   return result;
 }
 
-export function showIssueActionDraft(request, send) {
-  const text = request.text;
-  document.querySelector('[data-issue-action-preview]')?.remove();
-  const panel = document.createElement('section');
-  panel.setAttribute('data-issue-action-preview', '');
-  panel.setAttribute('role', 'dialog');
-  panel.setAttribute('aria-label', '动作草稿预览');
-  panel.style.cssText = 'position:fixed;inset:8%;z-index:10000;background:var(--dsw-alias-background-primary,#202127);color:var(--dsw-alias-label-primary,#eee);padding:16px;display:flex;flex-direction:column;gap:8px;overflow:auto;border:1px solid #888;border-radius:8px';
-  const editor = document.createElement('textarea');
-  editor.setAttribute('data-issue-action-draft', '');
-  editor.setAttribute('aria-label', '可编辑动作草稿');
-  editor.value = text;
-  editor.style.cssText = 'width:100%;box-sizing:border-box;min-height:180px;flex:1';
-  const note = document.createElement('div');
-  note.setAttribute('data-issue-action-status', '');
-  note.setAttribute('role', 'status');
-  note.setAttribute('aria-live', 'polite');
-  note.textContent = '检查并编辑草稿，再选择可用出口；不会自动发送。';
-  panel.append(note, editor);
-  const choice = document.createElement('select');
-  choice.setAttribute('data-issue-action-choice', '');
-  choice.setAttribute('aria-label', '动作与全部技能');
-  choice.add(new Option('标签主动作', 'main'));
-  const supplements = document.createElement('optgroup');
-  supplements.label = '补充动作';
-  for (const [name, label] of [['pr', '撰写 PR 正文'], ['retro', '复盘编码会话'], ['code-review', '审查改动']]) supplements.append(new Option(label, name));
-  choice.append(supplements);
-  const menu = document.createElement('optgroup');
-  menu.label = '全部技能';
-  for (const name of CODEX_SKILL_NAMES) menu.append(new Option('$' + name, 'skill:' + name));
-  choice.append(menu);
-  const recommendations = document.createElement('div');
-  recommendations.setAttribute('data-issue-action-recommendations', '');
-  const fields = {};
-  const contextBox = document.createElement('details');
-  const summary = document.createElement('summary');
-  summary.textContent = '补充动作上下文（明确提供，不推定当前分支或会话）';
-  contextBox.append(summary);
-  for (const [name, label] of [['scope', '改动范围'], ['branch', '分支或 PR'], ['baseline', '比较基线'], ['session', '目标编码会话'], ['record', '原始会话记录']]) {
-    const input = document.createElement('input');
-    input.setAttribute('data-issue-action-context', name);
-    input.setAttribute('aria-label', label);
-    input.placeholder = label;
-    fields[name] = input;
-    contextBox.append(input);
-  }
-  const stage = document.createElement('select');
-  stage.setAttribute('data-issue-action-context', 'stage');
-  stage.setAttribute('aria-label', '编码阶段或观察');
-  for (const value of ['', '成功结束', '失败结束', '中止', '反复返工', '导航困难', '工具低效']) stage.add(new Option(value || '选择阶段或观察', value));
-  fields.stage = stage;
-  contextBox.append(stage);
-  const readContext = () => Object.fromEntries(Object.entries(fields).map(([name, field]) => [name, field.value]));
-  const updateRecommendations = () => {
-    const c = readContext(), names = Object.keys(SUPPLEMENTAL_ACTIONS).filter(name => supplementalRequirements(name, c).recommended);
-    recommendations.textContent = names.length ? '补充推荐：' + names.map(n => '$' + n).join('、') : '暂无补充推荐；可手动选择并查证缺项。';
-  };
-  for (const input of Object.values(fields)) { input.addEventListener('input', updateRecommendations); input.addEventListener('change', updateRecommendations); }
-  let previousChoice = 'main', generated = text;
-  const regenerate = () => {
-    if (editor.value !== generated && !window.confirm('替换已编辑的草稿？取消将保留原文。')) { choice.value = previousChoice; return; }
-    const skill = choice.value.replace(/^skill:/, '');
-    generated = choice.value === 'main' ? text : supplementalActionRequest(skill, request, readContext());
-    editor.value = generated;
-    previousChoice = choice.value;
-  };
-  choice.addEventListener('change', regenerate);
-  const applyContext = document.createElement('button');
-  applyContext.textContent = '更新所选动作草稿';
-  applyContext.setAttribute('data-issue-action-apply-context', '');
-  applyContext.onclick = regenerate;
-  updateRecommendations();
-  panel.append(choice, recommendations, contextBox, applyContext);
-  const actions = ctx.get('codexActions');
-  if (actions?.capabilities?.notice) {
-    const notice = document.createElement('p');
-    notice.textContent = actions.capabilities.notice;
-    panel.append(notice);
-  }
-  const unavailableChats = [['active', '当前聊天'], ['new', '新聊天']].filter(([target]) => !canFillIssueActionDraft(actions, target));
-  let availability;
-  if (unavailableChats.length) {
-    availability = document.createElement('p');
-    availability.id = 'issue-action-chat-availability-' + Math.random().toString(36).slice(2);
-    availability.setAttribute('data-issue-action-output-availability', '');
-    availability.textContent = unavailableChats.map(([, label]) => label).join('／') + '填入暂不可用：' + (actions?.capabilities?.reason || '宿主未提供可靠的草稿读取、目标锁定与结果确认。') + ' 请明确选择复制，再自行粘贴到所需聊天。';
-    panel.append(availability);
-  }
-  for (const [target, label] of [['active', '填入当前聊天'], ['new', '填入新聊天'], ['copy', '复制'], ['close', '返回']]) {
-    const button = document.createElement('button');
-    button.textContent = label;
-    button.setAttribute('data-issue-action-export', target);
-    if (['active', 'new'].includes(target) && !canFillIssueActionDraft(actions, target)) {
-      button.disabled = true;
-      button.setAttribute('aria-describedby', availability.id);
-      button.title = availability.textContent;
-    }
-    button.onclick = async () => {
-      if (target === 'close') { panel.remove(); return; }
-      try {
-        button.disabled = true;
-        const result = await send(target, editor.value);
-        note.textContent = target === 'copy' ? '已复制' : result?.status === 'requested' ? '已请求填入' + (target === 'active' ? '当前聊天' : '新聊天') + (target === 'new' ? '，请核对项目与输入框后发送' : '，请检查输入框后发送') : target === 'active' ? '已填入当前聊天' : '已填入新聊天';
-      }
-      catch (error) { note.textContent = '操作失败：' + String(error.message || error) + '。草稿已保留。'; }
-      finally { button.disabled = false; }
-    };
-    panel.append(button);
-  }
-  document.body.append(panel);
-  editor.focus();
-}
-
 export function adaptIssueActions(source) {
   const replaceOnce = (anchor, replacement) => {
     if (source.split(anchor).length !== 2) throw new Error('Issue action boundary changed: ' + anchor.slice(0, 80));
@@ -213,15 +100,11 @@ export function adaptIssueActions(source) {
     source = source.slice(0, first) + replacement + '\n    ' + source.slice(last);
   };
   replaceFunction('const rowActionKind = function (x) {', 'const actionColorOf =', 'const rowActionKind = x => issueActionRequest(x, "").kind;');
-  replaceFunction('const rowActionText = function (st, x) {', '// v19：共享 —— 行级动作', `const rowActionText = (st, x) => issueActionRequest(x, issueUrlFor(st, x.number) || '#' + x.number).text;
-    const previewIssueAction = (st, issue) => showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), (target, finalText) => sendIssueActionDraft(st, target, finalText));`);
-  replaceOnce('e.stopPropagation(); inject(st, text)', 'e.stopPropagation(); previewIssueAction(st, x)');
-  replaceOnce('inject(st, primaryInfo.text)', 'previewIssueAction(st, fakeIssue)');
-  replaceOnce('openTextInNewSession(st, text, title, kind ? { kind: kind } : null)', 'previewIssueAction(st, x)');
+  replaceFunction('const rowActionText = function (st, x) {', '// v19：共享 —— 行级动作', `const rowActionText = (st, x) => issueActionRequest(x, issueUrlFor(st, x.number) || '#' + x.number).text;`);
   // Empty/done map shortcuts must not bypass an unresolved role conflict.
   replaceOnce('const mapDone=!!(isMap&&', 'const mapDone=!!(!issueActionRequest(x, "").roleConflict&&isMap&&');
   replaceOnce('const mapEmpty=!!(isMap&&', 'const mapEmpty=!!(!issueActionRequest(x, "").roleConflict&&isMap&&');
   const anchor = '    // 1. 技能目录 + 场景推荐映射';
-  replaceOnce(anchor, 'const ISSUE_ACTION_COMMON = ' + JSON.stringify(ISSUE_ACTION_COMMON) + ';\nconst SUPPLEMENTAL_ACTIONS = ' + JSON.stringify(SUPPLEMENTAL_ACTIONS) + ';\nconst ACTION_CONTEXT_LABELS = ' + JSON.stringify(ACTION_CONTEXT_LABELS) + ';\n' + renderIssueActionRequest.toString() + '\n' + supplementalRequirements.toString() + '\n' + issueActionRequest.toString() + '\n' + supplementalActionRequest.toString() + '\n' + canFillIssueActionDraft.toString() + '\n' + sendIssueActionDraft.toString() + '\n' + createDraftReview.toString() + '\n' + showIssueActionDraft.toString() + '\n' + anchor);
+  replaceOnce(anchor, 'const ISSUE_ACTION_COMMON = ' + JSON.stringify(ISSUE_ACTION_COMMON) + ';\nconst SUPPLEMENTAL_ACTIONS = ' + JSON.stringify(SUPPLEMENTAL_ACTIONS) + ';\nconst ACTION_CONTEXT_LABELS = ' + JSON.stringify(ACTION_CONTEXT_LABELS) + ';\n' + renderIssueActionRequest.toString() + '\n' + supplementalRequirements.toString() + '\n' + issueActionRequest.toString() + '\n' + supplementalActionRequest.toString() + '\n' + canFillIssueActionDraft.toString() + '\n' + sendIssueActionDraft.toString() + '\n' + anchor);
   return source;
 }

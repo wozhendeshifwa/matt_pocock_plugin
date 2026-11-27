@@ -50,6 +50,7 @@ for (const detail of [false, true]) {
     await f.until(() => group.querySelector('select[aria-label="选择其他动作"]'));
     const choice = group.querySelector('select[aria-label="选择其他动作"]');
     assert.ok(choice);
+    assert.equal(choice.querySelectorAll('optgroup[label="全部技能"] option').length,27);
     await f.change(choice, 'pr');
     const field = label => group.querySelector('[aria-label="' + label + '"]');
     assert.ok(field('改动范围'));
@@ -65,6 +66,7 @@ for (const detail of [false, true]) {
     inject.click();
     await f.until(() => f.writes.length === 1);
     assert.match(f.writes[0].text, /^\$pr\n\n目标：More fixture 10/);
+    for(const pattern of [/Summary、Evidence、Merge Danger/,/缺失或未验证如实标注/,/不创建 PR、不推送、不合并/]) assert.match(f.writes[0].text,pattern);
     assert.match(f.writes[0].text, /改动范围：Only the approved feature/);
     assert.match(f.writes[0].text, /分支或 PR：codex\/explicit-feature/);
     assert.equal(f.w.document.querySelector('[data-issue-action-preview]'), null);
@@ -88,6 +90,7 @@ for (const detail of [false, true]) {
     [...reviewPanel.querySelectorAll('button')].find(b => b.textContent === '填入当前聊天').click();
     await f.until(() => f.writes.length === 3);
     assert.match(f.writes[2].text, /^\$code-review\n/);
+    assert.match(f.writes[2].text,/进行中改动亦可/);assert.match(f.writes[2].text,/修复进入统一 \$implement-spec/);
     assert.match(f.writes[2].text, /比较基线：release-v2/);
     assert.doesNotMatch(f.writes[2].text, /分支或 PR：/, 'retained fields for another action are not injected into this request');
   } finally { f.close(); }
@@ -116,6 +119,7 @@ for (const detail of [false, true]) {
     [...panel.querySelectorAll('button')].find(b => b.textContent === '复制').click();
     await f.until(() => f.copies.length === 1);
     assert.match(f.copies[0], /^\$retro\n/);
+    for(const pattern of [/读取指定编码会话原始证据/,/先提供候选供用户选择/,/不默认当前会话/]) assert.match(f.copies[0],pattern);
     assert.match(f.copies[0], /目标编码会话：explicit-coding-session/);
     assert.match(f.copies[0], /原始会话记录：explicit-record-pointer/);
     assert.match(f.copies[0], /阶段／观察：失败结束/);

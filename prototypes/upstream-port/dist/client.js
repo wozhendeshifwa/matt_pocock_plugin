@@ -2902,219 +2902,6 @@ async function sendIssueActionDraft(st, target, finalText, options) {
   if (result.status === 'filled' && actions.capabilities.reliableDraft !== true) return { status: 'requested', target };
   return result;
 }
-function createDraftReview({preparation,panel,editor,note,state,getGenerated,setGenerated,persist}) {
-  let draftId=null, sourceNote=state.sourceNotice || '', generation=0, pending=Promise.resolve(false);
-  const removeNote=(text,previous)=>{
-    if(!previous)return text;
-    const start=text.lastIndexOf(previous);
-    return start<0?text:text.slice(0,start).trimEnd()+text.slice(start+previous.length);
-  };
-  const review={
-    invalidate(){draftId=null;generation++;pending=Promise.resolve(false);},
-    refresh(){
-      const at=++generation;
-      pending=(async()=>{
-        if(!preparation){note.textContent='技能来源准备能力不可用；出口已停止。';return false;}
-        const before=editor.value, baseline=getGenerated();
-        note.setAttribute('data-source-state','checking');
-        try{
-          const candidate=await preparation.prepare({text:removeNote(before,sourceNote)});
-          if(at!==generation || !panel.isConnected)return false;
-          note.textContent=candidate.sourceNote || '最终请求未指定技能；不声称宿主加载。';
-          if(editor.value!==before){note.textContent+=' 编辑已变化，请重新核验并审阅；出口已停止。';note.setAttribute('data-source-state','review-required');return false;}
-          if(candidate.text!==before && before!==baseline && !window.confirm('技能来源状态已变化，更新已编辑的草稿预览？取消保留原文并停止出口。')){
-            note.textContent+=' 来源变化尚未写入预览，请重新审阅；出口已停止。';note.setAttribute('data-source-state','review-required');return false;
-          }
-          const nextBaseline=before===baseline?candidate.text:removeNote(baseline,sourceNote)+(candidate.sourceNote?'\n\n'+candidate.sourceNote:'');
-          editor.value=candidate.text;
-          sourceNote=candidate.sourceNote || '';
-          state.sourceNotice=sourceNote;
-          setGenerated(nextBaseline);
-          draftId=candidate.id;
-          persist();
-          note.setAttribute('data-source-state','ready');
-          return true;
-        }catch(error){
-          if(at!==generation || !panel.isConnected)return false;
-          note.textContent='来源核验失败：'+String(error.message || error)+'；草稿已保留，出口已停止。';note.setAttribute('data-source-state','review-required');return false;
-        }
-      })();
-      return pending;
-    },
-    async validate(){
-      await pending;
-      if(!preparation || !panel.isConnected)return false;
-      const before=editor.value;
-      try{
-        const result=await preparation.check({draftId,text:before});
-        if(!panel.isConnected || editor.value!==before){note.textContent='草稿或目标已变化，请重新审阅；出口已停止。';return false;}
-        if(result.allowed===true && result.status==='unchanged')return true;
-        const accepted=await review.refresh();
-        // Even unchanged display text cannot approve changed source facts.
-        // A later explicit outlet click acknowledges the reviewed observation.
-        if(!accepted)return false;
-        note.textContent+=' 技能状态已变化，请审阅当前预览，再次选择出口。';
-        return false;
-      }catch(error){note.textContent='来源复核失败：'+String(error.message || error)+'；草稿已保留，出口已停止。';return false;}
-    },
-  };
-  return review;
-}
-function showIssueActionDraft(request, send, options = {}) {
-  options.state = options.state || {};
-  let review;
-  const text = request.text;
-  if (!options.container) document.querySelector('[data-issue-action-preview]')?.remove();
-  const panel = document.createElement('section');
-  panel.setAttribute('data-issue-action-preview', '');
-  panel.setAttribute('role', options.container ? 'group' : 'dialog');
-  panel.setAttribute('aria-label', '动作草稿预览');
-  panel.style.cssText = options.container ? 'display:flex;flex-direction:column;gap:8px;min-width:0;overflow:auto;max-height:60vh;padding:8px;box-sizing:border-box' : 'position:fixed;inset:8%;z-index:10000;background:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-primary,#111827);padding:16px;display:flex;flex-direction:column;gap:8px;overflow:auto;border:1px solid #888;border-radius:8px';
-  const editor = document.createElement('textarea');
-  editor.setAttribute('data-issue-action-draft', '');
-  editor.setAttribute('aria-label', '可编辑动作草稿');
-  editor.value = text + (options.sourceNotice ? '\n\n' + options.sourceNotice : '');
-  editor.style.cssText = 'width:100%;box-sizing:border-box;min-height:180px;flex:1';
-  const note = document.createElement('div');
-  note.setAttribute('data-issue-action-status', '');
-  note.setAttribute('role', 'status');
-  note.setAttribute('aria-live', 'polite');
-  note.textContent = '检查并编辑草稿，再选择可用出口；不会自动发送。';
-  panel.append(note, editor);
-  const choice = document.createElement('select');
-  choice.setAttribute('data-issue-action-choice', '');
-  choice.setAttribute('aria-label', '动作与全部技能');
-  choice.add(new Option('标签主动作', 'main'));
-  const supplements = document.createElement('optgroup');
-  supplements.label = '补充动作';
-  for (const [name, label] of [['pr', '撰写 PR 正文'], ['retro', '复盘编码会话'], ['code-review', '审查改动']]) supplements.append(new Option(label, name));
-  choice.append(supplements);
-  const menu = document.createElement('optgroup');
-  menu.label = '全部技能';
-  for (const name of CODEX_SKILL_NAMES) menu.append(new Option('$' + name, 'skill:' + name));
-  choice.append(menu);
-  const recommendations = document.createElement('div');
-  recommendations.setAttribute('data-issue-action-recommendations', '');
-  const fields = {};
-  const contextBox = document.createElement('details');
-  const summary = document.createElement('summary');
-  summary.textContent = '补充动作上下文（明确提供，不推定当前分支或会话）';
-  contextBox.append(summary);
-  for (const [name, label] of [['scope', '改动范围'], ['branch', '分支或 PR'], ['baseline', '比较基线'], ['session', '目标编码会话'], ['record', '原始会话记录']]) {
-    const input = document.createElement('input');
-    input.setAttribute('data-issue-action-context', name);
-    input.setAttribute('aria-label', label);
-    input.placeholder = label;
-    fields[name] = input;
-    contextBox.append(input);
-  }
-  const stage = document.createElement('select');
-  stage.setAttribute('data-issue-action-context', 'stage');
-  stage.setAttribute('aria-label', '编码阶段或观察');
-  for (const value of ['', '成功结束', '失败结束', '中止', '反复返工', '导航困难', '工具低效']) stage.add(new Option(value || '选择阶段或观察', value));
-  fields.stage = stage;
-  contextBox.append(stage);
-  const readContext = () => Object.fromEntries(Object.entries(fields).map(([name, field]) => [name, field.value]));
-  const updateRecommendations = () => {
-    const c = readContext(), names = Object.keys(SUPPLEMENTAL_ACTIONS).filter(name => supplementalRequirements(name, c).recommended);
-    recommendations.textContent = names.length ? '补充推荐：' + names.map(n => '$' + n).join('、') : '暂无补充推荐；可手动选择并查证缺项。';
-  };
-  for (const input of Object.values(fields)) { input.addEventListener('input', updateRecommendations); input.addEventListener('change', updateRecommendations); }
-  let previousChoice = 'main', generated = editor.value;
-  const regenerate = () => {
-    if (editor.value !== generated && !window.confirm('替换已编辑的草稿？取消将保留原文。')) { choice.value = previousChoice; return; }
-    const skill = choice.value.replace(/^skill:/, '');
-    generated = choice.value === 'main' ? text : supplementalActionRequest(skill, request, readContext());
-    if (options.sourceNotice) generated += '\n\n' + options.sourceNotice;
-    editor.value = generated;
-    previousChoice = choice.value;
-    if (options.state) options.state.cleared = false;
-  };
-  if (options.state && options.state.text !== undefined) {
-    editor.value = options.state.text;
-    generated = options.state.generated;
-    choice.value = options.state.choice || 'main';
-    previousChoice = choice.value;
-    options.sourceNotice = options.state.sourceNotice ?? options.sourceNotice;
-    for (const [name, value] of Object.entries(options.state.context || {})) if (fields[name]) fields[name].value = value;
-  }
-  const persist = function () {
-    if (!options.state) return;
-    Object.assign(options.state, { text: editor.value, generated: generated, choice: previousChoice, sourceNotice: options.sourceNotice, context: readContext() });
-  };
-  editor.addEventListener('input', persist);
-  for (const input of Object.values(fields)) { input.addEventListener('input', persist); input.addEventListener('change', persist); }
-  choice.addEventListener('change', regenerate);
-  choice.addEventListener('change', persist);
-  const applyContext = document.createElement('button');
-  applyContext.textContent = '更新所选动作草稿';
-  applyContext.setAttribute('data-issue-action-apply-context', '');
-  applyContext.onclick = function () { regenerate(); persist(); };
-  updateRecommendations();
-  panel.append(choice, recommendations, contextBox, applyContext);
-  const actions = ctx.get('codexActions');
-  if (actions?.capabilities?.notice) {
-    const notice = document.createElement('p');
-    notice.textContent = actions.capabilities.notice;
-    panel.append(notice);
-  }
-  const unavailableChats = [['active', '当前聊天'], ['new', '新聊天']].filter(([target]) => !canFillIssueActionDraft(actions, target));
-  let availability;
-  if (unavailableChats.length) {
-    availability = document.createElement('p');
-    availability.id = 'issue-action-chat-availability-' + Math.random().toString(36).slice(2);
-    availability.setAttribute('data-issue-action-output-availability', '');
-    availability.textContent = unavailableChats.map(([, label]) => label).join('／') + '填入暂不可用：' + (actions?.capabilities?.reason || '宿主未提供可靠的草稿读取、目标锁定与结果确认。') + ' 请明确选择复制，再自行粘贴到所需聊天。';
-    panel.append(availability);
-  }
-  for (const [target, label] of [['active', '填入当前聊天'], ['new', '填入新聊天'], ['copy', '复制'], ['close', '返回']]) {
-    const button = document.createElement('button');
-    button.textContent = label;
-    button.setAttribute('data-issue-action-export', target);
-    if (['active', 'new'].includes(target) && !canFillIssueActionDraft(actions, target)) {
-      button.disabled = true;
-      button.setAttribute('aria-describedby', availability.id);
-      button.title = availability.textContent;
-    }
-    button.onclick = async () => {
-      if (target === 'close') { if (options.onClose) options.onClose(); else panel.remove(); return; }
-      try {
-        button.disabled = true;
-        if (!await review.validate()) throw new Error('技能来源变化需先审阅；本次出口已停止');
-        const result = await send(target, editor.value);
-        note.textContent = target === 'copy' ? '已复制' : result?.status === 'requested' ? '已请求填入' + (target === 'active' ? '当前聊天' : '新聊天') + (target === 'new' ? '，请核对项目与输入框后发送' : '，请检查输入框后发送') : target === 'active' ? '已填入当前聊天' : '已填入新聊天';
-      }
-      catch (error) { note.textContent = '操作失败：' + String(error.message || error) + '。草稿已保留。'; }
-      finally { button.disabled = false; }
-    };
-    panel.append(button);
-  }
-  (options.container || document.body).append(panel);
-  {
-    const sourceNote = document.createElement('p');
-    sourceNote.setAttribute('data-issue-action-source', '');
-    sourceNote.textContent = '技能来源／更新：尚未核验；技能目录可见不代表宿主已加载。使用前查证当前项目来源及更新状态。';
-    panel.insertBefore(sourceNote, editor);
-    options.state.sourceNotice = options.state.sourceNotice ?? options.sourceNotice ?? '';
-    review = createDraftReview({ preparation: ctx.get('requestPreparation'), panel: panel, editor: editor, note: sourceNote, state: options.state,
-      getGenerated: function () { return generated; }, setGenerated: function (value) { generated = value; options.sourceNotice = options.state.sourceNotice; }, persist: persist });
-    choice.addEventListener('change', function () { review.invalidate(); review.refresh(); });
-    applyContext.addEventListener('click', function () { review.invalidate(); review.refresh(); });
-    const refresh = document.createElement('button');
-    refresh.type = 'button'; refresh.textContent = '重新核验技能来源'; refresh.onclick = function () { review.refresh(); };
-    panel.insertBefore(refresh, editor);
-    const clear = document.createElement('button');
-    clear.type = 'button'; clear.textContent = '清空草稿'; clear.setAttribute('data-issue-action-clear', '');
-    clear.onclick = function () { editor.value = ''; generated = ''; if (options.state) options.state.cleared = true; review.invalidate(); persist(); };
-    panel.insertBefore(clear, editor);
-    review.refresh();
-    for (const control of panel.querySelectorAll('select,input,textarea,button')) control.style.maxWidth = '100%';
-    if (!options.container) editor.focus();
-    return panel;
-  }
-  editor.focus();
-  return panel;
-}
     // 1. 技能目录 + 场景推荐映射
     // ============================================================
     // T3：描述在渲染时 tr('skilldesc.<name>')（此处 use 字段为中文静态参考）
@@ -7698,11 +7485,6 @@ const RULES_SOURCE = "version-control-core/src/rules.ts";
     }
     // #361：行级动作注入文本的单一真源（诊断/接手/补充/修复/讨论/研究/原型/执行）—— 新会话打开与行内动作共用
     const rowActionText = (st, x) => issueActionRequest(x, issueUrlFor(st, x.number) || '#' + x.number).text;
-    const previewIssueAction = (st, issue) => {
-      const bottom = bottomActionControllers.get(st);
-      if (bottom) return bottom.open();
-      return showIssueActionDraft(issueActionRequest(issue, issueUrlFor(st, issue.number) || '#' + issue.number), (target, finalText) => sendIssueActionDraft(st, target, finalText), { state: actionDraftState(st, issue.number, issue.effortId || '') });
-    };
     // v19：共享 —— 行级动作（列表与 map 详情共用）：按一处分类八选一（诊断/接手/补充/修复/讨论/研究/原型/执行），预填输入框；
     // 按钮主体色 = 对应 label 的 GitHub 配置色（字色按对比度在深白两色里择优，见 isLightHex）；接手跟 ready-for-human、补充跟 needs-info（#785），取不到时兜底 #c084fc
     const mkRowAction = function (st, x, narrow, colorOf) {
@@ -10499,27 +10281,6 @@ const _installLateSnapshot = function (st, snap, reqNorm, mine) {
     // #361 原入口：行级「在新会话打开」保留（rowActionText 文本 + 票标题命名）
     // 2026-08-30 hardening: newSessionTitle throws on non-numeric number (prevent silent MapDetail new-session no-op), rowActionText falls back to #number when url missing
     // #746 Knife1：下单时种类已知，显式随 opts 传给创建管线，不再靠文本前缀反推；未知种类传空，回退文本推断。
-    const openInNewSession = function (st, x) {
-      let title = null
-      try { title = newSessionTitle(x) } catch(e) {
-        const n = (x && (x.number != null ? x.number : x.key != null ? x.key : ''))
-        const base = (x && x.title) ? String(x.title).slice(0,80) : ''
-        title = (n !== '' ? '[#' + String(n) + '] ' + base : '[New]')
-        if (!title || title === '[#] ') title = '[New]'
-      }
-      let text = ''
-      try { text = rowActionText(st, x) } catch(e) {
-        try { text = rowActionText(st, x) } catch(e2) { text = '' }
-        if (!text) {
-          const u = (typeof issueUrlFor === 'function' ? (function(){ try{ return issueUrlFor(st, x && x.number) }catch(_){ return '' } })() : '')
-          const uu = u || (x && x.number != null ? '#' + String(x.number) : '')
-          text = uu ? ('/wayfinder ' + uu) : '/wayfinder'
-        }
-      }
-      let kind = null
-      try { kind = (typeof rowActionKind === 'function' ? rowActionKind(x) : null) } catch (eK) {}
-      previewIssueAction(st, x)
-    }
     // 彻底移除：extractIssueRefs 已移除（#345）
     const inject = async (st, text) => {
       if (!await codexPrepareSkillUse(st, text)) return false;
@@ -20869,7 +20630,7 @@ const TicketRow = React.memo(({ st, g, t, indent, colorOf }) => {
           blocked ? null : mkRowAction(st, t, false, colorOf),
           // #361 能力保留（同 cwd + 自动命名 + 预填指令）；#394：去 ghost/icon-only，与 nav.handoff 解耦
           //   marginLeft:4 与左侧 mkRowAction 形成隐式分组（动作组 vs 辅助组）
-          h(Tip, { content: '旧草稿预览（兼容入口）' }, h('button', { className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); openInNewSession(st, t) }, style: { textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 11, flex: 'none', marginLeft: 4, background: actionColorOf(t, colorOf), borderColor: 'transparent', color: isLightHex(actionColorOf(t, colorOf)) ? '#140a1e' : '#ffffff' } }, [Ic({ n: 'external-link', size: 10 }), h('span', null, '旧草稿预览')])),
+
           (function(){ const _u=issueUrlFor(st, t.number); const _isHttp=/^https?:\/\//i.test(String(_u||'')); const _openLocal=function(e){ e.stopPropagation(); const u=issueUrlFor(st, t.number); if(!u) return; if(/^https?:\/\//i.test(String(u))) { try{ window.open(u,'_blank','noreferrer') }catch{} } else { try{ if(typeof host!=='undefined'&&host.call) host.call('wf.openPath',{path:u}) }catch{} } }; return _isHttp ? h(Tip, { content: tr('tip.openInTracker', { n: t.number }) }, h('a', { className: 'dsws-btn ghost', href: _u, target: '_blank', rel: 'noreferrer', style: { textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '3px 6px' } }, Ic({ n: 'link', size: 12 }))) : h(Tip, { content: tr('tip.openInTracker', { n: t.number }) }, h('button', { className: 'dsws-btn ghost', onClick: _openLocal, style: { textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '3px 6px' } }, Ic({ n: 'link', size: 12 }))); })(),
         ]) : h('a', { className: 'dsws-btn ghost', href: issueUrlFor(st, t.number), target: '_blank', rel: 'noreferrer', style: { textDecoration: 'none' } }, tr('act.view')),
       ])
@@ -21014,10 +20775,6 @@ const MapDetailTop = ({ st, m, navCrumb, effStats, goBack }) => {
     h('span', { style: { flex: 1, minWidth: 8 } }),
     h('div', { style: { display: 'flex', alignItems: 'center', gap: 3, flex: 'none', minWidth: 0, overflow: 'hidden', flexWrap: 'nowrap' } }, [
       primaryBtn,
-      h(Tip, { content: tr('map.newSessionTitle') }, h('button', { className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); openInNewSession(st, m) }, style: newStyle }, [
-        Ic({ n: 'external-link', size: 10 }),
-        h('span', { 'data-detail-new-text': 1, 'data-full': tr('list.newSessionLabel'), style: { overflow: 'hidden', whiteSpace: 'nowrap', minWidth: 0 } }, tr('list.newSessionLabel')),
-      ])),
       h(Tip, { content: tr('tip.copyLink') }, h('button', { className: 'dsws-btn ghost', onClick: copyUrl, style: { display: 'inline-flex', alignItems: 'center', padding: '2px 4px', flex: 'none' } }, Ic({ n: 'clipboard', size: 13 }))),
       openIsHttp
         ? h(Tip, { content: tr('tip.openInTracker', { n: m.number }) }, h('a', { className: 'dsws-btn ghost', href: openUrl, target: '_blank', rel: 'noreferrer', onClick: function (e) { e.stopPropagation() }, style: { display: 'inline-flex', alignItems: 'center', padding: '2px 4px', flex: 'none' }, 'aria-label': tr('tip.openInTracker', { n: m.number }) }, Ic({ n: 'link', size: 13 })))
@@ -21149,7 +20906,7 @@ const MapDetail = ({ st, g, drill }) => {
         // 补齐「新会话」按钮（与列表页 issueRow 一致）：primary 色随 actionColorOf，浅色自动深字，marginLeft 4 与 mkRowAction 成组
         const acts = h('div', { className: 'acts' }, (t.state === 'OPEN' && !blocked) ? [
           mkRowAction(st, t, false, colorOf),
-          h(Tip, { content: '旧草稿预览（兼容入口）' }, h('button', { className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); openInNewSession(st, t) }, style: { textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 11, flex: 'none', marginLeft: 4, background: actionColorOf(t, colorOf), borderColor: 'transparent', color: isLightHex(actionColorOf(t, colorOf)) ? '#140a1e' : '#ffffff' } }, [Ic({ n: 'external-link', size: 10 }), h('span', null, '旧草稿预览')])),
+
           (function(){ const _u=issueUrlFor(st, t.number, effortOf(t)); const _isHttp=/^https?:\/\//i.test(String(_u||'')); const _open=function(e){ e.stopPropagation(); const u=issueUrlFor(st, t.number, effortOf(t)); if(!u) return; if(/^https?:\/\//i.test(String(u))) { try{ window.open(u,'_blank','noreferrer') }catch{} } else { try{ if(typeof host!=='undefined'&&host.call) host.call('wf.openPath',{path:u}) }catch{} } }; return _isHttp ? h(Tip, {content: tr('list.openInTrackerTitle', { n: t.number })}, h('a', { className: 'dsws-btn ghost', href: _u, target: '_blank', rel: 'noreferrer', onClick: function (e) { e.stopPropagation() }, style: { textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '2px 4px' }, 'aria-label': tr('list.openInTrackerTitle', { n: t.number }) }, Ic({ n: 'link', size: 11 }))) : h(Tip, {content: tr('list.openInTrackerTitle', { n: t.number })}, h('button', { className: 'dsws-btn ghost', onClick: _open, style: { textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '2px 4px' }, 'aria-label': tr('list.openInTrackerTitle', { n: t.number }) }, Ic({ n: 'link', size: 11 }))); })(),
         ] : [])
         // v1.4 修复：图标名必须用 Ic 支持的（search/hammer/chat/gear），原 mag/bolt/wrench 不存在 → 节点图标空白
@@ -21625,57 +21382,28 @@ const useIssueDetailFold = function (st, issueNumber, issueEffort) {
  * 同层禁止 import 其他视图（ListTab/MapDetail 等），像插件般隔离；所有共享能力经 DswsCtx 取用。
  * T2 数据通路：fetchIssueDetail(n)（GraphQL+REST 双通道，host 侧 wf.issueDetail），60s 缓存命中即用，loading/real/err 三态。
  */
-
-    const bottomActionControllers = new WeakMap();
-    const actionDraftKey = function (st, number, effortId) {
-      const snapshot = st.snapshot || {};
-      const project = String(snapshot.workspaceRoot || st.cwd || '').replace(/\\/g, '/').replace(/\/+$/, '');
-      const projectKey = /^[A-Za-z]:/.test(project) ? project.toLowerCase() : project;
-      const repository = snapshot.repository || {};
-      return JSON.stringify([projectKey, snapshot.selection?.backendId || repository.backend || '', repository.refId || repository.name || repoStr(st), effortId || '', String(number)]);
-    };
-    const actionDraftState = function (st, number, effortId) {
-      const drafts = ctx.get('actionDrafts');
-      const key = actionDraftKey(st, number, effortId);
-      if (!drafts.has(key)) drafts.set(key, {});
-      return drafts.get(key);
-    };
-    const BottomActionBar = function (props) {
-      const st = props.st;
-      const content = React.useRef(null);
-      const mounted = React.useRef(null);
-      const state = actionDraftState(st, props.issue.number, props.effortId);
-      const [open, setOpen] = React.useState(!!state.expanded);
-      const setExpanded = function (value) { state.expanded = value; setOpen(value); };
-      const request = issueActionRequest(props.issue, issueUrlFor(st, props.issue.number, props.effortId));
-      const sourceNotice = '技能来源与更新状态尚未核验；执行前读取当前项目解析来源并检查更新，缺合格来源或必要工具时暂停依赖步骤，不将目录可见当作已加载。';
-      const ensurePreview = function () {
-        if (!mounted.current && content.current) {
-          mounted.current = showIssueActionDraft(request, function (target, finalText) { return sendIssueActionDraft(st, target, finalText); }, { container: content.current, state: state, sourceNotice: sourceNotice, onClose: function () { setExpanded(false); } });
-        }
-      };
-      React.useEffect(function () {
-        if (state.expanded) ensurePreview();
-        const controller = { open: function () { ensurePreview(); setExpanded(true); } };
-        bottomActionControllers.set(st, controller);
-        return function () { if (bottomActionControllers.get(st) === controller) bottomActionControllers.delete(st); };
-      }, [st, props.issue.number, props.effortId]);
-      return React.createElement('section', { 'data-bottom-action-bar': true, 'aria-label': 'Issue 动作栏', style: { marginTop: 8, padding: 8, borderTop: '1px solid var(--dsw-alias-border-l2,#444)', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: 'none', background: 'var(--dsw-alias-bg-layer-1,#fff)', color: 'var(--dsw-alias-label-primary,#111827)' } }, [
-        React.createElement('div', { key: 'header', style: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, minWidth: 0 } }, [
-          React.createElement('strong', { key: 'action' }, props.label || '主动作'),
-          React.createElement('span', { key: 'context', style: { fontSize: 11, overflowWrap: 'anywhere', flex: '1 1 120px' } }, '当前 Issue · ' + (request.skill ? '$' + request.skill : '保持不做边界') + '；先核对上下文与缺项'),
-          React.createElement('button', { key: 'toggle', type: 'button', 'data-bottom-action-toggle': true, 'aria-expanded': String(open), onClick: function () { ensurePreview(); setExpanded(!open); } }, open ? '收起动作／预览' : '选择动作／预览'),
-        ]),
-        React.createElement('div', { key: 'preview', ref: content, hidden: !open, style: { minWidth: 0 } }),
-      ]);
-    };
-
+function actionDraftKey(st, number, effortId) {
+  const snapshot = st.snapshot || {};
+  const project = String(snapshot.workspaceRoot || st.cwd || '').replace(/\\/g, '/').replace(/\/+$/, '');
+  const projectKey = /^[A-Za-z]:/.test(project) ? project.toLowerCase() : project;
+  const repository = snapshot.repository || {};
+  return JSON.stringify([projectKey, snapshot.selection?.backendId || repository.backend || '', repository.refId || repository.name || repoStr(st), effortId || '', String(number)]);
+}
+function actionDraftState(st, number, effortId) {
+  const drafts = ctx.get('actionDrafts');
+  const key = actionDraftKey(st, number, effortId);
+  if (!drafts.has(key)) drafts.set(key, {});
+  return drafts.get(key);
+}
 function MoreIssueActions({ st, issue, pending, run }) {
   const state = actionDraftState(st, issue.number, issue.effortId || '');
   const saved = state.moreAction || (state.moreAction = {
     choice: state.choice && state.choice !== 'main' ? state.choice : '',
     context: { ...(state.context || {}) },
   });
+  // Pre-upgrade fields can have been edited after the first menu render.
+  // Preserve explicit supplemental values while recovering untouched fields.
+  saved.context = { ...(state.context || {}), ...(saved.context || {}) };
   const [open, setOpen] = React.useState(false);
   const [choice, setChoice] = React.useState(saved.choice);
   const [context, setContext] = React.useState(saved.context);
@@ -21807,18 +21535,22 @@ function DirectIssueActions({ st, issue, colorHex, narrow }) {
       if (token) operations.end(token);
     }
   };
-  return React.createElement('span', { 'data-issue-direct-actions': true, style: { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, minWidth: 0 } }, [
+  return React.createElement('span', { 'data-issue-direct-actions': true, style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, minWidth: 0 } }, [
+    React.createElement('span', { key: 'primary', 'data-action-primary-row': '', style: { display: 'flex', flexWrap: 'wrap', gap: 4, minWidth: 0 } }, [
     React.createElement('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '追加到可编辑输入框，不会自动发送' : actions?.capabilities?.reason || '当前聊天填入不可用，请主动选择复制', onClick: e => { e.stopPropagation(); run('active'); }, style: { background: colorHex, fontSize: 11 } }, '填入当前聊天'),
     React.createElement('button', { key: 'new', type: 'button', className: 'dsws-btn', 'aria-label': '填入新聊天', disabled: pending || !newAvailable, title: newAvailable ? '沿用来源项目及实际目录打开可编辑新草稿，不会自动发送' : actions?.capabilities?.newReason || actions?.capabilities?.reason || '新聊天填入不可用，请主动选择复制', onClick: e => { e.stopPropagation(); run('new'); }, style: { fontSize: 11 } }, '填入新聊天'),
-    React.createElement('button', { key: 'copy', type: 'button', className: 'dsws-btn ghost', onClick: e => { e.stopPropagation(); run('copy'); }, style: { fontSize: 11 } }, '复制'),
-    React.createElement(MoreIssueActions, { key: 'more-' + actionDraftKey(st, issue.number, issue.effortId || ''), st, issue, pending, run }),
+    ]),
+    React.createElement('span', { key: 'status', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, overflowWrap: 'anywhere' } }, [status || [!available ? (actions?.capabilities?.reason || '当前聊天填入不可用') + '；可主动选择复制。' : '', !newAvailable ? (actions?.capabilities?.newReason || '新聊天填入能力不可用') + '；可主动选择复制。' : ''].filter(Boolean).join(' '), state.directCopyNote || ''].filter(Boolean).join(' ')),
     recovery ? React.createElement('button', { key: 'regenerate', type: 'button', className: 'dsws-btn', disabled: pending, onClick: e => { e.stopPropagation(); run(recovery.target, recovery.requestOverride, true, recovery.expectedIdentity); } }, '按最新来源重新生成并填入') : null,
     feedback.retry ? React.createElement('button', { key: 'retry', type: 'button', className: 'dsws-btn', disabled: pending, onClick: e => {
       e.stopPropagation();
       if (feedback.retry.unknown && !feedback.retryConfirmed) { update({ retryConfirmed: true, status: '请先检查原目标输入框，避免重复追加或重复创建新聊天；检查后再重试。' }); return; }
       run(feedback.retry.target, feedback.retry.requestOverride, false, feedback.retry.expectedIdentity);
     } }, feedback.retry.unknown && feedback.retryConfirmed ? '已检查输入框，重试' : '重试') : null,
-    React.createElement('span', { key: 'status', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, overflowWrap: 'anywhere' } }, [status || [!available ? (actions?.capabilities?.reason || '当前聊天填入不可用') + '；可主动选择复制。' : '', !newAvailable ? (actions?.capabilities?.newReason || '新聊天填入能力不可用') + '；可主动选择复制。' : ''].filter(Boolean).join(' '), state.directCopyNote || ''].filter(Boolean).join(' ')),
+    React.createElement('span', { key: 'secondary', 'data-action-secondary-row': '', style: { display: 'flex', flexWrap: 'wrap', gap: 4, minWidth: 0 } }, [
+    React.createElement('button', { key: 'copy', type: 'button', className: 'dsws-btn ghost', onClick: e => { e.stopPropagation(); run('copy'); }, style: { fontSize: 11 } }, '复制'),
+    React.createElement(MoreIssueActions, { key: 'more-' + actionDraftKey(st, issue.number, issue.effortId || ''), st, issue, pending, run }),
+    ]),
   ]);
 }
 const IssueDetail = function (props) {
@@ -22071,8 +21803,8 @@ const IssueDetail = function (props) {
           h('span', { style: { flex: 1, minWidth: 8 } }),
           h('div', { style: { display: 'flex', alignItems: 'center', gap: 3, flex: 'none', minWidth: 0, overflow: 'hidden', flexWrap: 'nowrap' } }, [
             detail ? h('span', { 'data-detail-snapshot': 1, 'data-full': (isStale ? '快照' : (mode === 'loading' ? tr('list.loading') : '')), style: { fontSize: 10, color: isStale ? '#f59e0b' : '#8b8b95', flex: 'none', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' } }, isStale ? '快照' : (mode === 'loading' ? tr('list.loading') : '')) : null,
-            h(DirectIssueActions, { key: 'direct', st: st, issue: fakeIssue, colorHex: actColor }),
-            h(Tip, { content: '旧草稿预览（兼容入口）' }, h('button', { className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); openInNewSession(st, { number: issueNumber, ['title']: title, labels: labelArr }) }, style: { display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 11, background: actColor, borderColor: 'transparent', color: actTextColor, flex: 'none', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' } }, [Ic({ n: 'external-link', size: 10 }), h('span', { 'data-detail-new-text': 1, 'data-full': '旧草稿预览', style: { overflow: 'hidden', whiteSpace: 'nowrap', minWidth: 0 } }, '旧草稿预览')])),
+
+
             h(Tip, { content: tr('tip.copyLink') }, h('button', { className: 'dsws-btn ghost', onClick: function (e) { e.stopPropagation(); copyUrl(issueNumber) }, style: { display: 'inline-flex', alignItems: 'center', padding: '2px 4px', flex: 'none' } }, Ic({ n: 'clipboard', size: 13 }))),
             h(Tip, { content: tr('tip.openInTracker', { n: issueNumber }) }, h('a', { className: 'dsws-btn ghost', href: issueUrlFor(st, issueNumber), target: '_blank', rel: 'noreferrer', style: { display: 'inline-flex', alignItems: 'center', padding: '2px 4px', flex: 'none' } }, Ic({ n: 'link', size: 13 }))),
           ]),
@@ -22158,7 +21890,7 @@ const IssueDetail = function (props) {
           h('span', { style: { flex: 1 } }),
           h('span', { style: { fontSize: 10, color: 'var(--dsw-alias-label-caption,#8b8b95)' } }, tr('detail.readOnlyHint')),
         ]) : null,
-        h(BottomActionBar, { key: actionDraftKey(st, issueNumber, issueEffort), st: st, issue: fakeIssue, effortId: issueEffort, label: primaryInfo.label }),
+        h('section', { 'data-bottom-action-bar': true, 'aria-label': 'Issue 动作栏', style: { marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--dsw-alias-border-l2)', minWidth: 0, flex: 'none' } }, h(DirectIssueActions, { key: actionDraftKey(st, issueNumber, issueEffort), st, issue: fakeIssue, colorHex: actColor })),
         // 图片放大浮层（渲染函数共用，状态放共享 store，点缩略图打开，点空白与关闭与退出键关闭）
         (typeof mdImgOverlay === 'function' ? mdImgOverlay(st) : null),
       ])
@@ -22823,7 +22555,7 @@ const listIssueRow = function (h, st, x, isOpen, narrow, blockOf, colorOf, multi
               : h(Tip, { content: tr('list.blockedTitle', { by: blockedTip }) }, h('span', chipProps({ key: 'blk', className: 'dsws-chip dsws-blocked', onClick: function (e) { e.stopPropagation(); openBlocked(blk) }, style: { fontSize: 10, background: 'rgba(248,113,113,.16)', color: '#f87171', border: '1px solid rgba(248,113,113,.55)', cursor: 'pointer' } }), [Ic({ n: 'lock', size: 10 }), h('span', null, tr('list.blocked'))]))) : null,
           ]),
           h('div', { style: { display: 'flex', alignItems: 'center', gap: 3, flex: 'none', marginLeft: 'auto' } }, [
-            isOpen && !blocked ? h('div', { style: { display: 'flex', gap: 3, alignItems: 'center', flex: 'none' } }, [mapEmpty?h(Tip, { content: tr('map.inspectTitle') }, h('button',{className:'dsws-btn primary'+(narrow?' narrow-icon':''),onClick:function(e){e.stopPropagation();let t='';try{t=inspectPrompt(st,x.number,x.title)}catch{const u=typeof issueUrlFor==='function'?(function(){try{return issueUrlFor(st,x.number,effortOf(x))}catch(_){return''}})():'',uu=u||(x.number!=null?'#'+String(x.number):'');t=uu?'/wayfinder '+uu:'/wayfinder';try{t=promptTextFor(st,'mapInspect',{n:String(x.number||''),['title']:String(x.title||''),url:u});if(u)t='/wayfinder '+u+'\n\n'+t}catch(_){}}inject(st,t)},style:{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',fontSize:11,flex:'none',background:'#f59e0b',borderColor:'transparent',color:'#140a1e',fontWeight:600}},[Ic({n:'search',size:10}),narrow?null:h('span',null,tr('act.inspect'))])):mapDone?h(Tip, { content: tr('map.doneTitle') }, h('button',{className:'dsws-btn primary'+(narrow?' narrow-icon':''),onClick:function(e){e.stopPropagation();const t=completePrompt(st,x.number,x.title,mapObj.stats.total,mapObj.stats.closed);inject(st,t)},style:{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',fontSize:11,flex:'none',background:'#3fb950',borderColor:'transparent',color:'#0c1a10',fontWeight:600}},[Ic({n:'check',size:10}),narrow?null:h('span',null,tr('act.done'))])):mkRowAction(st,x,narrow,colorOf),h(Tip, { content: '旧草稿预览（兼容入口）' }, h('button',{className:'dsws-btn primary'+(narrow?' narrow-icon':''),onClick:function(e){e.stopPropagation();openInNewSession(st,x)},style:{textDecoration:'none',display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',fontSize:11,flex:'none',marginLeft:4,background:mapEmpty?'#f59e0b':mapDone?'#3fb950':actionColorOf(x,colorOf),borderColor:'transparent',color:mapEmpty?'#140a1e':mapDone?'#0c1a10':(isLightHex(actionColorOf(x,colorOf))?'#140a1e':'#ffffff')}},[Ic({n:'external-link',size:10}),narrow?null:h('span',null,'旧草稿预览')])),]) : null,
+            isOpen && !blocked ? h('div', { style: { minWidth: 0 } }, mkRowAction(st,x,narrow,colorOf)) : null,
             isOpen ? h('div', { className: 'dsws-aux', style: { display: 'flex', gap: 2, alignItems: 'center', flex: 'none' } }, [
               // v1.3.3：复制/外链图标增大 11 → 13；Q6 解耦：复制=绝对路径/链接，跳转=按 url 前缀分流（https 开网页，file 盘符调 wf.openPath）
               h(Tip, { content: tr('tip.copyLink') }, h('button', { className: 'dsws-btn ghost' + (copyRes === 'ok' ? ' dsws-fb-okflash dsws-fb-success-ring dsws-fb-pop' : '') + (copyRes === 'fail' ? ' dsws-fb-errflash dsws-fb-shake' : ''), onClick: function (e) { e.stopPropagation(); copyUrl(x) }, style: { textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '2px 4px', flex: 'none' } }, copyRes === 'ok' ? Ic({ n: 'check', size: 13 }) : (copyRes === 'fail' ? Ic({ n: 'x', size: 13 }) : Ic({ n: 'clipboard', size: 13 })))),
