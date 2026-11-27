@@ -72,11 +72,17 @@ async function scenario() {
   const reference = document.createElement('button');
   reference.className = 'dsws-btn'; reference.textContent = '主体控件';
   document.querySelector('.mattskills-shell').append(reference);
+  const mainFocusReference = document.querySelector('[data-head-refresh]');
+  check(mainFocusReference && mainFocusReference.getBoundingClientRect().width, 'actual main-panel refresh control is present for interaction comparison');
   const geometry = element => {
     const s = getComputedStyle(element);
     return [s.fontFamily, s.fontSize, s.borderRadius, s.paddingTop, s.paddingBottom, element.getBoundingClientRect().height];
   };
   const reports = [];
+  const focusPresentation = element => {
+    const s = getComputedStyle(element);
+    return [s.outlineStyle, s.outlineWidth, s.outlineColor, s.outlineOffset];
+  };
   for (const theme of ['light', 'dark']) {
     document.documentElement.dataset.theme = theme;
     document.body.toggleAttribute('data-ds-dark-theme', theme === 'dark');
@@ -85,14 +91,18 @@ async function scenario() {
     check(JSON.stringify(actual) === JSON.stringify(expected), 'ordinary VC button matches main UI geometry in ' + theme + ': ' + JSON.stringify({ actual, expected }));
     check(getComputedStyle(input).fontFamily === getComputedStyle(reference).fontFamily, 'commit input uses main sans font');
     check(getComputedStyle(input).borderRadius === getComputedStyle(reference).borderRadius, 'commit input shares main radius');
+    mainFocusReference.focus();
+    const mainFocus = focusPresentation(mainFocusReference);
+    button.focus();
+    check(JSON.stringify(focusPresentation(button)) === JSON.stringify(mainFocus), 'VC button focus follows the actual main-panel focus contract');
     input.focus();
-    check(getComputedStyle(input).outlineStyle !== 'none' && getComputedStyle(input).outlineWidth !== '0px', 'keyboard focus remains visible');
+    check(JSON.stringify(focusPresentation(input)) === JSON.stringify(mainFocus), 'VC keyboard focus follows the actual main-panel focus contract: ' + JSON.stringify({actual:focusPresentation(input),expected:mainFocus}));
     check(getComputedStyle(root).backgroundColor === getComputedStyle(document.querySelector('.mattskills-shell')).backgroundColor, 'VC background follows main palette');
     const semantic = [...root.querySelectorAll('.dsws-vc-badge,.dsws-vc-stat-n')].map(b => ({ text: b.textContent, color: getComputedStyle(b).color }));
     check(new Set(semantic.map(x => x.color)).size >= 3, 'added/deleted/conflict meaning stays visually distinct: ' + JSON.stringify(semantic));
     const mono = root.querySelector('.dsws-vc-badge,.dsws-vc-stat-n');
     check(/mono|consolas/i.test(getComputedStyle(mono).fontFamily), 'Git status retains monospace');
-    reports.push({ theme, button: actual, inputHeight: input.getBoundingClientRect().height, semantic });
+    reports.push({ theme, button: actual, inputHeight: input.getBoundingClientRect().height, focus:mainFocus, semantic });
   }
   check(JSON.stringify(reports[0].button) === JSON.stringify(reports[1].button), 'theme switching preserves button dimensions');
   check(reports[0].inputHeight === reports[1].inputHeight, 'theme switching preserves input dimensions');
@@ -129,6 +139,10 @@ async function scenario() {
     document.documentElement.dataset.theme = theme;
     document.body.toggleAttribute('data-ds-dark-theme', theme === 'dark');
     const cancel = confirm.querySelector('[data-vc-confirm-cancel]');
+    mainFocusReference.focus();
+    const expectedFocus = focusPresentation(mainFocusReference);
+    cancel.focus();
+    check(JSON.stringify(focusPresentation(cancel)) === JSON.stringify(expectedFocus), 'confirmation focus follows the actual main-panel focus contract');
     check(JSON.stringify(geometry(cancel)) === JSON.stringify(geometry(reference)), 'confirmation controls share main geometry');
     check(getComputedStyle(confirm).backgroundColor === getComputedStyle(input).backgroundColor, 'confirmation uses current shared input surface');
     confirmation.push({theme,height:cancel.getBoundingClientRect().height,background:getComputedStyle(confirm).backgroundColor});

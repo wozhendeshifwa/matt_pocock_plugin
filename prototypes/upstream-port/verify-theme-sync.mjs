@@ -171,8 +171,3 @@ try {
   assert.deepEqual(stateful.errors, []);
   console.log('PASS T1/T2/T3/T7 fallback/recovery, actual editor/selection/diff/scroll preservation and reopening');
 } finally { stateful.close(); }
-
-
-
-
-
