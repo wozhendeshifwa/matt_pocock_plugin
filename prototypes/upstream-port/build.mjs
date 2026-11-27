@@ -10,6 +10,7 @@ import { adaptContextRequests } from "./context-request-client.mjs";
 import { adaptSkillSourceDisplay } from "./skill-source-client.mjs";
 import { adaptBottomActionBar } from "./bottom-action-bar-client.mjs";
 import { adaptSkillPreparation } from "./skill-preparation-client.mjs";
+import { adaptVersionControlPaths } from "./version-control-style-client.mjs";
 
 const runtime = await build({
   entryPoints: [new URL("browser-runtime.mjs", import.meta.url).pathname.replace(/^\/(\w:)/, "$1")],
@@ -58,6 +59,7 @@ const handoffAck = "      inject(st, text)\n      flash(st, tr('toast.injectedHa
 if (adapted.split(handoffAck).length !== 2) throw new Error('Handoff acknowledgment boundary changed');
 adapted = adapted.replace(handoffAck, '      if (await inject(st, text) === false) return;');
 adapted = adaptSkillPreparation(adapted);
+adapted = adaptVersionControlPaths(adapted);
 const cacheAnchor = 'const diskGetSnapshot = function (k) {';
 // Expose the existing two-step handoff on the board, without duplicating its
 // document resolution or host draft routing in a second implementation.
@@ -97,6 +99,6 @@ await writeFile(new URL("manifest.json", output), JSON.stringify({
   upstreamVersion: "1.8.0-rc.7",
   upstreamClientSha256: createHash("sha256").update(original).digest("hex"),
   output: "client.js",
-  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay", "skills.beforeUse", "issueActions.bottomBar"],
+  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay", "skills.beforeUse", "issueActions.bottomBar", "versionControl.fullPaths"],
 }, null, 2) + "\n");
 console.log("Built original MattSkills client with Codex mounting adapter");
