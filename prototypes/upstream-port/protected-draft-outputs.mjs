@@ -10,16 +10,19 @@ export function createProtectedDraftOutputs({ getIdentity, readIdentity, subscri
     && typeof adapter.readDraft === 'function' && typeof adapter.writeDraft === 'function'
     && typeof getIdentity === 'function' && typeof readIdentity === 'function' && typeof subscribeIdentity === 'function';
   return {
+    captureTarget() { return Object.freeze({ ...getIdentity?.() }); },
     capabilities: Object.freeze({ reliableDraft: reliable, active: reliable, new: reliable, reason: reliable ? '' : reason }),
-    async prefill(target, text) {
+    async prefill(target, text, options = {}) {
       if (!reliable) throw new Error(reason);
       if (!['active', 'new'].includes(target)) throw new Error('未知草稿出口，不会自动改投。');
       if (typeof text !== 'string') throw new Error('缺少可见草稿文本。');
-      const expectedIdentity = Object.freeze({ ...getIdentity() });
+      const expectedIdentity = Object.freeze({ ...(options.expectedIdentity || getIdentity()) });
       if (!expectedIdentity.projectRoot || !expectedIdentity.threadId) throw new Error('无法确认目标项目或聊天；操作已停止。');
       const controller = new AbortController();
       const { signal } = controller;
-      const sameIdentity = identity => identity?.threadId === expectedIdentity.threadId && identity?.projectRoot === expectedIdentity.projectRoot;
+      const sameIdentity = identity => identity?.threadId === expectedIdentity.threadId && identity?.projectRoot === expectedIdentity.projectRoot
+        && (expectedIdentity.cwd === undefined || identity?.cwd === expectedIdentity.cwd)
+        && (expectedIdentity.projectId === undefined || identity?.projectId === expectedIdentity.projectId);
       const invalidate = () => controller.abort(new Error('项目或目标聊天已切换，旧操作已停止；草稿已保留，请重新确认目标。'));
       const unsubscribe = subscribeIdentity(identity => { if (!sameIdentity(identity)) invalidate(); });
       const assertCurrent = async () => {

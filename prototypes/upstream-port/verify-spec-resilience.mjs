@@ -16,7 +16,9 @@ async function mount(issues) {
   const sessions = { current: session.id, byId: { resilience: session }, items: [session] };
   let snapshot = { ok: true, workspaceRoot: '/fixture', repoRoot: '/fixture', repository: { name: 'fixture/repo' }, repo: { owner: 'fixture', name: 'repo' }, issues, maps: [], labels: [], selection: { backendId: 'github' }, backendModules: [{ id: 'github' }] };
   const original = JSON.stringify(issues);
+  const writes = [];
   const dispose = w.MattSkillsCodex.mount(w.document.getElementById('root'), {
+    codexActions: { capabilities: { nativeDraftRequest: true, active: true, new: true }, async prefill(target, text) { writes.push({ target, text }); return { status: 'requested', target }; } },
     sessions: { get: () => session, list: { getSnapshot: () => sessions, subscribe: () => () => {} } },
     connection: { rpc: { async call(c, e, r) {
       if (['snapshot', 'refresh'].includes(r.method)) return { ok: true, value: snapshot };
@@ -28,7 +30,7 @@ async function mount(issues) {
   const until = async check => { for (let i = 0; i < 150; i++) { if (check()) return; await new Promise(resolve => setTimeout(resolve, 20)); } assert.fail('UI timeout: ' + w.document.body.textContent.slice(-700)); };
   const find = n => [...w.document.querySelectorAll('[role="button"]')].find(element => element.getAttribute('aria-label')?.startsWith('#' + n + ' '));
   await until(() => w.document.querySelector('[data-spec-search]'));
-  return { w, until, find, setRows(next) { snapshot = { ...snapshot, issues: next }; }, close() { assert.equal(JSON.stringify(issues), original, 'display never mutates backend issue state or relationships'); dispose(); w.close(); } };
+  return { w, until, find, writes, setRows(next) { snapshot = { ...snapshot, issues: next }; }, close() { assert.equal(JSON.stringify(issues), original, 'display never mutates backend issue state or relationships'); dispose(); w.close(); } };
 }
 
 const openChild = row(83, 'Still open', 'OPEN', '80');
@@ -157,21 +159,15 @@ console.log('PASS native children preserve dependencies inside and outside the i
   const ui = await mount([unknownChild]);
   try {
     assert.match(ui.find(83).textContent, /依赖.*未知/, 'unknown dependencies stay visible and are not presented as unblocked');
-    assert.equal(ui.find(83).querySelectorAll('button.primary').length, 0, 'unknown dependencies cannot offer execute or new-session actions');
-    const ready = [...ui.w.document.querySelectorAll('button, [role=button]')].find(button => button.textContent.trim() === '可接');
-    ready.click();
-    await ui.until(() => !ui.find(83));
-    const all = [...ui.w.document.querySelectorAll('button, [role=button]')].find(button => button.textContent.trim() === '全部');
-    all.click();
-    await ui.until(() => ui.find(83));
+    assert.equal(ui.find(83).querySelectorAll('[data-issue-direct-actions] button').length, 2, 'draft outlets remain distinct from execution gates');
     ui.find(83).click();
-    await ui.until(() => ui.w.document.querySelector('[data-detail-primary-text]'));
-    assert.ok(ui.w.document.querySelector('[data-detail-primary-text]').closest('button').disabled);
-    assert.ok(ui.w.document.querySelector('[data-detail-new-text]').closest('button').disabled);
-    assert.ok(ui.w.document.querySelector('[data-bottom-action-toggle]').disabled);
+    await ui.until(() => ui.w.document.querySelector('[data-bottom-action-bar] button[aria-label="填入当前聊天"]'));
+    ui.w.document.querySelector('[data-bottom-action-bar] button[aria-label="填入当前聊天"]').click();
+    await ui.until(() => ui.writes.length === 1);
+    assert.match(ui.writes[0].text, /issues\/83/, 'unknown execution dependencies do not prevent a plain draft for the explicitly opened child');
   } finally { ui.close(); }
 }
-console.log('PASS failed dependency reads preserve access and withhold dependency-sensitive actions');
+console.log('PASS failed dependency reads preserve metadata without blocking plain draft fill');
 
 {
   let dependencies = 'failed';
@@ -212,7 +208,7 @@ console.log('PASS dependency failure/recovery gates and indexed refresh stay tru
   const ui = await mount([child]);
   try {
     assert.match(ui.find(83).textContent, /被阻塞.*#99/, 'a real open prerequisite outside the bounded pool still blocks execution');
-    assert.equal(ui.find(83).querySelectorAll('button.primary').length, 0);
+    assert.equal(ui.find(83).querySelectorAll('[data-issue-direct-actions] button').length, 2, 'blocker metadata is retained without turning draft fill into execution');
   } finally { ui.close(); }
 }
 
@@ -224,7 +220,7 @@ console.log('PASS dependency failure/recovery gates and indexed refresh stay tru
     assert.match(ui.find(80).textContent, /子票.*未知/);
     assert.doesNotMatch(ui.find(80).textContent, /0\/0|\/null/);
     ui.find(83).click();
-    await ui.until(() => ui.w.document.querySelector('[data-detail-primary-text]'));
+    await ui.until(() => ui.w.document.querySelector('[data-bottom-action-bar]'));
     assert.ok(ui.w.document.querySelector('[data-parent-spec]'), 'child keeps its own action and parent navigation during read failure');
     ui.w.document.querySelector('[data-parent-spec] a').click();
     await ui.until(() => ui.w.document.querySelector('[data-spec-children]'));

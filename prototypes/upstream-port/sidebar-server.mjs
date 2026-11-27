@@ -23,9 +23,11 @@ if (changeDirectory) process.chdir(dataRoot);
 const hostContextPath = dataRoot + "host-context-captures.json";
 let hostContextWrite = Promise.resolve();
 const mimeType = "text/html;profile=mcp-app";
+// Only the explicit Copy actions need clipboard writing; no read permission.
+const resourceMeta = { ui: { permissions: { clipboardWrite: {} } } };
 const [themeCss, ...scripts] = await Promise.all(["theme.css", "dist/client.js", "sidebar-bridge.js"].map(name => readFile(new URL(name, import.meta.url), "utf8")));
 // Host-side resource caches must not reuse an older client after deployment.
-const resourceRevision = createHash('sha256').update([themeCss, ...scripts].join('\n')).digest('hex').slice(0,16);
+const resourceRevision = createHash('sha256').update([themeCss, ...scripts, JSON.stringify(resourceMeta)].join('\n')).digest('hex').slice(0,16);
 const uri = 'ui://deck-sidebar/board-' + resourceRevision + '.html';
 const uris = new Set([uri, 'ui://deck-sidebar/board.html', 'ui://deck-sidebar/board-v3.html', 'ui://deck-sidebar/board-v4.html']);
 const html = '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>MattSkillsDeck</title><style>' +
@@ -100,7 +102,7 @@ async function handle(request) {
     case "resources/templates/list": return { resourceTemplates: [] };
     case "resources/read":
       if (!uris.has(request.params.uri)) throw new Error("Sidebar resource not found");
-      return { contents: [{ uri: request.params.uri, mimeType, text: html }] };
+      return { contents: [{ uri: request.params.uri, mimeType, text: html, _meta: resourceMeta }] };
     case "tools/call": {
       if (sandboxTools.some(tool => tool.name === request.params.name)) {
         try {

@@ -1,0 +1,28 @@
+# #91 最终 A 操作区与旧面板移除
+
+基于 integration a7b22b5ec0d0a51761ed33292fd3afdbe08d1652，分支 codex/issue91-footer。
+
+## 实现
+
+- 详情只保留正文／评论后正常文档流中的一个操作区：当前聊天主按钮、新聊天次按钮，紧邻反馈，下方紧凑复制与更多动作。沿用 dsws 控件和主题变量，不接管版本管理。
+- 列表／详情各变体删除旧预览入口；删除旧 textarea、来源常驻说明、核验／更新／清空控件、折叠中转区及其运行时实现。构建中找不到旧编辑器或预览函数标记。
+- 沿用 #88 的来源／标签重查、等待锁、失败与未知恢复；沿用 #89 按需补充字段和 #90 历史原文复制。未修改实际宿主出口与 #70 能力边界。
+- 保留原页面会话内存的文本与上下文身份键。兼容补齐旧字段时，更多动作已有显式字段值优先，包含用户显式清空的空字符串。当前编辑／清空仍由宿主输入框承担。
+
+## TDD 与接缝
+
+沿用已确认的“生产侧栏 UI → 来源准备／宿主草稿／剪贴板”接缝。未新增生产测试接口、私有状态断言或持久化。
+
+1. final A footer 回归先在旧构建失败：仍有 editor toggle，actual true / expected false。移除面板、落地 A 层级后通过。
+2. 历史上下文回归先失败：旧 renderer 先创建空 moreAction.context 后再编辑 legacy context，最终公开菜单的比较基线为空而非 release/2。兼容补齐未触碰字段后通过；另验证更多动作显式清空基线优先，避免旧字段复活。
+3. 历史数据由归档旧 renderer 的公开 UI 准备，再通过公共 ModuleLoader 切换最终 renderer，保留同页 production runtime 内存。来源 commit、内容 hash 与重建方法在 prototypes/upstream-port/test-fixtures/README.md。
+
+旧测试的编辑／折叠／清空预览行为不再是产品契约。改为直接输出的标签策略、可靠回执、来源路径／正文变化停止、未知结果保留文本复制；历史手写文本／字段、隔离、两种复制差异和错误保留继续经最终 UI 验证。补充动作目标与规则断言迁到更多动作的现行公开入口。
+
+## 实际验证
+
+2026-11-27：统一 npm run check 通过（132 个顶层 JS 语法检查；sandbox 28 项中 27 通过、1 跳过、0 失败；构建及全部登记的侧栏回归通过）。统一 runner 现包含迁移后的 final footer、legacy context、标签策略和 reviewed outputs 回归，避免旧快捷脚本遗漏。
+
+首次沙箱运行因本机 Git/MSYS 本地 clone 的命名对象权限失败；改为获授权的本机执行后通过，非产品失败。先前工作树 git diff --check 未覆盖当时尚未跟踪的新 helper，不能作为完整分支卫生证明；独立合并检查发现该 helper 混合换行及末尾空行。现仅统一 helper 为 LF 并移除末尾额外空行，归档 gzip 字节与行为保持不变。修复后以 git diff --cached --check 检查暂存变更，并在提交后运行 git diff --check codex/issue82-integration...HEAD 验证包含新文件的完整分支差异；均无输出、退出 0。相关 final footer、legacy draft copy、legacy context 回归通过，未无理由重跑全量。
+
+未修改 GitHub、配置、现用服务、#70 或主树未提交 GLOSSARY。未部署、未调用真实发送、未执行原生 UI；受控浏览器视觉核验由协调者进行，真实 Codex 验收仍由 #92 独立记录。

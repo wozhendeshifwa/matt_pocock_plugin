@@ -11,6 +11,8 @@ import { adaptContextRequests } from "./context-request-client.mjs";
 import { adaptSkillSourceDisplay } from "./skill-source-client.mjs";
 import { adaptBottomActionBar } from "./bottom-action-bar-client.mjs";
 import { adaptSkillPreparation } from "./skill-preparation-client.mjs";
+import { adaptVersionControlPaths } from "./version-control-style-client.mjs";
+import { adaptDirectIssueActions } from "./direct-issue-actions-client.mjs";
 
 const runtime = await build({
   entryPoints: [new URL("browser-runtime.mjs", import.meta.url).pathname.replace(/^\/(\w:)/, "$1")],
@@ -40,6 +42,7 @@ adapted = adaptSkillSourceDisplay(adapted);
 adapted = adaptIssueActions(adapted);
 adapted = adaptSpecList(adapted);
 adapted = adaptBottomActionBar(adapted);
+adapted = adaptDirectIssueActions(adapted);
 for (const [anchor, target] of [
   ["const inject = (st, text) => {", "active"],
   ["const openTextInNewSession = function (st, text, title, opts) {", "new"],
@@ -60,6 +63,7 @@ const handoffAck = "      inject(st, text)\n      flash(st, tr('toast.injectedHa
 if (adapted.split(handoffAck).length !== 2) throw new Error('Handoff acknowledgment boundary changed');
 adapted = adapted.replace(handoffAck, '      if (await inject(st, text) === false) return;');
 adapted = adaptSkillPreparation(adapted);
+adapted = adaptVersionControlPaths(adapted);
 const cacheAnchor = 'const diskGetSnapshot = function (k) {';
 // Expose the existing two-step handoff on the board, without duplicating its
 // document resolution or host draft routing in a second implementation.
@@ -70,11 +74,15 @@ const boardComponentAnchor = 'const DeckSidebarTab = function (props) {';
 if (adapted.split(boardComponentAnchor).length !== 2) throw new Error('Upstream board component boundary changed');
 adapted = adapted.replace(boardComponentAnchor, `const CodexBoardActions = function (props) {
       const st = useStore(props.sessionId)
+      const operations = ctx.get('draftOperations')
+      React.useSyncExternalStore(operations.subscribe, operations.getSnapshot)
+      const draftPending = operations.pending
       const en = tr('nav.handoff') === 'Handoff'
       return h('div', { className: 'mattskills-board-actions', role: 'group', 'aria-label': en ? 'Chat actions' : '聊天操作' }, [
-        h('button', { key: 'fixate', type: 'button', className: 'dsws-btn', 'data-board-action': 'fixate', 'aria-label': tr('nav.word'), title: tr('nav.fixateTitle'), onClick: function () { injectFixate(st) } }, Ic({ n: 'note', size: 14 })),
-        h('button', { key: 'handoff', type: 'button', className: 'dsws-btn', 'data-board-action': 'handoff', 'aria-label': tr('nav.handoff'), title: tr('nav.handoffTitle'), onClick: function () { doHandoff(st) } }, Ic({ n: 'handoff', size: 14 })),
-        h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'data-board-action': 'new', 'aria-label': en ? 'New chat' : '开新对话', disabled: !!st.handoffSearching, title: st.handoffReady ? tr('nav.handoffReadyTitle') : tr('nav.handoffGreyTitle'), onClick: function () { doHandoffOpen(st) } }, Ic({ n: 'external-link', size: 14 }))
+        h('button', { key: 'fixate', type: 'button', className: 'dsws-btn', 'data-board-action': 'fixate', 'aria-label': tr('nav.word'), disabled: draftPending, title: tr('nav.fixateTitle'), onClick: function () { injectFixate(st) } }, Ic({ n: 'note', size: 14 })),
+        h('button', { key: 'handoff', type: 'button', className: 'dsws-btn', 'data-board-action': 'handoff', 'aria-label': tr('nav.handoff'), disabled: draftPending, title: tr('nav.handoffTitle'), onClick: function () { doHandoff(st) } }, Ic({ n: 'handoff', size: 14 })),
+        h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'data-board-action': 'new', 'aria-label': en ? 'New chat' : '开新对话', disabled: draftPending || !!st.handoffSearching, title: st.handoffReady ? tr('nav.handoffReadyTitle') : tr('nav.handoffGreyTitle'), onClick: function () { doHandoffOpen(st) } }, Ic({ n: 'external-link', size: 14 })),
+        h(DirectIssueActions, { key: 'draft-feedback', st, toolbar: true })
       ])
     }
     ` + boardComponentAnchor);
@@ -99,6 +107,6 @@ await writeFile(new URL("manifest.json", output), JSON.stringify({
   upstreamVersion: "1.8.0-rc.7",
   upstreamClientSha256: createHash("sha256").update(original).digest("hex"),
   output: "client.js",
-  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay", "skills.beforeUse", "issueActions.bottomBar"],
+  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay", "skills.beforeUse", "issueActions.bottomBar", "versionControl.fullPaths", "issueActions.directCurrent"],
 }, null, 2) + "\n");
 console.log("Built original MattSkills client with Codex mounting adapter");

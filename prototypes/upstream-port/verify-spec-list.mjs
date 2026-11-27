@@ -6,7 +6,7 @@ import { normalizePanelPayload } from './panel-payload.mjs';
 
 const client = await readFile(new URL('dist/client.js', import.meta.url), 'utf8');
 const row = (n, title, labels = [], parentKey = null, state = 'OPEN') => ({ key: String(n), number: n, title, labels: labels.map(name => ({ name })), parentKey, state, type: 'issue', assignees: [], blockedBy: [], url: `https://github.com/fixture/repo/issues/${n}` });
-const spec = row(80, 'Specification', ['spec'], '77');
+const spec = row(80, 'Specification', ['ready-for-agent', 'wayfinder:task', 'spec'], '77');
 const first = row(83, 'Searchable child', ['ready-for-agent', 'wayfinder:task'], '80');
 const second = row(84, 'Finished child', [], '80', 'CLOSED');
 const independent = row(90, 'Independent work');
@@ -19,7 +19,7 @@ const sessions = { current: session.id, byId: { spec: session }, items: [session
 spec.children = [first, second];
 spec.childrenRead = { state: 'complete', total: 2 };
 const map = { ...row(77, 'Roadmap', ['wayfinder:map']), type: 'map', tickets: [spec, row(78, 'Map decision', [], '77')], stats: { total: 2, open: 2, closed: 0 } };
-const snapshot = { ok: true, workspaceRoot: '/fixture', repoRoot: '/fixture', repository: { name: 'fixture/repo', url: 'https://github.com/fixture/repo' }, repo: { owner: 'fixture', name: 'repo' }, issues: [first, second, independent, ...map.tickets], maps: [map], labels: [], selection: { backendId: 'github' }, backendModules: [{ id: 'github' }] };
+const snapshot = { ok: true, workspaceRoot: '/fixture', repoRoot: '/fixture', repository: { name: 'fixture/repo', url: 'https://github.com/fixture/repo' }, repo: { owner: 'fixture', name: 'repo' }, issues: [spec, first, second, independent, ...map.tickets], maps: [map], labels: [], selection: { backendId: 'github' }, backendModules: [{ id: 'github' }] };
 w.eval(client);
 const dispose = w.MattSkillsCodex.mount(w.document.getElementById('root'), {
   sessions: { list: { getSnapshot: () => sessions, subscribe: () => () => {} }, get: () => session },
@@ -36,6 +36,8 @@ try {
   await until(() => findRow(80));
   assert.ok(findRow(90), 'independent task stays visible');
   assert.ok(!findRow(83), 'known spec child is folded from default list');
+  assert.equal(findRow(80).querySelector('[data-spec-count]')?.textContent, 'spec 1/2', 'the spec tag shows completed and total children');
+  assert.equal(findRow(80).querySelector('.dsws-tags .dsws-chip')?.textContent, 'spec 1/2', 'the spec summary stays at the visible start of collapsed tags');
   assert.ok(!findRow(78), 'map decisions stay in the map page');
   const search = w.document.querySelector('[data-spec-search]');
   assert.ok(search, 'task search is available');
@@ -59,7 +61,7 @@ try {
   findRow(83).click();
   await until(() => w.document.querySelector('[data-parent-spec]'));
   assert.match(w.document.querySelector('[data-parent-spec]').textContent, /所属规格.*#80/);
-  assert.ok(w.document.querySelector('[data-detail-primary-text]'), 'child retains own action');
+  assert.ok(w.document.querySelector('[data-bottom-action-bar] button[aria-label="填入当前聊天"]'), 'child retains its own direct fill action');
   w.document.querySelector('[data-parent-spec] a').click();
   await until(() => w.document.querySelector('[data-spec-children]'));
   console.log('PASS spec list folding and bidirectional detail navigation');

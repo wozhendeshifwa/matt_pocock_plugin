@@ -58,6 +58,9 @@ function specCount(spec) {
   if (!specComplete(spec)) return spec.childrenRead?.state === 'failed' ? '子票读取失败 · 完成数未知' : '子票读取不完整 · 已读取 ' + (spec.children || []).length + ' 张，完成数未知';
   return '子票 ' + (spec.children || []).filter(child => child.state === 'CLOSED').length + '/' + spec.childrenRead.total;
 }
+function specLabel(spec) {
+  return specComplete(spec) ? 'spec ' + (spec.children || []).filter(child => child.state === 'CLOSED').length + '/' + spec.childrenRead.total : 'spec ?';
+}
 function specOpenWork(st, row) {
   const spec = specInfo(st, row);
   return !!spec && (!specComplete(spec) || (spec.children || []).some(child => child.state !== 'CLOSED'));
@@ -90,12 +93,8 @@ export function adaptSpecList(source) {
     if (source.split(anchor).length !== 2) throw new Error('Spec boundary changed: ' + anchor.slice(0, 80));
     source = source.replace(anchor, replacement);
   };
-  replace('const ListTab = ({ st, narrow }) => {', 'const specIndexes = new WeakMap();\n' + [specIdentity, buildSpecIndex, specIndex, specTagged, specFor, specInfo, specDependenciesUnknown, specExecutionHeld, specComplete, specCount, specOpenWork, specStateText, specListRows].map(fn => fn.toString()).join('\n') + '\nconst ListTab = ({ st, narrow }) => {');
-  replace("      if (!x || x.state === 'CLOSED') return false\n      if (x.assignees", "      if (!x || x.state === 'CLOSED') return false\n      if (specExecutionHeld(st, x)) return true\n      if (x.assignees");
-  replace("isOpen && !blocked ? h('div'", "isOpen && !blocked && !specExecutionHeld(st, x) ? h('div'");
+  replace('const ListTab = ({ st, narrow }) => {', 'const specIndexes = new WeakMap();\n' + [specIdentity, buildSpecIndex, specIndex, specTagged, specFor, specInfo, specDependenciesUnknown, specExecutionHeld, specComplete, specCount, specLabel, specOpenWork, specStateText, specListRows].map(fn => fn.toString()).join('\n') + '\nconst ListTab = ({ st, narrow }) => {');
   replace("const fakeIssue = { number: issueNumber, ['title']: title, labels: labelArr.map(function (l) { return typeof l === 'string' ? { name: l } : l }), state: stateRaw }", "const fakeIssue = { number: issueNumber, effortId: issueEffort, ['title']: title, labels: labelArr.map(function (l) { return typeof l === 'string' ? { name: l } : l }), state: stateRaw, dependenciesRead: (specIndex(st).byId.get(specIdentity({ number: issueNumber, effortId: issueEffort })) || {}).dependenciesRead }");
-  replace("className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); try { previewIssueAction(st, fakeIssue)", "className: 'dsws-btn primary', disabled: specExecutionHeld(st, fakeIssue), onClick: function (e) { e.stopPropagation(); try { previewIssueAction(st, fakeIssue)");
-  replace("className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); openInNewSession(st, { number: issueNumber", "className: 'dsws-btn primary', disabled: specExecutionHeld(st, fakeIssue), onClick: function (e) { e.stopPropagation(); openInNewSession(st, { number: issueNumber");
   const listAnchor = "const issues = ticketRowsOf((st.snapshot && Array.isArray(st.snapshot.issues)) ? st.snapshot.issues : []).concat(issuePageRowsOf(st, 'list'))";
   replace(listAnchor, "const issues = specListRows(st, ticketRowsOf((st.snapshot && Array.isArray(st.snapshot.issues)) ? st.snapshot.issues : []).concat(issuePageRowsOf(st, 'list')))" );
   replace("const openIssues = issues.filter(function (x) { return x.state !== 'CLOSED' })", "const openIssues = issues.filter(function (x) { return x.state !== 'CLOSED' || specOpenWork(st, x) })");
@@ -110,7 +109,10 @@ export function adaptSpecList(source) {
         // sub-issues`);
   replace("        subNodes.length || subTotal ? h('div', { style: { padding: '6px 0' } }, [", "        (spec || subTotal > 0) ? h('div', { 'data-spec-children': spec ? 1 : undefined, style: { padding: '6px 0' } }, [");
   replace("'子票 ' + subTotal + (subNodes.length ? '' : '（无加载）')", "spec ? specCount(spec) : ('子票 ' + subTotal + (subNodes.length ? '' : '（无加载）'))");
-  replace("          (isMap && mapObj && mapObj.stats && !mapClosed) ? ringOf(mapObj.stats) : null,", `          specInfo(st, x) ? h('span', { 'data-spec-count': 1, style: { fontSize: 11, flex: 'none' } }, specCount(specInfo(st, x))) : null,
+  replace('      const labels = x.labels || []', "      const labels = specInfo(st, x) ? (x.labels || []).filter(label => label.name === 'spec').concat((x.labels || []).filter(label => label.name !== 'spec')) : (x.labels || [])");
+  const labelRow = "return h('span', { key: i, className: 'dsws-chip', style: { fontSize: 10, background: hexA(l.color, 0.18) || 'rgba(188,140,255,.16)', color: l.color ? '#' + l.color : '#bc8cff', border: '1px solid ' + (darken(l.color, 0.16) || 'rgba(188,140,255,.6)') } }, l.name)";
+  replace(labelRow, labelRow.replace("key: i, className:", "key: i, 'data-spec-count': l.name === 'spec' && specInfo(st, x) ? 1 : undefined, title: l.name === 'spec' && specInfo(st, x) ? specCount(specInfo(st, x)) : undefined, 'aria-label': l.name === 'spec' && specInfo(st, x) ? 'spec · ' + specCount(specInfo(st, x)) : undefined, className:").replace('}, l.name)', "}, l.name === 'spec' && specInfo(st, x) ? specLabel(specInfo(st, x)) : l.name)"));
+  replace("          (isMap && mapObj && mapObj.stats && !mapClosed) ? ringOf(mapObj.stats) : null,", `          specInfo(st, x) && !specComplete(specInfo(st, x)) ? h('span', { style: { fontSize: 11 } }, specCount(specInfo(st, x))) : null,
           specOpenWork(st, x) && x.state === 'CLOSED' ? h('span', { 'data-spec-status': 1, style: { fontSize: 11 } }, specStateText(st, x)) : null,
           specFor(st, x) ? h('span', { 'data-spec-owner': 1, style: { fontSize: 11, flex: 'none' } }, '所属规格 #' + specFor(st, x).number) : null,
           specDependenciesUnknown(st, x) ? h('span', { 'data-dependencies-unknown': 1, style: { fontSize: 11 } }, '依赖读取未知 · 暂停执行') : null,
