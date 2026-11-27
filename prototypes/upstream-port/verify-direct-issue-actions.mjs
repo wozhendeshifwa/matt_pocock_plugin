@@ -26,7 +26,7 @@ async function scenario(detail = false, exercise = null, options = {}) {
     connection: { rpc: { async call(c, e, r) {
       if (['snapshot', 'refresh'].includes(r.method)) return snapshot;
       if (r.method === 'cwd') return { ok: true, value: { ok: true, cwd: '/direct', workspaceRoot: '/direct' } };
-      if (r.method === 'issueDetail') return { ok: true, value: { ok: true, issue: { ...row, body: 'Direct evidence' } } };
+      if (r.method === 'issueDetail') return { ok: true, value: { ok: true, issue: { ...row, labels: controls.detailLabels || { nodes: row.labels.map(name => ({ name, color: '' })) }, body: 'Direct evidence' } } };
       if (r.method === 'skill.readDoc') {
         if (controls.readFailure) throw new Error('source read transport failed');
         if (controls.missingRule) return { ok: true, value: { ok: false, missing: true } };
@@ -45,7 +45,8 @@ async function scenario(detail = false, exercise = null, options = {}) {
     assert.ok(group, 'direct feedback and copy belong to the same visible action group');
     if (exercise) await exercise({ w, active, group, until, writes, copies, controls });
     else {
-      active.click(); await until(() => writes.length === 1);
+      active.click(); await until(() => writes.length === 1 || group.textContent.includes('操作失败'));
+      assert.equal(writes.length, 1, 'fresh native issue detail must reach the draft outlet: ' + group.textContent);
       await until(() => group.textContent.includes('已请求'));
       assert.equal(writes[0].target, 'active');
       assert.ok(writes[0].text.startsWith('$triage\n\n目标：Direct fixture\nIssue：https://github.com/fixture/repo/issues/10\n'));
@@ -59,6 +60,12 @@ async function scenario(detail = false, exercise = null, options = {}) {
 }
 
 for (const detail of [false, true]) await scenario(detail);
+await scenario(false, async ({ active, group, until, controls, writes, copies }) => {
+  controls.detailLabels = { unexpected: [] };
+  active.click(); await until(() => group.textContent.includes('无法读取最新标签'));
+  assert.equal(writes.length, 0, 'malformed fresh labels stop the stale request instead of becoming an empty label set');
+  assert.equal(copies.length, 0, 'a failed refresh never silently copies');
+});
 for (const detail of [false, true]) await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
   controls.allowed = false;
   controls.reasonsByRead = Array(8).fill(['必要工具不可用：GitHub；必要资料尚未核验']);

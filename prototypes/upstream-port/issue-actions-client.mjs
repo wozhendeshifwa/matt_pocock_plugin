@@ -23,7 +23,10 @@ function supplementalRequirements(skill, context) {
 }
 
 export function issueActionRequest(issue, url) {
-  const labels = (issue.labels || []).map(l => typeof l === 'string' ? l : l.name).filter(Boolean);
+  // Snapshot rows use arrays; native issueDetail preserves GitHub's connection.
+  const sourceLabels = issue.labels == null ? [] : Array.isArray(issue.labels) ? issue.labels : issue.labels.nodes;
+  if (!Array.isArray(sourceLabels)) throw new Error('无法读取最新标签，请刷新后重试');
+  const labels = sourceLabels.map(l => typeof l === 'string' ? l : l?.name).filter(Boolean);
   const has = label => labels.includes(label);
   const states = labels.filter(l => ['needs-triage', 'needs-info', 'ready-for-human', 'ready-for-agent', 'wontfix'].includes(l));
   const types = labels.filter(l => ['wayfinder:map', 'wayfinder:task', 'wayfinder:grilling', 'wayfinder:research', 'wayfinder:prototype'].includes(l));
