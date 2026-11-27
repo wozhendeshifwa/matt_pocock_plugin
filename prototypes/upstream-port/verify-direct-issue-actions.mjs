@@ -55,6 +55,12 @@ async function scenario(detail = false, exercise = null, options = {}) {
 }
 
 for (const detail of [false, true]) await scenario(detail);
+await scenario(false, async ({ active, group, until, controls }) => {
+  controls.result = 'filled';
+  controls.reliable = false;
+  active.click(); await until(() => group.textContent.includes('已请求'));
+  assert.doesNotMatch(group.textContent, /已填入/, 'an unverified filled receipt cannot grant a native-only outlet reliable confirmation');
+});
 await scenario(false, async ({ active, group, until, copies, writes }) => {
   assert.equal(active.disabled, true);
   assert.match(group.textContent, /当前宿主缺少可用追加接口/, 'unavailable direct output explains its reason before a click');

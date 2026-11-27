@@ -21,7 +21,7 @@ export function MoreIssueActions({ st, issue, pending, run }) {
     setContext(next);
   };
   const execute = target => {
-    if (!ready || pending) return;
+    if (!ready || target !== 'copy' && pending) return;
     const base = issueActionRequest(issue, issueUrlFor(st, issue.number, issue.effortId || '') || '#' + issue.number);
     const selectedContext = Object.fromEntries(fields.map(name => [name, context[name] || '']));
     run(target, { ...base, skill, text: supplementalActionRequest(skill, base, selectedContext) });
@@ -44,7 +44,7 @@ export function MoreIssueActions({ st, issue, pending, run }) {
         ? h('select', { key: name, 'aria-label': '阶段／观察', value: context[name] || '', disabled: pending, onChange: e => change(name, e.target.value) }, ['', '成功结束', '失败结束', '中止', '反复返工', '导航困难', '工具低效'].map(value => h('option', { key: value, value }, value || '选择阶段／观察')))
         : h('input', { key: name, 'aria-label': ACTION_CONTEXT_LABELS[name], placeholder: ACTION_CONTEXT_LABELS[name], value: context[name] || '', disabled: pending, required: true, onInput: e => change(name, e.target.value), style: { minWidth: 0, maxWidth: '100%' } })),
       choice && !ready ? h('span', { key: 'missing', role: 'status' }, '请补齐：' + supplementalRequirements(skill, context).missing.join('、')) : null,
-      ...[['active', '填入当前聊天'], ['new', '填入新聊天'], ['copy', '复制']].map(([target, label]) => h('button', { key: target, type: 'button', className: 'dsws-btn', disabled: !ready || pending || target !== 'copy' && !canFillIssueActionDraft(actions, target), onClick: () => execute(target) }, label)),
+      ...[['active', '填入当前聊天'], ['new', '填入新聊天'], ['copy', '复制']].map(([target, label]) => h('button', { key: target, type: 'button', className: 'dsws-btn', disabled: !ready || target !== 'copy' && (pending || !canFillIssueActionDraft(actions, target)), onClick: () => execute(target) }, label)),
       h('button', { key: 'cancel', type: 'button', className: 'dsws-btn ghost', onClick: () => setOpen(false) }, '取消'),
     ]) : null,
   ]);
