@@ -30,7 +30,7 @@ try {
     } else {
       const url = new URL(messages.at(-1).url);
       assert.equal(url.searchParams.get('projectId'),identity.projectId);
-      assert.equal(url.searchParams.get('path'),identity.projectRoot);
+      assert.equal(url.searchParams.get('path'),identity.cwd);
       assert.equal(url.searchParams.get('prompt'),'exact edited draft');
     }
   }
