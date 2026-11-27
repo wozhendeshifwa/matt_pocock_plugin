@@ -229,7 +229,7 @@ html:root body [data-vc-root] .dsws-btn {
 
 html:root body [data-vc-root] .dsws-btn:hover {
   border-color: var(--dsw-alias-border-l2);
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--dsw-alias-bg-layer-1);
 }
 
 html:root body [data-vc-root] .dsws-btn.primary {
@@ -253,8 +253,10 @@ html:root body [data-vc-root] :is(input, textarea, select) {
   color: var(--dsw-alias-label-primary);
 }
 
-html:root body [data-vc-root] :is(button, input, textarea, select):focus-visible {
-  outline: 2px solid var(--dsw-alias-interactive-bg-primary);
+/* Use the main panel's established focus treatment for ordinary controls.
+   The compact board icons retain their dedicated currentColor focus rule. */
+.mattskills-shell :is(.dsws-btn:not([data-board-action]), input, textarea, select):focus-visible {
+  outline: 2px solid #58a6ff;
   outline-offset: 2px;
 }
 
