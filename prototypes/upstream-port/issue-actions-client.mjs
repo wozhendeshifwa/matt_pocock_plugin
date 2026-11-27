@@ -80,8 +80,12 @@ export async function sendIssueActionDraft(st, target, finalText) {
   const actions = ctx.get('codexActions');
   if (!canFillIssueActionDraft(actions, target)) throw new Error('宿主未提供可靠的草稿读取与结果确认，请明确选择复制');
   const result = await actions.prefill(target, finalText);
-  if (!result || !['filled', 'requested'].includes(result.status)) throw new Error('宿主填入结果无法确认；草稿已保留');
-  if (result.target !== target) throw new Error('宿主返回的目标与所选聊天不一致；草稿已保留');
+  if (!result || !['filled', 'requested'].includes(result.status) || result.target !== target) {
+    const error = new Error(result?.target && result.target !== target ? '宿主返回的目标与所选聊天不一致；草稿已保留' : '宿主填入结果无法确认；草稿已保留');
+    error.code = 'draft-result-unknown';
+    throw error;
+  }
+  if (result.status === 'filled' && actions.capabilities.reliableDraft !== true) return { status: 'requested', target };
   return result;
 }
 

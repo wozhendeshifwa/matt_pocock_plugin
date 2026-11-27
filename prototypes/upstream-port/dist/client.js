@@ -2894,8 +2894,12 @@ async function sendIssueActionDraft(st, target, finalText) {
   const actions = ctx.get('codexActions');
   if (!canFillIssueActionDraft(actions, target)) throw new Error('宿主未提供可靠的草稿读取与结果确认，请明确选择复制');
   const result = await actions.prefill(target, finalText);
-  if (!result || !['filled', 'requested'].includes(result.status)) throw new Error('宿主填入结果无法确认；草稿已保留');
-  if (result.target !== target) throw new Error('宿主返回的目标与所选聊天不一致；草稿已保留');
+  if (!result || !['filled', 'requested'].includes(result.status) || result.target !== target) {
+    const error = new Error(result?.target && result.target !== target ? '宿主返回的目标与所选聊天不一致；草稿已保留' : '宿主填入结果无法确认；草稿已保留');
+    error.code = 'draft-result-unknown';
+    throw error;
+  }
+  if (result.status === 'filled' && actions.capabilities.reliableDraft !== true) return { status: 'requested', target };
   return result;
 }
 function createDraftReview({preparation,panel,editor,note,state,getGenerated,setGenerated,persist}) {
@@ -7721,11 +7725,7 @@ const RULES_SOURCE = "version-control-core/src/rules.ts";
           } catch(e){}
           return label
         })()
-        return h(Tip, { content: tipByLabel }, h('button', {
-          className: 'dsws-btn primary' + (narrow ? ' narrow-icon' : ''),
-          onClick: function (e) { e.stopPropagation(); previewIssueAction(st, x) },
-          style: { display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 11, flex: 'none', background: colorHex, borderColor: 'transparent', color: light ? '#140a1e' : '#ffffff' },
-        }, [Ic({ n: icon, size: icon === 'prototype' ? 12 : 10 }), narrow ? null : h('span', null, label)]))
+        return h(DirectIssueActions, { st: st, issue: x, colorHex: colorHex, narrow: narrow })
       }
       // v21：技能命令 + URL + 统一引导句（不再重复灌输技能内部流程）
       // v25 · T2b：诊断/修复/讨论走模板渲染（用户可自定义静态文本，{url} 注入）
@@ -21667,6 +21667,48 @@ const useIssueDetailFold = function (st, issueNumber, issueEffort) {
       ]);
     };
 
+function DirectIssueActions({ st, issue, colorHex, narrow }) {
+  const state = actionDraftState(st, issue.number, issue.effortId || '');
+  const [status, setStatus] = React.useState('');
+  const [pending, setPending] = React.useState(false);
+  const alive = React.useRef(true);
+  React.useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const actions = ctx.get('codexActions');
+  const available = canFillIssueActionDraft(actions, 'active');
+  const run = async target => {
+    if (pending) return;
+    setPending(true);
+    setStatus('正在核验来源…');
+    try {
+      const preparation = ctx.get('requestPreparation');
+      if (!preparation) throw new Error('来源准备能力不可用，请补齐后重试');
+      const request = issueActionRequest(issue, issueUrlFor(st, issue.number, issue.effortId || '') || '#' + issue.number);
+      if (!state.directRequest || state.directRequest.baseText !== request.text) {
+        const candidate = await preparation.prepare({ text: request.text });
+        state.directRequest = { ...candidate, baseText: request.text };
+      }
+      const candidate = state.directRequest;
+      if (candidate.dependenciesAllowed !== true) throw new Error('必要来源、工具或资料未核验，请先补齐；本次填入已停止');
+      const checked = await preparation.check({ draftId: candidate.id, text: candidate.text });
+      if (checked.allowed !== true || checked.status !== 'unchanged' || checked.dependenciesAllowed !== true) {
+        throw new Error('技能来源或必要条件已变化，请核对后重新生成；本次出口已停止');
+      }
+      if (!alive.current) return;
+      const result = await sendIssueActionDraft(st, target, candidate.text);
+      if (!alive.current) return;
+      setStatus(target === 'copy' ? '已复制' : result.status === 'filled' ? '已填入当前聊天' : '已请求，请检查输入框后发送');
+    } catch (error) {
+      if (alive.current) setStatus(error.code === 'draft-result-unknown' ? '无法确认是否填入，请先检查输入框。生成文本已保留。' : '操作失败：' + String(error.message || error) + '。生成文本已保留。');
+    } finally {
+      if (alive.current) setPending(false);
+    }
+  };
+  return React.createElement('span', { 'data-issue-direct-actions': true, style: { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, minWidth: 0 } }, [
+    React.createElement('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '追加到可编辑输入框，不会自动发送' : actions?.capabilities?.reason || '当前聊天填入不可用，请主动选择复制', onClick: e => { e.stopPropagation(); run('active'); }, style: { background: colorHex, fontSize: 11 } }, '填入当前聊天'),
+    React.createElement('button', { key: 'copy', type: 'button', className: 'dsws-btn ghost', disabled: pending, onClick: e => { e.stopPropagation(); run('copy'); }, style: { fontSize: 11 } }, '复制'),
+    React.createElement('span', { key: 'status', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, overflowWrap: 'anywhere' } }, status || (!available ? (actions?.capabilities?.reason || '当前聊天填入不可用') + '；可主动选择复制。' : '')),
+  ]);
+}
 const IssueDetail = function (props) {
       const cx = React.useContext(DswsCtx)
       const h = cx ? cx.h : React.createElement
@@ -21917,7 +21959,7 @@ const IssueDetail = function (props) {
           h('span', { style: { flex: 1, minWidth: 8 } }),
           h('div', { style: { display: 'flex', alignItems: 'center', gap: 3, flex: 'none', minWidth: 0, overflow: 'hidden', flexWrap: 'nowrap' } }, [
             detail ? h('span', { 'data-detail-snapshot': 1, 'data-full': (isStale ? '快照' : (mode === 'loading' ? tr('list.loading') : '')), style: { fontSize: 10, color: isStale ? '#f59e0b' : '#8b8b95', flex: 'none', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' } }, isStale ? '快照' : (mode === 'loading' ? tr('list.loading') : '')) : null,
-            h(Tip, { content: primaryInfo.tip }, h('button', { className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); try { previewIssueAction(st, fakeIssue) } catch (err2) {} }, style: { display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 11, background: actColor, borderColor: 'transparent', color: actTextColor, flex: 'none', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' } }, [Ic({ n: primaryInfo.icon, size: primaryInfo.icon === 'prototype' ? 12 : 10 }), h('span', { 'data-detail-primary-text': 1, 'data-full': primaryInfo.label, style: { overflow: 'hidden', whiteSpace: 'nowrap', minWidth: 0 } }, primaryInfo.label)])),
+            h(DirectIssueActions, { key: 'direct', st: st, issue: fakeIssue, colorHex: actColor }),
             h(Tip, { content: tr('tip.newSession', { n: issueNumber }) }, h('button', { className: 'dsws-btn primary', onClick: function (e) { e.stopPropagation(); openInNewSession(st, { number: issueNumber, ['title']: title, labels: labelArr }) }, style: { display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 11, background: actColor, borderColor: 'transparent', color: actTextColor, flex: 'none', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' } }, [Ic({ n: 'external-link', size: 10 }), h('span', { 'data-detail-new-text': 1, 'data-full': tr('list.newSessionLabel'), style: { overflow: 'hidden', whiteSpace: 'nowrap', minWidth: 0 } }, tr('list.newSessionLabel'))])),
             h(Tip, { content: tr('tip.copyLink') }, h('button', { className: 'dsws-btn ghost', onClick: function (e) { e.stopPropagation(); copyUrl(issueNumber) }, style: { display: 'inline-flex', alignItems: 'center', padding: '2px 4px', flex: 'none' } }, Ic({ n: 'clipboard', size: 13 }))),
             h(Tip, { content: tr('tip.openInTracker', { n: issueNumber }) }, h('a', { className: 'dsws-btn ghost', href: issueUrlFor(st, issueNumber), target: '_blank', rel: 'noreferrer', style: { display: 'inline-flex', alignItems: 'center', padding: '2px 4px', flex: 'none' } }, Ic({ n: 'link', size: 13 }))),
