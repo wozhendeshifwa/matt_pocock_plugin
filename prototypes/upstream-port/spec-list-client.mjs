@@ -82,6 +82,3 @@ export function adaptSpecList(source) {
           (isMap && mapObj && mapObj.stats && !mapClosed) ? ringOf(mapObj.stats) : null,`);
   return source;
 }
-
-
-
