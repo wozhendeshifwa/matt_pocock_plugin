@@ -9,9 +9,11 @@ import { ManualNaming } from "./manual-naming-view.mjs";
 import { createSandboxTaskView } from "../sandbox-tasks/view.mjs";
 const SandboxTaskView = createSandboxTaskView(React);
 import { createRequestPreparation } from './request-preparation.mjs';
+import { createSidebarDraftOperations } from './sidebar-draft-operations.mjs';
 import { MATT_SKILL_PROBE_NAMES } from '../../vendor/mattskills-1.8.0-rc.7/shared/matt-skills.js';
 
 const requestPreparations = new WeakMap();
+const sidebarDraftOperations = new WeakMap();
 
 let plugin;
 window.__ModuleLoader__ = {
@@ -97,6 +99,7 @@ window.MattSkillsCodex = {
     const services = {
       ...hostServices,
       actionDrafts,
+      draftOperations: sidebarDraftOperations.get(element) || (() => { const operations = createSidebarDraftOperations(); sidebarDraftOperations.set(element, operations); return operations; })(),
       slots: {
         inject(name, factory) { factory(); },
         register(options, component) {
@@ -106,6 +109,21 @@ window.MattSkillsCodex = {
       },
       sidebarRightTabs: { register() { return () => {}; } },
     };
+    if (hostServices.codexActions) {
+      const original = hostServices.codexActions;
+      const operations = services.draftOperations;
+      services.codexActions = {
+        capabilities: original.capabilities,
+        captureTarget: () => original.captureTarget?.(),
+        async prefill(target, text, options = {}) {
+          const owned = operations.owns(options.operationToken);
+          const token = owned ? null : operations.begin();
+          if (!owned && !token) throw new Error('已有草稿请求正在进行，请等待后再填入。');
+          try { return await original.prefill(target, text, options); }
+          finally { if (token) operations.end(token); }
+        },
+      };
+    }
     const requestPreparation = createRequestPreparation({
       knownNames: MATT_SKILL_PROBE_NAMES,
       prepareSkill: async name => {

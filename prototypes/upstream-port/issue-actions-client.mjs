@@ -72,14 +72,14 @@ function canFillIssueActionDraft(actions, target) {
   return typeof actions?.prefill === 'function' && (actions.capabilities?.reliableDraft === true || actions.capabilities?.nativeDraftRequest === true) && actions.capabilities[target] !== false;
 }
 
-export async function sendIssueActionDraft(st, target, finalText) {
+export async function sendIssueActionDraft(st, target, finalText, options) {
   if (target === 'copy') {
     await navigator.clipboard.writeText(finalText);
     return { status: 'copied', target: 'copy' };
   }
   const actions = ctx.get('codexActions');
   if (!canFillIssueActionDraft(actions, target)) throw new Error('宿主未提供可靠的草稿读取与结果确认，请明确选择复制');
-  const result = await actions.prefill(target, finalText);
+  const result = await actions.prefill(target, finalText, options);
   if (!result || !['filled', 'requested'].includes(result.status) || result.target !== target) {
     const error = new Error(result?.target && result.target !== target ? '宿主返回的目标与所选聊天不一致；草稿已保留' : '宿主填入结果无法确认；草稿已保留');
     error.code = 'draft-result-unknown';
