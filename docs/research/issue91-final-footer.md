@@ -23,6 +23,6 @@
 
 2026-11-27：统一 npm run check 通过（132 个顶层 JS 语法检查；sandbox 28 项中 27 通过、1 跳过、0 失败；构建及全部登记的侧栏回归通过）。统一 runner 现包含迁移后的 final footer、legacy context、标签策略和 reviewed outputs 回归，避免旧快捷脚本遗漏。
 
-首次沙箱运行因本机 Git/MSYS 本地 clone 的命名对象权限失败；改为获授权的本机执行后通过，非产品失败。git diff --check 通过。
+首次沙箱运行因本机 Git/MSYS 本地 clone 的命名对象权限失败；改为获授权的本机执行后通过，非产品失败。先前工作树 git diff --check 未覆盖当时尚未跟踪的新 helper，不能作为完整分支卫生证明；独立合并检查发现该 helper 混合换行及末尾空行。现仅统一 helper 为 LF 并移除末尾额外空行，归档 gzip 字节与行为保持不变。修复后以 git diff --cached --check 检查暂存变更，并在提交后运行 git diff --check codex/issue82-integration...HEAD 验证包含新文件的完整分支差异；均无输出、退出 0。相关 final footer、legacy draft copy、legacy context 回归通过，未无理由重跑全量。
 
 未修改 GitHub、配置、现用服务、#70 或主树未提交 GLOSSARY。未部署、未调用真实发送、未执行原生 UI；受控浏览器视觉核验由协调者进行，真实 Codex 验收仍由 #92 独立记录。

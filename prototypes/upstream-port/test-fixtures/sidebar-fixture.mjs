@@ -69,4 +69,3 @@ export function fixture() {
   }
   return { w, copies, writes, observations, controls, until, open, seed, menu, setSource(value) { source = value; }, failCopy(value) { copyFails = value; }, delayHost(value) { hostDelay = value; }, close() { dispose?.(); w.close(); } };
 }
-
