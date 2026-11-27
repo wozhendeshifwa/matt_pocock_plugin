@@ -97,6 +97,15 @@ export function adaptDirectIssueActions(source) {
   const insert = 'const IssueDetail = function (props) {';
   if (source.split(insert).length !== 2) throw new Error('Direct Issue detail boundary changed');
   source = source.replace(insert, DirectIssueActions.toString() + '\n' + insert);
+  // The upstream one-line action wrappers cannot stay flex:none once they own
+  // multi-line diagnostics. Allow them to shrink inside list and map rows.
+  for (const before of [
+    "h('div', { style: { display: 'flex', alignItems: 'center', gap: 3, flex: 'none', marginLeft: 'auto' } }, [",
+    "t.state === 'OPEN' ? h('div', { style: { display: 'flex', gap: 4, alignItems: 'center', flex: 'none' } }, [",
+  ]) {
+    if (source.split(before).length !== 2) throw new Error('Direct Issue row sizing boundary changed');
+    source = source.replace(before, before.replace("flex: 'none'", "flex: '0 1 auto', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal'"));
+  }
   const rowStart = source.indexOf('const mkRowAction = function');
   const rowReturn = source.indexOf('return h(Tip, { content: tipByLabel }', rowStart);
   const rowEnd = source.indexOf('      // v21：技能命令', rowReturn);
