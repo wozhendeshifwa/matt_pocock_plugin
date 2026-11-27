@@ -42,12 +42,12 @@ export function DirectIssueActions({ st, issue, colorHex, narrow }) {
       }
       candidate = state[cacheKey];
       const checked = await preparation.check({ draftId: candidate.id, text: candidate.text });
-      if (checked.dependenciesAllowed !== true) {
-        const reasons = Array.isArray(checked.blockingReasons) ? checked.blockingReasons.filter(reason => typeof reason === 'string' && reason.trim()) : [];
-        throw new Error('必要来源、工具或资料未核验：' + (reasons.length ? reasons.join('；') : checked.reason || '请查证并补齐必要来源、工具及资料后重试') + '；本次填入已停止');
+      if (checked.prefillAllowed !== true) {
+        const reasons = Array.isArray(checked.preparationReasons) ? checked.preparationReasons.filter(reason => typeof reason === 'string' && reason.trim()) : [];
+        throw new Error('来源准备未完成：' + (reasons.length ? reasons.join('；') : checked.reason || '请恢复来源后重试') + '；本次填入已停止');
       }
-      if (checked.allowed !== true || checked.status !== 'unchanged' || checked.dependenciesAllowed !== true) {
-        if (checked.dependenciesAllowed === true && (target !== 'copy' || !pending && !feedback.retry)) update({ recovery: { target, requestOverride, expectedIdentity } });
+      if (checked.allowed !== true || checked.status !== 'unchanged') {
+        if (target !== 'copy' || !pending && !feedback.retry) update({ recovery: { target, requestOverride, expectedIdentity } });
         throw new Error('技能来源或必要条件已变化，请核对后重新生成；本次出口已停止');
       }
       if (!requestOverride) {
@@ -66,7 +66,7 @@ export function DirectIssueActions({ st, issue, colorHex, narrow }) {
       }
       const result = await sendIssueActionDraft(st, target, candidate.text, { expectedIdentity, operationToken: token });
       if (target === 'copy') { state.directCopyNote = '已复制'; operations.changed(); }
-      else update({ status: result.status === 'filled' ? (target === 'new' ? '已填入新聊天' : '已填入当前聊天') : '已请求，请检查输入框后发送', retry: null, recovery: null });
+      else update({ status: (result.status === 'filled' ? (target === 'new' ? '已填入新聊天' : '已填入当前聊天') : '已请求，请检查输入框后发送') + '；未核验草稿，发送后由目标 Agent 先核验。', retry: null, recovery: null });
     } catch (error) {
       if (target === 'copy') { state.directCopyNote = '复制已停止：' + String(error.message || error); operations.changed(); }
       else update({ status: error.code === 'draft-result-unknown' ? '无法确认是否填入，请先检查输入框。生成文本已保留。' : '操作失败：' + String(error.message || error) + (state.directRequest ? '。生成文本已保留。' : ''), retry: { target, requestOverride, expectedIdentity, unknown: error.code === 'draft-result-unknown' } });

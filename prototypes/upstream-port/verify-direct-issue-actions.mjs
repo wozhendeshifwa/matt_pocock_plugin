@@ -21,13 +21,17 @@ async function scenario(detail = false, exercise = null, options = {}) {
       writes.push({ target, text });
       return controls.result === 'unknown' ? {} : { status: controls.result, target };
     } },
-    skillPreparation: { async prepare() { return { status: 'checked', bindings: [] }; } },
+    skillPreparation: { async prepare() { if (controls.prepareFailure) throw new Error('source prepare transport failed'); return { status: 'checked', bindings: [] }; } },
     sessions: { list: { getSnapshot: () => sessions, subscribe: () => () => {} }, get: () => session },
     connection: { rpc: { async call(c, e, r) {
       if (['snapshot', 'refresh'].includes(r.method)) return snapshot;
       if (r.method === 'cwd') return { ok: true, value: { ok: true, cwd: '/direct', workspaceRoot: '/direct' } };
       if (r.method === 'issueDetail') return { ok: true, value: { ok: true, issue: { ...row, body: 'Direct evidence' } } };
-      if (r.method === 'skill.readDoc') return { ok: true, value: { ok: true, path: '/rules/' + controls.source, md: '# source ' + controls.source, source: { kind: 'host-resolved' }, execution: { allowed: controls.allowed, reasons: controls.reasonsByRead[controls.sourceReads++] || [] } } };
+      if (r.method === 'skill.readDoc') {
+        if (controls.readFailure) throw new Error('source read transport failed');
+        if (controls.missingRule) return { ok: true, value: { ok: false, missing: true } };
+        return { ok: true, value: { ok: true, path: '/rules/' + controls.source, md: '# source ' + controls.source, source: { kind: 'host-resolved' }, execution: { allowed: controls.allowed, reasons: controls.reasonsByRead[controls.sourceReads++] || [] } } };
+      }
       return { ok: true, value: { ok: false } };
     } } },
   }, { sessionId: session.id, session, useSessions: select => typeof select === 'function' ? select(sessions) : sessions });
@@ -55,6 +59,20 @@ async function scenario(detail = false, exercise = null, options = {}) {
 }
 
 for (const detail of [false, true]) await scenario(detail);
+for (const detail of [false, true]) await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
+  controls.allowed = false;
+  controls.reasonsByRead = Array(8).fill(['必要工具不可用：GitHub；必要资料尚未核验']);
+  active.click(); await until(() => writes.length === 1);
+  assert.match(writes[0].text, /未核验草稿/);
+  assert.match(writes[0].text, /发送后.*目标 Agent.*核验/);
+  assert.match(writes[0].text, /必要工具不可用：GitHub；必要资料尚未核验/);
+  assert.match(writes[0].text, /暂停依赖/);
+  assert.doesNotMatch(group.textContent, /任务已执行|已填入/);
+  await until(() => group.textContent.includes('已请求'));
+  [...group.querySelectorAll('button')].find(b => b.textContent === '复制').click();
+  await until(() => copies.length === 1);
+  assert.equal(copies[0], writes[0].text, 'unverified fill and deliberate Copy retain the same warning-bearing text');
+});
 await scenario(false, async ({ active, group, until, controls }) => {
   controls.result = 'filled';
   controls.reliable = false;
@@ -72,21 +90,25 @@ for (const detail of [false, true]) {
   await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
     const reasons = ['triage', 'implement-spec', 'to-spec', 'to-tickets'].map(name => name + '：工具及其他必要资料要求未核验；先查证，暂停依赖步骤。');
     controls.allowed = false;
-    controls.reasonsByRead = [reasons, reasons, reasons, reasons];
+    controls.reasonsByRead = Array(12).fill(reasons);
     active.click();
-    await until(() => group.textContent.includes('本次填入已停止'));
-    for (const reason of reasons) assert.ok(group.textContent.includes(reason), 'long diagnostics retain every prerequisite explanation');
+    await until(() => writes.length === 1);
+    await until(() => group.textContent.includes('已请求'));
+    for (const reason of reasons) assert.ok(writes[0].text.includes(reason), 'the unverified draft retains every prerequisite explanation for the target Agent');
     controls.copyFailure = 'Failed to execute writeText on Clipboard: Write permission denied.';
     [...group.querySelectorAll('button')].find(b => b.textContent === '复制').click();
     await until(() => group.textContent.includes(controls.copyFailure));
-    for (const reason of reasons) assert.ok(group.textContent.includes(reason), 'copy failure does not replace the original prerequisite explanations');
-    assert.equal([...group.querySelectorAll('button')].find(b => b.textContent === '重试').disabled, false);
-    assert.equal(writes.length, 0);
+    assert.match(group.textContent, /未核验草稿/, 'copy failure does not replace the original request status');
+    assert.equal(writes.length, 1, 'copy failure does not resubmit the host request');
     assert.equal(copies.length, 0);
+    controls.copyFailure = null;
+    [...group.querySelectorAll('button')].find(b => b.textContent === '复制').click();
+    await until(() => copies.length === 1);
+    assert.equal(copies[0], writes[0].text, 'an intentional retry can copy the retained warning-bearing text');
   });
   for (const more of [false, true]) await scenario(detail, async ({ w, active, group, until, controls, writes, copies }) => {
     controls.allowed = false;
-    controls.reasonsByRead = [['旧的未核验原因'], ['缺少 GitHub 工具授权；请连接 GitHub 后重试']];
+    controls.reasonsByRead = [['旧的未核验原因'], ...Array(12).fill(['缺少 GitHub 工具授权；请连接 GitHub 后重试'])];
     if (more) {
       [...group.querySelectorAll('button')].find(b => b.textContent === '更多动作').click();
       await until(() => group.querySelector('select[aria-label="选择其他动作"]'));
@@ -97,16 +119,20 @@ for (const detail of [false, true]) {
       [...group.querySelector('[aria-label="更多动作"]').querySelectorAll('button')].find(b => b.textContent === '填入当前聊天').click();
     } else active.click();
     await until(() => group.textContent.includes('操作失败'));
-    assert.match(group.textContent, /缺少 GitHub 工具授权；请连接 GitHub 后重试/, 'blocked actions show the latest specific reason and remedy beside their buttons');
+    assert.match(group.textContent, /已变化/, 'changed prerequisite observations still stop the stale draft until explicit regeneration');
     assert.doesNotMatch(group.textContent, /旧的未核验原因/, 'the earlier preparation diagnosis must not replace the latest check');
-    assert.equal(writes.length, 0, 'specific diagnostics do not relax the blocked host boundary');
+    assert.equal(writes.length, 0, 'a changed observation cannot silently reuse the old warning text');
     assert.equal(copies.length, 0);
+    [...group.querySelectorAll('button')].find(b => b.textContent === '按最新来源重新生成并填入').click();
+    await until(() => writes.length === 1);
+    assert.match(writes[0].text, /缺少 GitHub 工具授权；请连接 GitHub 后重试/);
   });
-  await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
-    controls.allowed = false;
-    active.click(); await until(() => group.textContent.includes('必要来源'));
-    assert.equal(writes.length, 0, 'missing necessary source conditions stop the host request');
-    assert.equal(copies.length, 0, 'a blocked injection must not silently choose copying');
+  for (const failure of ['prepareFailure', 'readFailure', 'missingRule']) await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
+    controls[failure] = true;
+    active.click(); await until(() => group.textContent.includes('来源准备未完成'));
+    assert.equal(writes.length, 0, 'a real source preparation/read failure still stops the host request');
+    assert.equal(copies.length, 0, 'a stopped injection must not silently choose copying');
+    assert.match(group.textContent, /生成文本已保留/);
   });
   await scenario(detail, async ({ active, group, until, controls, writes, copies }) => {
     active.click(); await until(() => group.textContent.includes('已请求'));

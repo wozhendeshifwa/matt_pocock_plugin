@@ -38,7 +38,7 @@ async function scenario({ detail = false, cwd = projectRoot, projectId = 'source
       if (['snapshot', 'refresh'].includes(r.method)) return snapshot;
       if (r.method === 'cwd') return { ok: true, value: { ok: true, cwd: projectRoot, workspaceRoot: projectRoot } };
       if (r.method === 'issueDetail') return { ok: true, value: { ok: true, issue: { ...row, body: 'Source project and actual directory evidence' } } };
-      if (r.method === 'skill.readDoc') return { ok: true, value: { ok: true, path: '/rules/triage', md: '# current rules', source: { kind: 'host-resolved' }, execution: { allowed: true } } };
+      if (r.method === 'skill.readDoc') return { ok: true, value: { ok: true, path: '/rules/triage', md: '# current rules', source: { kind: 'host-resolved' }, execution: { allowed: false, reasons: ['必要工具与资料尚未核验'] } } };
       return { ok: true, value: { ok: false } };
     } } },
   }, { sessionId: session.id, session, useSessions: select => typeof select === 'function' ? select(sessions) : sessions });
@@ -76,6 +76,9 @@ async function scenario({ detail = false, cwd = projectRoot, projectId = 'source
     assert.equal(url.searchParams.get('path'), cwd);
     const prompt = url.searchParams.get('prompt');
     assert.match(prompt, /^\$triage\n\n目标：新草稿 & \? # fixture\nIssue：https:\/\/github.com\/fixture\/repo\/issues\/10\n/);
+    assert.match(prompt, /未核验草稿/);
+    assert.match(prompt, /发送后.*目标 Agent.*核验/);
+    assert.match(prompt, /必要工具与资料尚未核验/);
     assert.equal(url.searchParams.get('mode'), 'codex');
     assert.equal(url.searchParams.has('send'), false);
     assert.equal(w.document.querySelector('[data-issue-action-preview]'), null, 'direct new-chat action must not mount the old editor');

@@ -13,8 +13,8 @@ export function createRequestPreparation({ knownNames, prepareSkill, readSkillDo
   let sequence = 0;
   let disposed = false;
   async function observe(names) {
-    const facts = [], notices = [], blockingReasons = [];
-    let dependenciesAllowed = true;
+    const facts = [], notices = [], blockingReasons = [], preparationReasons = [];
+    let dependenciesAllowed = true, prefillAllowed = true;
     for (const name of names) {
       if(disposed)throw new Error('request-preparation-disposed');
       let update, doc;
@@ -36,6 +36,9 @@ export function createRequestPreparation({ knownNames, prepareSkill, readSkillDo
         errorKind: binding.errorKind || null,
       })).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
       const allowed = doc?.ok === true && execution.allowed === true;
+      const prepared = doc?.ok === true && update?.status !== 'prepare-failed';
+      prefillAllowed &&= prepared;
+      if (!prepared) preparationReasons.push(name + '：来源准备失败或规则无法读取，请恢复来源后重试。');
       dependenciesAllowed &&= allowed;
       if (!allowed) {
         const reasons = Array.isArray(execution.reasons) ? execution.reasons.filter(reason => typeof reason === 'string' && reason.trim()) : [];
@@ -56,12 +59,14 @@ export function createRequestPreparation({ knownNames, prepareSkill, readSkillDo
       if (source.difference?.kind === 'review-behavior')notice += ' 同名正文存在差异：按目标和用户明确规则判断；兼容差异自主处理，实质冲突才澄清。';
       notices.push(notice);
     }
-    return { facts, sourceNote:notices.join('\n'), dependenciesAllowed, blockingReasons };
+    notices.unshift('未核验草稿：本提示词尚未由目标 Agent 核验。用户发送后，目标 Agent 必须先核验实际技能来源／加载、必需工具及资料；缺失、未知或实质冲突时暂停依赖操作，保留用户明确规则。');
+    return { facts, sourceNote:notices.join('\n'), prefillAllowed, preparationReasons, dependenciesAllowed, blockingReasons };
   }
   function remember(baseText, names, observation) {
     const id = namespace+(++sequence);
     const candidateText = baseText+(observation.sourceNote ? '\n\n'+observation.sourceNote : '');
     const draft = Object.freeze({id,text:candidateText,sourceNote:observation.sourceNote,names:Object.freeze([...names]),
+      prefillAllowed:observation.prefillAllowed,preparationReasons:Object.freeze([...observation.preparationReasons]),
       dependenciesAllowed:observation.dependenciesAllowed,blockingReasons:Object.freeze([...observation.blockingReasons]),mode:observation.dependenciesAllowed?'request':'clarify'});
     drafts.set(id,{draft,signature:JSON.stringify(observation.facts)});
     // Session-only observations; callers hold their editable text independently.
@@ -85,9 +90,10 @@ export function createRequestPreparation({ knownNames, prepareSkill, readSkillDo
       if(disposed)return {allowed:false,status:'review-required',text:finalText,reason:'项目面板已关闭，请重新定位目标。'};
       if(JSON.stringify(names)!==JSON.stringify(current.draft.names) || JSON.stringify(observation.facts)!==current.signature) {
         return {allowed:false,status:'review-required',text:finalText,sourceNote:observation.sourceNote,
+          prefillAllowed:observation.prefillAllowed,preparationReasons:observation.preparationReasons,
           dependenciesAllowed:observation.dependenciesAllowed,blockingReasons:observation.blockingReasons,reason:'技能来源、必要条件或所选技能已变化；保留原文，先更新预览并重新审阅。'};
       }
-      return {allowed:true,status:'unchanged',text:finalText,dependenciesAllowed:observation.dependenciesAllowed,blockingReasons:observation.blockingReasons};
+      return {allowed:true,status:'unchanged',text:finalText,prefillAllowed:observation.prefillAllowed,preparationReasons:observation.preparationReasons,dependenciesAllowed:observation.dependenciesAllowed,blockingReasons:observation.blockingReasons};
     },
   };
 }
