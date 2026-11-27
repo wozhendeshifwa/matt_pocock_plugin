@@ -36,9 +36,9 @@ async function scenario(labels, expected, detail = false, exercise = null, fixtu
     const rowElement = findRow();
     if (detail) {
       rowElement.click();
-      await until(() => w.document.querySelector('[data-detail-primary-text]'));
-      w.document.querySelector('[data-detail-primary-text]').closest('button').click();
-    } else rowElement.querySelector('button').click();
+      await until(() => w.document.querySelector('[data-bottom-action-toggle]'));
+      w.document.querySelector('[data-bottom-action-toggle]').click();
+    } else [...rowElement.querySelectorAll('button')].find(button => button.textContent.includes('新会话')).click();
     await until(() => w.document.querySelector('[data-issue-action-draft]'));
     await until(() => w.document.querySelector('[data-issue-action-source]').getAttribute('data-source-state') === 'ready');
     assert.equal(actions.length, 0, 'choosing an action opens an editable preview');
