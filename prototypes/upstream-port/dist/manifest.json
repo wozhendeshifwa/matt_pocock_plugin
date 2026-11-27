@@ -15,6 +15,7 @@
     "skills.sourceDisplay",
     "skills.beforeUse",
     "issueActions.bottomBar",
-    "issueActions.directCurrent"
+    "issueActions.directCurrent",
+    "issueActions.more"
   ]
 }

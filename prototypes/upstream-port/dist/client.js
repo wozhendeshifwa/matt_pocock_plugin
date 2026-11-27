@@ -21667,6 +21667,55 @@ const useIssueDetailFold = function (st, issueNumber, issueEffort) {
       ]);
     };
 
+function MoreIssueActions({ st, issue, pending, run }) {
+  const state = actionDraftState(st, issue.number, issue.effortId || '');
+  const saved = state.moreAction || (state.moreAction = {
+    choice: state.choice && state.choice !== 'main' ? state.choice : '',
+    context: { ...(state.context || {}) },
+  });
+  const [open, setOpen] = React.useState(false);
+  const [choice, setChoice] = React.useState(saved.choice);
+  const [context, setContext] = React.useState(saved.context);
+  const skill = choice.replace(/^skill:/, '');
+  const action = SUPPLEMENTAL_ACTIONS[skill];
+  const required = action?.required || [];
+  const fields = [...required, ...(skill === 'retro' ? ['stage'] : [])];
+  const ready = !!choice && !supplementalRequirements(skill, context).missing.length;
+  const choose = value => { saved.choice = value; setChoice(value); };
+  const change = (name, value) => {
+    const next = { ...context, [name]: value };
+    saved.context = next;
+    setContext(next);
+  };
+  const execute = target => {
+    if (!ready || pending) return;
+    const base = issueActionRequest(issue, issueUrlFor(st, issue.number, issue.effortId || '') || '#' + issue.number);
+    const selectedContext = Object.fromEntries(fields.map(name => [name, context[name] || '']));
+    run(target, { ...base, skill, text: supplementalActionRequest(skill, base, selectedContext) });
+  };
+  const h = React.createElement;
+  const actions = ctx.get('codexActions');
+  return h('span', { 'data-issue-more-actions': true, onClick: e => e.stopPropagation(), style: { minWidth: 0 } }, [
+    h('button', { key: 'toggle', type: 'button', className: 'dsws-btn ghost', 'aria-expanded': String(open), onClick: () => setOpen(!open), style: { fontSize: 11 } }, '更多动作'),
+    open ? h('span', { key: 'options', role: 'group', 'aria-label': '更多动作', style: { display: 'flex', flexWrap: 'wrap', gap: 4, minWidth: 0 } }, [
+      h('select', { key: 'choice', 'aria-label': '选择其他动作', value: choice, disabled: pending, onChange: e => choose(e.target.value), style: { maxWidth: '100%' } }, [
+        h('option', { key: 'empty', value: '' }, '选择其他动作'),
+        h('optgroup', { key: 'supplements', label: '补充动作' }, [
+          h('option', { key: 'pr', value: 'pr' }, '撰写 PR 正文'),
+          h('option', { key: 'retro', value: 'retro' }, '复盘编码会话'),
+          h('option', { key: 'code-review', value: 'code-review' }, '审查改动'),
+        ]),
+        h('optgroup', { key: 'skills', label: '全部技能' }, CODEX_SKILL_NAMES.map(name => h('option', { key: name, value: 'skill:' + name }, '$' + name))),
+      ]),
+      ...fields.map(name => name === 'stage'
+        ? h('select', { key: name, 'aria-label': '阶段／观察', value: context[name] || '', disabled: pending, onChange: e => change(name, e.target.value) }, ['', '成功结束', '失败结束', '中止', '反复返工', '导航困难', '工具低效'].map(value => h('option', { key: value, value }, value || '选择阶段／观察')))
+        : h('input', { key: name, 'aria-label': ACTION_CONTEXT_LABELS[name], placeholder: ACTION_CONTEXT_LABELS[name], value: context[name] || '', disabled: pending, required: true, onInput: e => change(name, e.target.value), style: { minWidth: 0, maxWidth: '100%' } })),
+      choice && !ready ? h('span', { key: 'missing', role: 'status' }, '请补齐：' + supplementalRequirements(skill, context).missing.join('、')) : null,
+      ...[['active', '填入当前聊天'], ['new', '填入新聊天'], ['copy', '复制']].map(([target, label]) => h('button', { key: target, type: 'button', className: 'dsws-btn', disabled: !ready || pending || target !== 'copy' && !canFillIssueActionDraft(actions, target), onClick: () => execute(target) }, label)),
+      h('button', { key: 'cancel', type: 'button', className: 'dsws-btn ghost', onClick: () => setOpen(false) }, '取消'),
+    ]) : null,
+  ]);
+}
 function DirectIssueActions({ st, issue, colorHex, narrow }) {
   const state = actionDraftState(st, issue.number, issue.effortId || '');
   const [status, setStatus] = React.useState('');
@@ -21676,17 +21725,17 @@ function DirectIssueActions({ st, issue, colorHex, narrow }) {
   const actions = ctx.get('codexActions');
   const available = canFillIssueActionDraft(actions, 'active');
   const newAvailable = canFillIssueActionDraft(actions, 'new');
-  const run = async target => {
+  const run = async (target, requestOverride) => {
     if (pending) return;
     setPending(true);
     setStatus('正在核验来源…');
     try {
       const preparation = ctx.get('requestPreparation');
       if (!preparation) throw new Error('来源准备能力不可用，请补齐后重试');
-      const request = issueActionRequest(issue, issueUrlFor(st, issue.number, issue.effortId || '') || '#' + issue.number);
-      if (!state.directRequest || state.directRequest.baseText !== request.text) {
+      const request = requestOverride || issueActionRequest(issue, issueUrlFor(st, issue.number, issue.effortId || '') || '#' + issue.number);
+      if (!state.directRequest || state.directRequest.baseText !== request.text || state.directRequest.preparation !== preparation) {
         const candidate = await preparation.prepare({ text: request.text });
-        state.directRequest = { ...candidate, baseText: request.text };
+        state.directRequest = { ...candidate, baseText: request.text, preparation };
       }
       const candidate = state.directRequest;
       if (candidate.dependenciesAllowed !== true) throw new Error('必要来源、工具或资料未核验，请先补齐；本次填入已停止');
@@ -21708,6 +21757,7 @@ function DirectIssueActions({ st, issue, colorHex, narrow }) {
     React.createElement('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '追加到可编辑输入框，不会自动发送' : actions?.capabilities?.reason || '当前聊天填入不可用，请主动选择复制', onClick: e => { e.stopPropagation(); run('active'); }, style: { background: colorHex, fontSize: 11 } }, '填入当前聊天'),
     React.createElement('button', { key: 'new', type: 'button', className: 'dsws-btn', 'aria-label': '填入新聊天', disabled: pending || !newAvailable, title: newAvailable ? '沿用来源项目及实际目录打开可编辑新草稿，不会自动发送' : actions?.capabilities?.newReason || actions?.capabilities?.reason || '新聊天填入不可用，请主动选择复制', onClick: e => { e.stopPropagation(); run('new'); }, style: { fontSize: 11 } }, '填入新聊天'),
     React.createElement('button', { key: 'copy', type: 'button', className: 'dsws-btn ghost', disabled: pending, onClick: e => { e.stopPropagation(); run('copy'); }, style: { fontSize: 11 } }, '复制'),
+    React.createElement(MoreIssueActions, { key: 'more-' + actionDraftKey(st, issue.number, issue.effortId || ''), st, issue, pending, run }),
     React.createElement('span', { key: 'status', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, overflowWrap: 'anywhere' } }, status || [!available ? (actions?.capabilities?.reason || '当前聊天填入不可用') + '；可主动选择复制。' : '', !newAvailable ? (actions?.capabilities?.newReason || '新聊天填入能力不可用') + '；可主动选择复制。' : ''].filter(Boolean).join(' ')),
   ]);
 }
