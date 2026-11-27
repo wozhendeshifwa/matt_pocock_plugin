@@ -52,12 +52,15 @@ try{
   const retry=await service.check({draftId:clarify.id,text:clarify.text});
   assert.equal(retry.allowed,true,'a reviewed lookup request remains usable while dependent execution pauses');
   assert.equal(retry.dependenciesAllowed,false);
+  assert.equal(retry.prefillAllowed,true,'draft readiness does not grant execution readiness');
   const removed=await service.check({draftId:clarify.id,text:'$research\n删除了必要来源说明。'});
   assert.equal(removed.allowed,true,'editing/removing displayed prose does not change the observed source facts');
   assert.equal(removed.text,'$research\n删除了必要来源说明。','never add source notes back behind the editable preview');
   const before=prepared.length;
   const pathDraft=await service.prepare({text:'/research/file.md\nhttps://example.com/research/file.md'});
-  assert.equal(pathDraft.text,'/research/file.md\nhttps://example.com/research/file.md');
+  assert.ok(pathDraft.text.startsWith('/research/file.md\nhttps://example.com/research/file.md\n\n'));
+  assert.match(pathDraft.text,/未核验草稿/);
+  assert.match(pathDraft.text,/发送后.*目标 Agent.*核验/);
   assert.equal(prepared.length,before);
   console.log('PASS production request adapter contract: visible source notes, final text consistency, stable version snapshots, source change preserves edits, failed maintenance permits reviewed lookup only, paths do not trigger maintenance');
 }finally{dispose();w.close();}

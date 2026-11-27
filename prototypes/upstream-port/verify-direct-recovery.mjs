@@ -124,10 +124,12 @@ for (const relevant of [true, false]) {
   const f = await fixture();
   try {
     f.controls.allowed = false;
-    f.button('填入当前聊天').click(); await f.until(() => f.group(10).textContent.includes('必要来源'));
+    f.button('填入当前聊天').click(); await f.until(() => f.group(10).textContent.includes('已请求'));
+    assert.equal(f.writes.length, 1, 'unknown execution conditions allow an explicitly unverified draft');
     f.controls.allowed = true;
-    f.button('重试').click(); await f.until(() => f.button('按最新来源重新生成并填入'));
-    f.button('按最新来源重新生成并填入').click(); await f.until(() => f.writes.length === 1);
+    f.button('填入当前聊天').click(); await f.until(() => f.button('按最新来源重新生成并填入'));
+    assert.equal(f.writes.length, 1, 'changed preparation evidence still needs explicit regeneration');
+    f.button('按最新来源重新生成并填入').click(); await f.until(() => f.writes.length === 2);
   } finally { f.close(); }
 }
 {
@@ -197,8 +199,10 @@ for (const target of ['填入当前聊天', '填入新聊天']) {
     assert.doesNotMatch(f.group(10).textContent, /无法确认/, 'an explicit rejection remains a definite failure');
     f.controls.hostReply = null;
     f.controls.allowed = false;
-    f.button('重试').click(); await f.until(() => f.group(10).textContent.includes('必要来源'));
-    assert.equal(f.writes.length, 1, 'retry rechecks prerequisites before sending another host request');
+    f.button('重试').click(); await f.until(() => f.group(10).textContent.includes('已变化'));
+    assert.equal(f.writes.length, 1, 'retry rechecks the retained source snapshot before sending another host request');
+    f.button('按最新来源重新生成并填入').click(); await f.until(() => f.writes.length === 2);
+    assert.match(f.writes[1].params.content[0].text, /未核验草稿/);
   } finally { f.close(); }
 }
 {
