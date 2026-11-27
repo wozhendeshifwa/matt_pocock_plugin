@@ -13,7 +13,7 @@ export function createRequestPreparation({ knownNames, prepareSkill, readSkillDo
   let sequence = 0;
   let disposed = false;
   async function observe(names) {
-    const facts = [], notices = [];
+    const facts = [], notices = [], blockingReasons = [];
     let dependenciesAllowed = true;
     for (const name of names) {
       if(disposed)throw new Error('request-preparation-disposed');
@@ -37,6 +37,10 @@ export function createRequestPreparation({ knownNames, prepareSkill, readSkillDo
       })).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
       const allowed = doc?.ok === true && execution.allowed === true;
       dependenciesAllowed &&= allowed;
+      if (!allowed) {
+        const reasons = Array.isArray(execution.reasons) ? execution.reasons.filter(reason => typeof reason === 'string' && reason.trim()) : [];
+        blockingReasons.push(...(reasons.length ? reasons : ['请查证并补齐该技能的来源、必要工具及资料。']).map(reason => name + '：' + reason));
+      }
       // Check timestamps and byte counters do not change behavior. The document
       // body is compared locally; it is never inserted into the user request.
       facts.push({name,available:doc?.ok === true,path:doc?.path || source.path || null,
@@ -52,13 +56,13 @@ export function createRequestPreparation({ knownNames, prepareSkill, readSkillDo
       if (source.difference?.kind === 'review-behavior')notice += ' 同名正文存在差异：按目标和用户明确规则判断；兼容差异自主处理，实质冲突才澄清。';
       notices.push(notice);
     }
-    return { facts, sourceNote:notices.join('\n'), dependenciesAllowed };
+    return { facts, sourceNote:notices.join('\n'), dependenciesAllowed, blockingReasons };
   }
   function remember(baseText, names, observation) {
     const id = namespace+(++sequence);
     const candidateText = baseText+(observation.sourceNote ? '\n\n'+observation.sourceNote : '');
     const draft = Object.freeze({id,text:candidateText,sourceNote:observation.sourceNote,names:Object.freeze([...names]),
-      dependenciesAllowed:observation.dependenciesAllowed,mode:observation.dependenciesAllowed?'request':'clarify'});
+      dependenciesAllowed:observation.dependenciesAllowed,blockingReasons:Object.freeze([...observation.blockingReasons]),mode:observation.dependenciesAllowed?'request':'clarify'});
     drafts.set(id,{draft,signature:JSON.stringify(observation.facts)});
     // Session-only observations; callers hold their editable text independently.
     while(drafts.size>100)drafts.delete(drafts.keys().next().value);
@@ -81,9 +85,9 @@ export function createRequestPreparation({ knownNames, prepareSkill, readSkillDo
       if(disposed)return {allowed:false,status:'review-required',text:finalText,reason:'项目面板已关闭，请重新定位目标。'};
       if(JSON.stringify(names)!==JSON.stringify(current.draft.names) || JSON.stringify(observation.facts)!==current.signature) {
         return {allowed:false,status:'review-required',text:finalText,sourceNote:observation.sourceNote,
-          dependenciesAllowed:observation.dependenciesAllowed,reason:'技能来源、必要条件或所选技能已变化；保留原文，先更新预览并重新审阅。'};
+          dependenciesAllowed:observation.dependenciesAllowed,blockingReasons:observation.blockingReasons,reason:'技能来源、必要条件或所选技能已变化；保留原文，先更新预览并重新审阅。'};
       }
-      return {allowed:true,status:'unchanged',text:finalText,dependenciesAllowed:observation.dependenciesAllowed};
+      return {allowed:true,status:'unchanged',text:finalText,dependenciesAllowed:observation.dependenciesAllowed,blockingReasons:observation.blockingReasons};
     },
   };
 }
