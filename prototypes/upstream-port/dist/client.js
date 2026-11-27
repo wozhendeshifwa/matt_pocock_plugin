@@ -20626,7 +20626,7 @@ const TicketRow = React.memo(({ st, g, t, indent, colorOf }) => {
           ]),
           (t.state === 'OPEN') ? tProgressBar(t) : null,
         ]),
-        t.state === 'OPEN' ? h('div', { style: { display: 'flex', gap: 4, alignItems: 'center', flex: 'none' } }, [
+        t.state === 'OPEN' ? h('div', { style: { display: 'flex', gap: 4, alignItems: 'center', flex: '0 1 auto', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal' } }, [
           blocked ? null : mkRowAction(st, t, false, colorOf),
           // #361 能力保留（同 cwd + 自动命名 + 预填指令）；#394：去 ghost/icon-only，与 nav.handoff 解耦
           //   marginLeft:4 与左侧 mkRowAction 形成隐式分组（动作组 vs 辅助组）
@@ -22557,7 +22557,7 @@ const listIssueRow = function (h, st, x, isOpen, narrow, blockOf, colorOf, multi
               ? h(Tip, { content: tr('map.subBlocked', { who: blockedTip }) }, h('span', { key: 'blk', className: 'dsws-chip dsws-blocked', style: { fontSize: 10, background: 'rgba(248,113,113,.16)', color: '#f87171', border: '1px solid rgba(248,113,113,.55)' } }, [Ic({ n: 'lock', size: 10 }), h('span', null, tr('list.blocked'))]))
               : h(Tip, { content: tr('list.blockedTitle', { by: blockedTip }) }, h('span', chipProps({ key: 'blk', className: 'dsws-chip dsws-blocked', onClick: function (e) { e.stopPropagation(); openBlocked(blk) }, style: { fontSize: 10, background: 'rgba(248,113,113,.16)', color: '#f87171', border: '1px solid rgba(248,113,113,.55)', cursor: 'pointer' } }), [Ic({ n: 'lock', size: 10 }), h('span', null, tr('list.blocked'))]))) : null,
           ]),
-          h('div', { style: { display: 'flex', alignItems: 'center', gap: 3, flex: 'none', marginLeft: 'auto' } }, [
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 3, flex: '0 1 auto', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', marginLeft: 'auto' } }, [
             isOpen && !blocked ? h('div', { style: { minWidth: 0 } }, mkRowAction(st,x,narrow,colorOf)) : null,
             isOpen ? h('div', { className: 'dsws-aux', style: { display: 'flex', gap: 2, alignItems: 'center', flex: 'none' } }, [
               // v1.3.3：复制/外链图标增大 11 → 13；Q6 解耦：复制=绝对路径/链接，跳转=按 url 前缀分流（https 开网页，file 盘符调 wf.openPath）
