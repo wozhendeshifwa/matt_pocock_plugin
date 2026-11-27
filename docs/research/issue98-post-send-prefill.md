@@ -71,3 +71,23 @@ actual native composer/project/cwd acceptance, runtime deployment, configuration
 change, automatic message send, tracker closure, main merge or push was done
 by this implementation. #98/#82/#92 native work remains for the parent;
 #70 reliable readback and atomic-target standards remain separate.
+
+## Integration follow-up: explicitly empty legacy text
+
+After independent integration at `77eba8a`, the complete check found the
+archived-renderer fixture's second `seed('')` waiting for a source-review
+approval before it could clear surviving text. Reproduced with
+`verify-legacy-draft-copy`: the old renderer attempted to replace edited text
+with the new global source notice, the unchanged fixture confirmation guard
+refused, and the wait for ready timed out. Earlier nonempty original-text,
+Copy, pending and isolation cases had passed.
+
+The fixture now uses the archived public "清空草稿" action only for an explicit
+empty seed. That action also invalidates its in-flight review. Nonempty seeds,
+the confirmation assertion, the archived renderer and all production source
+change behavior remain unchanged. This tests the real intentional-empty
+history path rather than approving regeneration or deleting original-text
+coverage. Legacy Copy, action-draft isolation, issue actions and reviewed
+outputs pass after the fixture correction. No complete check was rerun by the
+implementer; remaining integration validation belongs to the independent
+merger.

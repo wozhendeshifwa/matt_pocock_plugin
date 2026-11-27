@@ -48,14 +48,22 @@ export function fixture() {
     const view = await open(options);
     [...view.rowButton.querySelectorAll('button')].find(b => b.textContent === '旧草稿预览').click();
     await until(() => w.document.querySelector('[data-issue-action-draft]'));
-    await until(() => w.document.querySelector('[data-issue-action-source]')?.getAttribute('data-source-state') === 'ready');
-    if (options.legacyContext) for (const [name,value] of Object.entries(options.legacyContext)) {
-      const field=w.document.querySelector('[data-issue-action-context="'+name+'"]');
-      field.value=value;field.dispatchEvent(new w.Event('input',{bubbles:true}));
+    if (text === '') {
+      // Explicitly clearing surviving user text does not first approve a new
+      // source note. The archived public Clear action also invalidates any
+      // in-flight source review, so it cannot refill the intentionally empty draft.
+      w.document.querySelector('[data-issue-action-clear]').click();
+      assert.equal(w.document.querySelector('[data-issue-action-draft]').value, '');
+    } else {
+      await until(() => w.document.querySelector('[data-issue-action-source]')?.getAttribute('data-source-state') === 'ready');
+      if (options.legacyContext) for (const [name,value] of Object.entries(options.legacyContext)) {
+        const field=w.document.querySelector('[data-issue-action-context="'+name+'"]');
+        field.value=value;field.dispatchEvent(new w.Event('input',{bubbles:true}));
+      }
+      const editor = w.document.querySelector('[data-issue-action-draft]');
+      editor.value = text;
+      editor.dispatchEvent(new w.Event('input', { bubbles: true }));
     }
-    const editor = w.document.querySelector('[data-issue-action-draft]');
-    editor.value = text;
-    editor.dispatchEvent(new w.Event('input', { bubbles: true }));
     w.document.querySelector('[data-issue-action-export="close"]').click();
     assert.equal(w.document.querySelector('[data-issue-action-preview]'), null);
     dispose?.(); dispose = undefined;
