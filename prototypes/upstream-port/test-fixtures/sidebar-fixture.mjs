@@ -69,12 +69,18 @@ export function fixture() {
     dispose?.(); dispose = undefined;
     w.eval(finalRenderer);
   }
-  async function menu(options = {}) {
-    const view = await open({ ...options, detail: true });
-    await until(() => view.button('更多动作') && !view.button('更多动作').disabled);
-    view.button('更多动作').click();
-    await until(() => view.group.querySelector('[role="group"][aria-label="更多动作"]'));
-    return view;
+  async function readLegacyText(options = {}) {
+    dispose?.(); dispose = undefined;
+    w.eval('(function(){' + prefix + legacyRenderer + '\n})();');
+    const view = await open(options);
+    [...view.rowButton.querySelectorAll('button')].find(b => b.textContent === '旧草稿预览').click();
+    await until(() => w.document.querySelector('[data-issue-action-draft]'));
+    const text = w.document.querySelector('[data-issue-action-draft]').value;
+    w.document.querySelector('[data-issue-action-export="close"]').click();
+    dispose?.(); dispose = undefined;
+    w.eval(finalRenderer);
+    return text;
   }
-  return { w, copies, writes, observations, controls, until, open, seed, menu, setSource(value) { source = value; }, failCopy(value) { copyFails = value; }, delayHost(value) { hostDelay = value; }, close() { dispose?.(); w.close(); } };
+
+  return { w, copies, writes, observations, controls, until, open, seed, readLegacyText, setSource(value) { source = value; }, failCopy(value) { copyFails = value; }, delayHost(value) { hostDelay = value; }, close() { dispose?.(); w.close(); } };
 }

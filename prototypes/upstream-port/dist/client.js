@@ -9101,16 +9101,12 @@ const _installLateSnapshot = function (st, snap, reqNorm, mine) {
       const operations = ctx.get('draftOperations')
       React.useSyncExternalStore(operations.subscribe, operations.getSnapshot)
       const draftPending = operations.pending
-      const top = (st.navStack || []).slice(-1)[0]
-      const selected = ['list', 'pr'].includes(st.tab) ? (top ? (top.kind === 'issue' ? top.n : null) : st.activeIssue) : null
-      const effort = String(top && top.kind === 'issue' ? top.effortId || '' : st.activeEffortId || '')
-      const issue = st.issueDetail && st.issueDetail.number === selected && String(st.issueDetail.effortId || '') === effort ? st.issueDetail : null
       const en = tr('nav.handoff') === 'Handoff'
       return h('div', { className: 'mattskills-board-actions', role: 'group', 'aria-label': en ? 'Chat actions' : '聊天操作' }, [
         h('button', { key: 'fixate', type: 'button', className: 'dsws-btn', 'data-board-action': 'fixate', 'aria-label': tr('nav.word'), disabled: draftPending, title: tr('nav.fixateTitle'), onClick: function () { injectFixate(st) } }, Ic({ n: 'note', size: 14 })),
         h('button', { key: 'handoff', type: 'button', className: 'dsws-btn', 'data-board-action': 'handoff', 'aria-label': tr('nav.handoff'), disabled: draftPending, title: tr('nav.handoffTitle'), onClick: function () { doHandoff(st) } }, Ic({ n: 'handoff', size: 14 })),
         h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'data-board-action': 'new', 'aria-label': en ? 'New chat' : '开新对话', disabled: draftPending || !!st.handoffSearching, title: st.handoffReady ? tr('nav.handoffReadyTitle') : tr('nav.handoffGreyTitle'), onClick: function () { doHandoffOpen(st) } }, Ic({ n: 'external-link', size: 14 })),
-        h(DirectIssueActions, { key: 'issue-more', st, issue, toolbar: true, unavailableReason: selected == null ? '请先打开一张 Issue，再选择更多动作。' : st.issueMode === 'loading' ? 'Issue 详情正在加载，请稍后再试。' : st.issueMode === 'err' ? 'Issue 详情加载失败，请在详情中点击“重试”。' : '当前 Issue 详情尚不可用，请重新打开该 Issue。' })
+        h(DirectIssueActions, { key: 'draft-feedback', st, toolbar: true })
       ])
     }
     const DeckSidebarTab = function (props) {
@@ -21402,85 +21398,9 @@ function actionDraftState(st, number, effortId) {
   if (!drafts.has(key)) drafts.set(key, {});
   return drafts.get(key);
 }
-function MoreIssueActions({ st, issue, pending, run }) {
-  const state = actionDraftState(st, issue.number, issue.effortId || '');
-  const saved = state.moreAction || (state.moreAction = {
-    choice: state.choice && state.choice !== 'main' ? state.choice : '',
-    context: { ...(state.context || {}) },
-  });
-  // Pre-upgrade fields can have been edited after the first menu render.
-  // Preserve explicit supplemental values while recovering untouched fields.
-  saved.context = { ...(state.context || {}), ...(saved.context || {}) };
-  const [open, setOpen] = React.useState(false);
-  const [choice, setChoice] = React.useState(saved.choice);
-  const [context, setContext] = React.useState(saved.context);
-  const [legacyStatus, setLegacyStatus] = React.useState('');
-  const [copyingLegacy, setCopyingLegacy] = React.useState(false);
-  const legacyText = typeof state.text === 'string' ? state.text : '';
-  const copyLegacy = async () => {
-    if (copyingLegacy || !legacyText.length) return;
-    setCopyingLegacy(true);
-    try {
-      await navigator.clipboard.writeText(legacyText);
-      setLegacyStatus('已复制旧草稿原文');
-    } catch (error) {
-      setLegacyStatus('旧草稿复制失败：' + String(error.message || error) + '。原文已保留。');
-    } finally {
-      setCopyingLegacy(false);
-    }
-  };
-  const skill = choice.replace(/^skill:/, '');
-  const action = SUPPLEMENTAL_ACTIONS[skill];
-  const required = action?.required || [];
-  const fields = [...required, ...(skill === 'retro' ? ['stage'] : [])];
-  const ready = !!choice && !supplementalRequirements(skill, context).missing.length;
-  const choose = value => { saved.choice = value; setChoice(value); };
-  const change = (name, value) => {
-    const next = { ...context, [name]: value };
-    saved.context = next;
-    setContext(next);
-  };
-  const execute = target => {
-    if (!ready || target !== 'copy' && pending) return;
-    const base = issueActionRequest(issue, issueUrlFor(st, issue.number, issue.effortId || '') || '#' + issue.number);
-    const selectedContext = Object.fromEntries(fields.map(name => [name, context[name] || '']));
-    run(target, { ...base, skill, text: supplementalActionRequest(skill, base, selectedContext) });
-  };
-  const h = React.createElement;
-  const actions = ctx.get('codexActions');
-  return h('span', { 'data-issue-more-actions': true, onClick: e => e.stopPropagation(), style: { minWidth: 0 } }, [
-    h('button', { key: 'toggle', type: 'button', className: 'dsws-btn ghost', 'aria-label': '更多动作', title: '更多动作', 'aria-expanded': String(open), onClick: () => setOpen(!open) }, h('span', { 'aria-hidden': 'true', style: { fontSize: 18, lineHeight: 1 } }, '⋯')),
-    open ? h('span', { key: 'options', role: 'group', 'aria-label': '更多动作', style: { display: 'flex', flexWrap: 'wrap', gap: 4, minWidth: 0 } }, [
-      legacyText.length ? h('button', { key: 'legacy-copy', type: 'button', className: 'dsws-btn ghost', disabled: copyingLegacy, onClick: copyLegacy }, '复制旧草稿原文') : null,
-      legacyStatus ? h('span', { key: 'legacy-status', role: 'status', 'aria-live': 'polite' }, legacyStatus) : null,
-      h('select', { key: 'choice', 'aria-label': '选择其他动作', value: choice, disabled: pending, onChange: e => choose(e.target.value), style: { maxWidth: '100%' } }, [
-        h('option', { key: 'empty', value: '' }, '选择其他动作'),
-        h('optgroup', { key: 'supplements', label: '补充动作' }, [
-          h('option', { key: 'pr', value: 'pr' }, '撰写 PR 正文'),
-          h('option', { key: 'retro', value: 'retro' }, '复盘编码会话'),
-          h('option', { key: 'code-review', value: 'code-review' }, '审查改动'),
-        ]),
-        h('optgroup', { key: 'skills', label: '全部技能' }, CODEX_SKILL_NAMES.map(name => h('option', { key: name, value: 'skill:' + name }, '$' + name))),
-      ]),
-      ...fields.map(name => name === 'stage'
-        ? h('select', { key: name, 'aria-label': '阶段／观察', value: context[name] || '', disabled: pending, onChange: e => change(name, e.target.value) }, ['', '成功结束', '失败结束', '中止', '反复返工', '导航困难', '工具低效'].map(value => h('option', { key: value, value }, value || '选择阶段／观察')))
-        : h('input', { key: name, 'aria-label': ACTION_CONTEXT_LABELS[name], placeholder: ACTION_CONTEXT_LABELS[name], value: context[name] || '', disabled: pending, required: true, onInput: e => change(name, e.target.value), style: { minWidth: 0, maxWidth: '100%' } })),
-      choice && !ready ? h('span', { key: 'missing', role: 'status' }, '请补齐：' + supplementalRequirements(skill, context).missing.join('、')) : null,
-      ...[['active', '填入当前聊天'], ['new', '填入新聊天']].map(([target, label]) => h('button', { key: target, type: 'button', className: 'dsws-btn', disabled: !ready || target !== 'copy' && (pending || !canFillIssueActionDraft(actions, target)), onClick: () => execute(target) }, label)),
-      h('button', { key: 'cancel', type: 'button', className: 'dsws-btn ghost', onClick: () => setOpen(false) }, '取消'),
-    ]) : null,
-  ]);
-}
-function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false, unavailableReason }) {
+function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
   const state = actionDraftState(st, issue?.number || '', issue?.effortId || '');
   const scope = actionDraftKey(st, '', '');
-  const [help, setHelp] = React.useState(null);
-  const activeHelp = help?.scope === scope ? help : null;
-  React.useEffect(() => {
-    if (!activeHelp) return;
-    const timer = setTimeout(() => setHelp(null), 3500);
-    return () => clearTimeout(timer);
-  }, [activeHelp]);
   const operations = ctx.get('draftOperations');
   React.useSyncExternalStore(operations.subscribe, operations.getSnapshot);
   const pending = operations.pending;
@@ -21519,11 +21439,10 @@ function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false, unav
     return () => clearTimeout(timer);
   }, [toolbar, notice]);
   if (toolbar) {
-    const current = activeHelp ? { status: activeHelp.status } : notice?.feedback;
+    const current = notice?.feedback;
     return h('span', { 'data-issue-toolbar-actions': '', style: { display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, minWidth: 0, maxWidth: '100%' } }, [
-      issue ? h(MoreIssueActions, { key: actionDraftKey(st, issue.number, issue.effortId || ''), st, issue, pending, run }) : h('button', { key: 'unavailable', type: 'button', className: 'dsws-btn', title: unavailableReason || '更多动作：请先打开一张 Issue', 'aria-label': '更多动作', onClick: () => setHelp({ scope, status: unavailableReason || '请先打开一张 Issue，再选择更多动作。' }) }, h('span', { 'aria-hidden': 'true', style: { fontSize: 18, lineHeight: 1 } }, '⋯')),
       current?.status ? h('span', { key: 'toast', 'data-draft-toast': '', style: { position: 'fixed', bottom: 16, right: 16, zIndex: 1000, maxWidth: 'min(360px, calc(100vw - 32px))', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2)', color: 'var(--foreground, inherit)', border: '1px solid var(--dsw-alias-border-l1)', boxShadow: '0 2px 12px #0002', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 } }, [
-      current?.status ? h('span', { key: 'notice', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' } }, (!activeHelp && notice?.issueNumber ? '#' + notice.issueNumber + ' · ' : '') + current.status) : null,
+      current?.status ? h('span', { key: 'notice', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' } }, (notice?.issueNumber ? '#' + notice.issueNumber + ' · ' : '') + current.status) : null,
       current?.retry ? h('button', { key: 'retry', type: 'button', className: 'dsws-btn', disabled: pending, onClick: e => {
         e.stopPropagation();
         if (current.retry.unknown && !current.retryConfirmed) {
@@ -21531,7 +21450,7 @@ function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false, unav
         }
         notice.run(current.retry.target, current.retry.requestOverride, current.retry.expectedIdentity);
       } }, current.retry.unknown && current.retryConfirmed ? '已检查输入框，重试' : '重试') : null,
-      h('button', { key: 'close', className: 'dsws-btn ghost', 'aria-label': '关闭提示', onClick: () => { if (activeHelp) setHelp(null); else { operations.notice = null; operations.changed(); } } }, '×'),
+      h('button', { key: 'close', className: 'dsws-btn ghost', 'aria-label': '关闭提示', onClick: () => { operations.notice = null; operations.changed(); } }, '×'),
       ]) : null,
     ]);
   }
