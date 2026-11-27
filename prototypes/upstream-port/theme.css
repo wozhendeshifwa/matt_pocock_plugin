@@ -171,3 +171,115 @@ html {
     opacity: 1;
   }
 }
+
+/* Ordinary version-control controls consume the main panel contract. Keep the
+   upstream renderer/layout and Git-specific typography, replacing only its
+   independent skin. Specificity also wins over the vendor's later style tag. */
+.mattskills-shell .dsws-btn {
+  font-family: var(--dsw-font-family);
+  line-height: 1.5;
+}
+
+html:root body [data-vc-root] {
+  --vc-paper: var(--dsw-alias-bg-base);
+  --vc-inset: var(--dsw-alias-bg-layer-1);
+  --vc-elevated: var(--dsw-alias-bg-layer-2);
+  --vc-hover: var(--dsw-alias-interactive-bg-hover);
+  --vc-ink: var(--dsw-alias-label-primary);
+  --vc-ink2: var(--dsw-alias-label-secondary);
+  --vc-mut: var(--dsw-alias-label-secondary);
+  --vc-faint: var(--dsw-alias-label-caption);
+  --vc-line: var(--dsw-alias-border-l1);
+  --vc-line2: var(--dsw-alias-border-l2);
+  --vc-accent: var(--dsw-alias-state-success-primary);
+  --vc-accent-ink: light-dark(#ffffff, #052e16);
+  --vc-danger: light-dark(#b91c1c, #f87171);
+  --vc-warn: light-dark(#92400e, #fbbf24);
+  --vc-info: light-dark(#1d4ed8, #60a5fa);
+  --vc-radius: 6px;
+  --vc-shell-radius: 6px;
+  --vc-btn-h: 26px;
+  --vc-row-h: 30px;
+  --vc-row-py: 6px;
+  --vc-row-px: 8px;
+  --vc-row-font: 12px;
+  --vc-sec-font: 11px;
+  --vc-sec-track: normal;
+  --vc-shadow: none;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-family: var(--dsw-font-family);
+}
+
+html:root body [data-vc-root] .dsws-btn {
+  font-family: var(--dsw-font-family) !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+  padding: 3px 10px !important;
+  min-height: 0;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+html:root body [data-vc-root] .dsws-btn:hover {
+  border-color: var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+html:root body [data-vc-root] .dsws-btn.primary {
+  background: #c084fc;
+  border-color: transparent;
+  color: #140a1e;
+  font-weight: 600 !important;
+}
+
+html:root body [data-vc-root] :is(input, textarea, select) {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-family: var(--dsw-font-family);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 3px 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+
+html:root body [data-vc-root] :is(button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--dsw-alias-interactive-bg-primary);
+  outline-offset: 2px;
+}
+
+/* Vendor light/dark skins also change type size and file status placement.
+   Freeze those ordinary presentation choices while preserving the layout. */
+html:root body [data-vc-root] :is(.dsws-vc-id) { font-size: 15px; }
+html:root body [data-vc-root] :is(.dsws-vc-empty, [data-vc-band-item], [data-vc-hint], [data-vc-terminal], .dsws-vc-dlg-t, .dsws-vc-dlg-b, .dsws-vc-link, [data-vc-file] [data-vc-path], [data-vc-commit] [data-vc-short], [data-vc-other-row] [data-vc-name]) { font-size: 12px; }
+html:root body [data-vc-root] [data-vc-row] [data-vc-change] { display: block; margin-left: 0; }
+html:root body [data-vc-root] .dsws-vc-badge { box-shadow: none; background: transparent; }
+html:root body [data-vc-root] .dsws-vc-viewbar-lbl { font-family: var(--dsw-font-family); }
+
+html:root body [data-vc-root] :is(.dsws-vc-diff, .dsws-vc-card) {
+  min-width: 0;
+  max-width: 100%;
+}
+html:root body [data-vc-root] .dsws-vc-diff {
+  white-space: pre;
+  overflow: auto;
+}
+html:root body [data-vc-root] [data-vc-line] {
+  white-space: pre !important;
+  word-break: normal !important;
+}
+html:root body [data-vc-root] :is([data-vc-path], [data-vc-file-path]) {
+  min-width: 0;
+  overflow: auto !important;
+  text-overflow: clip !important;
+}
