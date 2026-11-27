@@ -92,4 +92,3 @@ const panel = normalizePanelPayload('snapshot', { ok: true, value: { issues: [ac
 assert.equal(panel.value.issues[0].children[100].number, 1100);
 assert.equal(panel.value.issues[0].children[0].state, 'CLOSED');
 console.log('PASS native spec child pagination and panel identity');
-

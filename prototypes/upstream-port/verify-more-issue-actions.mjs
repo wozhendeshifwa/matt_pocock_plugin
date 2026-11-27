@@ -25,6 +25,3 @@ for (const detail of [false, true]) {
   } finally { f.close(); }
 }
 console.log('PASS production sidebar without More retains both direct outlets');
-
-
-
