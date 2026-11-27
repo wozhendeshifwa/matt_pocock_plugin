@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdtemp, rm, access } from 'node:fs/promises';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -19,6 +19,44 @@ const dir = await mkdtemp(path.join(tmpdir(), 'deck-vc-style-'));
 const client = await readFile(new URL('dist/client.js', import.meta.url), 'utf8');
 const css = await readFile(new URL('theme.css', import.meta.url), 'utf8');
 
+// Optional real-pointer pass. CDP moves the browser's input pointer; page-side
+// observations still read the actual rendered controls and computed styles.
+async function pointerRun(html, width) {
+  const profile = path.join(dir, 'pointer-profile');
+  const child = spawn(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--no-first-run', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, '--window-size=' + (width + 100) + ',1000', pathToFileURL(html).href], { windowsHide: true, stdio: 'ignore' });
+  let socket;
+  const pending = new Map();
+  let nextId = 0;
+  const call = (method, params = {}) => new Promise((resolve,reject) => { const id = ++nextId; pending.set(id,{resolve,reject}); socket.send(JSON.stringify({id,method,params})); });
+  try {
+    let port;
+    for (let i=0;i<100;i++) { try { port = Number((await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0]); break; } catch { await new Promise(r=>setTimeout(r,50)); } }
+    assert.ok(port, 'Chromium exposes its local test CDP endpoint');
+    const targets = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
+    const target = targets.find(x=>x.type==='page');
+    socket = new WebSocket(target.webSocketDebuggerUrl);
+    await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true});});
+    socket.addEventListener('message',event=>{const m=JSON.parse(event.data);const item=pending.get(m.id);if(item){pending.delete(m.id);m.error?item.reject(new Error(m.error.message)):item.resolve(m.result);}});
+    const evaluate = async expression => (await call('Runtime.evaluate',{expression,returnByValue:true})).result.value;
+    for (let i=0;i<600;i++) {
+      const request = await evaluate('window.__hoverRequest || null');
+      if (request) {
+        await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:request.x,y:request.y});
+        await new Promise(r=>setTimeout(r,80));
+        await evaluate('window.__hoverRequest=null;window.__hoverDone();true');
+      }
+      const result = await evaluate('window.__result || null');
+      if (result) return result;
+      await new Promise(r=>setTimeout(r,25));
+    }
+    assert.fail('real-pointer production UI test timed out');
+  } finally {
+    socket?.close();
+    child.kill();
+    await new Promise(resolve=>child.once('exit',resolve));
+  }
+}
+
 async function scenario() {
   // Virtual-time headless runs can stop producing compositor frames while
   // timers advance. Keep the production deferred mount deterministic; layout
@@ -31,6 +69,7 @@ async function scenario() {
   window.addEventListener('unhandledrejection', e => calls.push('REJECTION:' + e.reason));
   const until = async fn => { for (let i = 0; i < 200; i++) { if (fn()) return; await new Promise(r => setTimeout(r, 20)); } throw new Error('UI timeout: ' + document.getElementById('root').innerHTML.slice(0,3600) + JSON.stringify(calls)); };
   const session = { id: 'style', cwd: '/fixture' };
+  const issue = {key:'94',number:94,type:'issue',title:'Style pointer fixture',state:'OPEN',labels:['ready-for-agent','wayfinder:task'],assignees:[],blockedBy:[],url:'https://github.com/fixture/repo/issues/94'};
   const state = { current: 'style', byId: { style: session }, items: [session] };
   const longPath = 'src/' + 'long-directory/'.repeat(25) + 'changed-file.js';
   const screen = {
@@ -40,7 +79,7 @@ async function scenario() {
     otherWorktrees: [], branches: [], commits: [], stagedCount: 1, unstagedCount: 3, conflictCount: 1,
   };
   const selection = { backendId: 'github', source: 'explicit' };
-  const snapshot = { ok: true, value: { ok: true, workspaceRoot: '/fixture', repoRoot: '/fixture', repo: {owner:'fixture',name:'repo'}, repository: { backend:'github',name: 'fixture/repo',refId:'fixture/repo' }, issues: [], maps: [], labels: [], selection, backendModules: [{ id: 'github' }] } };
+  const snapshot = { ok: true, value: { ok: true, workspaceRoot: '/fixture', repoRoot: '/fixture', repo: {owner:'fixture',name:'repo'}, repository: { backend:'github',name: 'fixture/repo',refId:'fixture/repo' }, issues: [issue], maps: [], labels: [], selection, backendModules: [{ id: 'github' }] } };
   const envelope = value => ({ ok: true, value });
   window.MattSkillsCodex.mount(document.getElementById('root'), {
     sessions: { list: { getSnapshot: () => state, subscribe: () => () => {} }, get: () => session },
@@ -48,6 +87,7 @@ async function scenario() {
       calls.push(r.method);
       if (['snapshot', 'refresh'].includes(r.method)) return snapshot;
       if (r.method === 'selection') return envelope({ok:true,selection});
+      if (r.method === 'issueDetail') return envelope({ok:true,issue:{...issue,body:'Pointer style comparison',comments:{nodes:[]}}});
       if (r.method === 'cwd') return envelope({ ok: true, cwd: '/fixture', workspaceRoot: '/fixture' });
       if (r.method === 'gitStatus') return envelope({ ok: true, screen, tier: 'full', gitVersion: '2.50', readAtMs: 1 });
       if (r.method === 'gitDiff') return envelope({ ok: true, path: r.payload.path, lines: [{kind:'hunk',text:'@@ -1 +1 @@'}, {kind:'del',text:'-old line'}, {kind:'add',text:'+' + 'long added line '.repeat(75)}], truncated: false, reason: 'ok' });
@@ -147,16 +187,64 @@ async function scenario() {
     check(getComputedStyle(confirm).backgroundColor === getComputedStyle(input).backgroundColor, 'confirmation uses current shared input surface');
     confirmation.push({theme,height:cancel.getBoundingClientRect().height,background:getComputedStyle(confirm).backgroundColor});
   }
+  const pointerTo = async element => {
+    element?.scrollIntoView({block:'center'});
+    const r = element?.getBoundingClientRect();
+    window.__hoverRequest = r ? {x:r.left+r.width/2,y:r.top+r.height/2} : {x:1,y:1};
+    await new Promise(resolve=>{window.__hoverDone=resolve;});
+  };
+  const hoverPresentation = async element => {
+    await pointerTo(null);
+    const view = () => {const s=getComputedStyle(element);return {background:s.backgroundColor,border:s.borderTopColor,shadow:s.boxShadow};};
+    const before=view();
+    await pointerTo(element);
+    check(element.matches(':hover'), 'real browser pointer activates hover on production control');
+    return {before,hover:view()};
+  };
+  let hover;
+  if (window.__POINTER_HOVER) {
+    hover = {};
+    for (const theme of ['light', 'dark']) {
+      document.documentElement.dataset.theme = theme;
+      document.body.toggleAttribute('data-ds-dark-theme', theme === 'dark');
+      hover[theme] = {vc:await hoverPresentation(confirm.querySelector('[data-vc-confirm-ok]'))};
+    }
+  }
   confirm.querySelector('[data-vc-confirm-cancel]').click();
+  if (window.__POINTER_HOVER) {
+    [...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='列表').click();
+    await until(()=>document.querySelector('[aria-label="#94 Style pointer fixture"]'));
+    document.querySelector('[aria-label="#94 Style pointer fixture"]').click();
+    const mainPrimary = ()=>[...document.querySelectorAll('button.dsws-btn.primary')].find(b=>b.textContent.trim()==='发送');
+    await until(mainPrimary);
+    const commentInput = mainPrimary().closest('div').parentElement.querySelector('textarea');
+    check(commentInput, 'actual comment editor is available without sending a comment');
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(commentInput, 'Hover comparison only, never submitted');
+    commentInput.dispatchEvent(new Event('input', {bubbles:true}));
+    await until(() => !mainPrimary().disabled);
+    check(!mainPrimary().disabled, 'actual main primary control is enabled for hover comparison');
+    for (const theme of ['light', 'dark']) {
+      document.documentElement.dataset.theme = theme;
+      document.body.toggleAttribute('data-ds-dark-theme', theme === 'dark');
+      hover[theme].main=await hoverPresentation(mainPrimary());
+      check(JSON.stringify(hover[theme].vc)===JSON.stringify(hover[theme].main), 'VC primary hover follows actual main comment-send primary in '+theme+': '+JSON.stringify(hover[theme]));
+    }
+  }
   check(!calls.includes('gitPush'), 'style verification never performs a Git write');
-  return { viewport: innerWidth, sidebarWidth, reports, confirmation, diff: { clientWidth: diff.clientWidth, scrollWidth: diff.scrollWidth } };
+  return { viewport: innerWidth, sidebarWidth, reports, confirmation, hover, diff: { clientWidth: diff.clientWidth, scrollWidth: diff.scrollWidth } };
 }
 
 try {
-  const source = `<!doctype html><meta charset="utf-8"><style>${css}\nbody{width:__WIDTH__px}</style><main id="root"></main><script>window.__TEST_WIDTH=__WIDTH__;</script><script>${client.replace(/<\/script/gi, '<\\/script')}</script><script>(${scenario})().then(value=>{document.body.innerHTML='<pre id="result"></pre>';document.getElementById('result').textContent=JSON.stringify({ok:true,value});}).catch(e=>{document.body.innerHTML='<pre id="result"></pre>';document.getElementById('result').textContent=JSON.stringify({ok:false,error:e.stack});});</script>`;
+  const source = `<!doctype html><meta charset="utf-8"><style>${css}\nbody{width:__WIDTH__px}</style><main id="root"></main><script>window.__TEST_WIDTH=__WIDTH__;window.__POINTER_HOVER=${process.env.DECK_TEST_HOVER==='1'};</script><script>${client.replace(/<\/script/gi, '<\\/script')}</script><script>(${scenario})().then(value=>{window.__result={ok:true,value};document.body.innerHTML='<pre id="result"></pre>';document.getElementById('result').textContent=JSON.stringify(window.__result);}).catch(e=>{window.__result={ok:false,error:e.stack};document.body.innerHTML='<pre id="result"></pre>';document.getElementById('result').textContent=JSON.stringify(window.__result);});</script>`;
   const html = path.join(dir, 'case.html');
-  for (const width of [320, 380, 760]) {
+  for (const width of process.env.DECK_TEST_HOVER==='1' ? [760] : [320, 380, 760]) {
     await writeFile(html, source.replaceAll('__WIDTH__', String(width)));
+    if (process.env.DECK_TEST_HOVER==='1') {
+      const report=await pointerRun(html,width);
+      assert.equal(report.ok,true,report.error);
+      console.log('PASS real pointer primary hover: '+JSON.stringify(report.value.hover));
+      continue;
+    }
     const { stdout } = await run(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--no-first-run', '--disable-extensions', '--allow-file-access-from-files', '--user-data-dir=' + path.join(dir, 'profile-' + width), '--window-size=' + (width + 100) + ',900', '--virtual-time-budget=20000', '--dump-dom', pathToFileURL(html).href], { timeout: 45000, maxBuffer: 8 * 1024 * 1024, windowsHide: true });
     const result = stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/);
     assert.ok(result, 'browser must finish production UI scenario');

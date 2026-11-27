@@ -21,4 +21,19 @@
 - `node verify-theme-sync.mjs`：生产面板主题行为、增量配色、状态保留和重开回归通过。
 - `git diff --check`：通过。
 
-未以派发 DOM 鼠标事件冒充真实 hover；hover 此次按主体既有 CSS 合同修复并静态核对，自动化真实指针 hover 未覆盖。真实 Codex 最终构建加载、原生主题、最窄侧栏及交互视觉仍由 #95 在前置满足后补证，#81 保持开放。未部署、未切换服务、未执行真实 Git 写操作验收。
+首轮只静态核对 hover；随后 Spec 复核发现同一 P2 的主按钮分支仍有残留：版本管理主按钮的高优先级透明边框压过主体的主按钮 hover 边框。
+
+## 主按钮 hover 残留修复与真实指针补证
+
+接续现有独立 worktree 和未提交测试改动，新增的可选指针模式通过临时 Chromium 的本机 CDP 端口发送 `Input.dispatchMouseEvent`，实际移动浏览器输入指针；页面同时断言生产控件命中 `:hover`，没有派发 DOM mouse 事件冒充 CSS hover。对照对象是版本管理实际推送确认主按钮与主体 Issue 详情实际评论“发送”主按钮，后者只填写受控临时草稿以启用按钮，绝不点击发送。
+
+有效 red：版本管理主按钮 hover 边框保持透明，主体主按钮变为 `rgba(20, 10, 30, 0.55)`，背景和阴影相同。最小修复仅补版本管理 `primary:hover` 的主体边框规则。修复后实际启用控件在浅/深两种主题下，常态和 hover 的背景、边框、阴影逐项一致。
+
+追加命令及结果（从 `prototypes/upstream-port`）：
+
+- PowerShell `$env:DECK_TEST_HOVER='1'; node verify-version-control-style.mjs`：真实指针浅/深主按钮对照通过。首次普通沙箱连接本机 CDP 端口遇到 EACCES，提权后完成同一受控检查，未修改产品来绕过环境限制。
+- `node verify-version-control-style.mjs`：320/380/760px 实测内容宽度的明暗布局、焦点、确认区域、语义显示及长内容滚动继续通过。
+- `node verify-theme-sync.mjs`：T1–T7 三组高层检查继续通过。
+- `git diff --check`：通过。
+
+以上仍为受控 Chromium 及模拟宿主边界证据；真实 Codex 最终构建加载、原生主题、最窄侧栏及交互视觉仍由 #95 在前置满足后补证，#81 保持开放。未部署、未切换服务、未执行真实 Git 写操作验收或发送评论。

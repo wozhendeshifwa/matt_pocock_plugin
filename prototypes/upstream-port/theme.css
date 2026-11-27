@@ -239,6 +239,10 @@ html:root body [data-vc-root] .dsws-btn.primary {
   font-weight: 600 !important;
 }
 
+html:root body [data-vc-root] .dsws-btn.primary:hover {
+  border-color: rgba(20, 10, 30, .55);
+}
+
 html:root body [data-vc-root] :is(input, textarea, select) {
   min-width: 0;
   max-width: 100%;
