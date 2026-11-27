@@ -8,17 +8,17 @@ export function DirectIssueActions({ st, issue, colorHex, narrow }) {
   React.useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const actions = ctx.get('codexActions');
   const available = canFillIssueActionDraft(actions, 'active');
-  const run = async target => {
+  const run = async (target, requestOverride) => {
     if (pending) return;
     setPending(true);
     setStatus('正在核验来源…');
     try {
       const preparation = ctx.get('requestPreparation');
       if (!preparation) throw new Error('来源准备能力不可用，请补齐后重试');
-      const request = issueActionRequest(issue, issueUrlFor(st, issue.number, issue.effortId || '') || '#' + issue.number);
-      if (!state.directRequest || state.directRequest.baseText !== request.text) {
+      const request = requestOverride || issueActionRequest(issue, issueUrlFor(st, issue.number, issue.effortId || '') || '#' + issue.number);
+      if (!state.directRequest || state.directRequest.baseText !== request.text || state.directRequest.preparation !== preparation) {
         const candidate = await preparation.prepare({ text: request.text });
-        state.directRequest = { ...candidate, baseText: request.text };
+        state.directRequest = { ...candidate, baseText: request.text, preparation };
       }
       const candidate = state.directRequest;
       if (candidate.dependenciesAllowed !== true) throw new Error('必要来源、工具或资料未核验，请先补齐；本次填入已停止');
@@ -39,6 +39,7 @@ export function DirectIssueActions({ st, issue, colorHex, narrow }) {
   return React.createElement('span', { 'data-issue-direct-actions': true, style: { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, minWidth: 0 } }, [
     React.createElement('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '追加到可编辑输入框，不会自动发送' : actions?.capabilities?.reason || '当前聊天填入不可用，请主动选择复制', onClick: e => { e.stopPropagation(); run('active'); }, style: { background: colorHex, fontSize: 11 } }, '填入当前聊天'),
     React.createElement('button', { key: 'copy', type: 'button', className: 'dsws-btn ghost', disabled: pending, onClick: e => { e.stopPropagation(); run('copy'); }, style: { fontSize: 11 } }, '复制'),
+    React.createElement(MoreIssueActions, { key: 'more-' + actionDraftKey(st, issue.number, issue.effortId || ''), st, issue, pending, run }),
     React.createElement('span', { key: 'status', role: 'status', 'aria-live': 'polite', style: { fontSize: 11, overflowWrap: 'anywhere' } }, status || (!available ? (actions?.capabilities?.reason || '当前聊天填入不可用') + '；可主动选择复制。' : '')),
   ]);
 }
