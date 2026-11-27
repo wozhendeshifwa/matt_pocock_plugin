@@ -21711,7 +21711,7 @@ const IssueDetail = function (props) {
           ])
       const has = function (nm) { return labelArr.some(function (l) { return (l.name || l) === nm }) }
       const _isTriageLikeLocal = !labelArr.length || has('needs-triage')
-      const fakeIssue = { number: issueNumber, ['title']: title, labels: labelArr.map(function (l) { return typeof l === 'string' ? { name: l } : l }), state: stateRaw }
+      const fakeIssue = { number: issueNumber, effortId: issueEffort, ['title']: title, labels: labelArr.map(function (l) { return typeof l === 'string' ? { name: l } : l }), state: stateRaw, dependenciesRead: (specIndex(st).byId.get(specIdentity({ number: issueNumber, effortId: issueEffort })) || {}).dependenciesRead }
       // #763 顶栏主动作按钮：与列表行同口径（图标/文字/注入文本），但自建按钮以便折叠机逐字裁字。
       // 复用行动作的注入文本，不复用它的按钮节点（那个节点写死 flex:none，折叠机裁不动它）。
       // #771 分类走一处 rowActionKind（状态优先于类型：未分流 → 接手 → 补充 → 修复 → 讨论 → 研究 → 原型 → 执行）。
@@ -21756,8 +21756,10 @@ const IssueDetail = function (props) {
       })()
       const actColor = (typeof actionColorOf === 'function') ? actionColorOf(fakeIssue, colorOf) : stateColor
       const actTextColor = (typeof isLightHex === 'function' && isLightHex(actColor)) ? '#140a1e' : '#ffffff'
-      const subNodes = (src.subIssues && src.subIssues.nodes) ? src.subIssues.nodes : []
-      const subTotal = (src.subIssues && typeof src.subIssues.totalCount === 'number') ? src.subIssues.totalCount : subNodes.length
+      const spec = specInfo(st, src)
+      const parentSpec = specFor(st, snapIssue || src)
+      const subNodes = spec ? (spec.children || []) : ((src.subIssues && src.subIssues.nodes) ? src.subIssues.nodes : [])
+      const subTotal = spec ? (spec.childrenRead && spec.childrenRead.total) : ((src.subIssues && typeof src.subIssues.totalCount === 'number') ? src.subIssues.totalCount : subNodes.length)
       const blockedNodes = (src.blockedBy && src.blockedBy.nodes) ? src.blockedBy.nodes : []
       // #693 评论也只认详情那次取数：快照那一行可能不带评论，拿它当「没有评论」会说错话。
       const commentsSource = detail ? detail.comments : undefined
@@ -21839,9 +21841,10 @@ const IssueDetail = function (props) {
           h('div', { style: { fontSize: 11, fontWeight: 600, color: 'var(--dsw-alias-label-secondary,#a1a1aa)', marginBottom: 4 } }, '描述'),
           bodySlot,
         ]),
+        parentSpec ? h('div', { 'data-parent-spec': 1, style: { padding: '6px 0', fontSize: 12 } }, ['所属规格：', h('a', { href: '#', onClick: function(e) { e.preventDefault(); pushNav(st, 'issue', parentSpec.number, effortOf(parentSpec)) } }, '#' + parentSpec.number + ' ' + parentSpec.title)]) : null,
         // sub-issues
-        subNodes.length || subTotal ? h('div', { style: { padding: '6px 0' } }, [
-          h('div', { style: { fontSize: 11, fontWeight: 600, color: 'var(--dsw-alias-label-secondary,#a1a1aa)', marginBottom: 6 } }, '子票 ' + subTotal + (subNodes.length ? '' : '（无加载）')),
+        (spec || subTotal > 0) ? h('div', { 'data-spec-children': spec ? 1 : undefined, style: { padding: '6px 0' } }, [
+          h('div', { style: { fontSize: 11, fontWeight: 600, color: 'var(--dsw-alias-label-secondary,#a1a1aa)', marginBottom: 6 } }, spec ? specCount(spec) : ('子票 ' + subTotal + (subNodes.length ? '' : '（无加载）'))),
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } }, subNodes.map(function (s) {
             const sc = s.state === 'CLOSED' ? '#3fb950' : '#8b8b95'
             // T4 整改 #554：子票按上面 enterSubDetail 分流（有标签按标签，无标签按快照找图）。
@@ -22481,7 +22484,7 @@ const listIssueRow = function (h, st, x, isOpen, narrow, blockOf, colorOf, multi
       const mapEmpty=!!(!issueActionRequest(x, "").roleConflict&&isMap&&mapObj&&mapObj.stats&&mapObj.stats.total===0&&!mapClosed)
       const numColor=mapDone?'#3fb950':mapEmpty?'#f59e0b':actionColorOf(x,colorOf)
       // v1.3.3 UI：全部标签渲染（渲染后贪心折叠，放不下的隐藏进 +N；+N 弹窗显示全部）
-      const labels = x.labels || []
+      const labels = specInfo(st, x) ? (x.labels || []).filter(label => label.name === 'spec').concat((x.labels || []).filter(label => label.name !== 'spec')) : (x.labels || [])
       const allNames = labels.map(function (l) { return l.name }).join('、')
       const openPop = function (e) {
         e.stopPropagation()
@@ -22526,6 +22529,11 @@ const listIssueRow = function (h, st, x, isOpen, narrow, blockOf, colorOf, multi
             truthWriteWindowOpen(st.writeAt && (st.writeAt[String(x.number)] || st.writeAt[idOf(x)]), Date.now()) ? h('span', { className: 'dsws-chip dsws-writing', style: { fontSize: 9, lineHeight: 1.5, padding: '0 4px', flex: 'none', opacity: 0.75, background: 'rgba(88,166,255,.10)', color: '#58a6ff', border: '1px dashed rgba(88,166,255,.45)' } }, tr('truth.writing')) : null,
           ]),
           h('span', { style: { flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 } }, [h(Tip, { content: h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2 } }, [h('div', { style: { fontSize: 10, color: '#8b8b95', lineHeight: '14px' } }, tr('tip.header.fullTitle')), h('div', { style: { fontSize: 11, color: '#e6edf3', lineHeight: '16px', wordBreak: 'break-word', whiteSpace: 'normal' } }, x.title)]) }, h('span', { className: 'dsws-tt-wrap', style: { flex: 1, minWidth: 0, fontWeight: isMap ? 600 : undefined, color: isOpen ? undefined : 'var(--dsw-alias-label-secondary,#a1a1aa)' } }, x.title)), (x.author && x.author.login && x.author.login !== ((st.snapshot && (st.snapshot.viewer && st.snapshot.viewer.login || st.snapshot.viewerLogin)) || '')) ? (x.author.avatarUrl ? h(Tip, { content: (x.author.name ? x.author.name + ' (@' + x.author.login + ')' : '@' + x.author.login) }, h('img', { src: x.author.avatarUrl, style: { width: 16, height: 16, borderRadius: '50%', border: '2px solid ' + authorColor(x.author.login), flex: 'none' }, alt: x.author.login })) : h(Tip, { content: (x.author.name ? x.author.name + ' (@' + x.author.login + ')' : '@' + x.author.login) }, h('span', { style: { width: 16, height: 16, borderRadius: '50%', background: hexA(authorColor(x.author.login), 0.18), border: '2px solid ' + authorColor(x.author.login), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' } }, [Ic({ n: 'person', size: 10 })]))) : null]),
+          specInfo(st, x) && !specComplete(specInfo(st, x)) ? h('span', { style: { fontSize: 11 } }, specCount(specInfo(st, x))) : null,
+          specOpenWork(st, x) && x.state === 'CLOSED' ? h('span', { 'data-spec-status': 1, style: { fontSize: 11 } }, specStateText(st, x)) : null,
+          specFor(st, x) ? h('span', { 'data-spec-owner': 1, style: { fontSize: 11, flex: 'none' } }, '所属规格 #' + specFor(st, x).number) : null,
+          specDependenciesUnknown(st, x) ? h('span', { 'data-dependencies-unknown': 1, style: { fontSize: 11 } }, '依赖读取未知 · 暂停执行') : null,
+          !specDependenciesUnknown(st, x) && specExecutionHeld(st, x) ? h('span', { 'data-dependencies-blocked': 1, style: { fontSize: 11 } }, '被阻塞 · ' + (x.dependenciesRead?.openKeys || []).map(key => '#' + key).join('、')) : null,
           (isMap && mapObj && mapObj.stats && !mapClosed) ? ringOf(mapObj.stats) : null,
           !isOpen ? h('span', { className: 'dsws-chip', style: { fontSize: 10, marginRight: 0, flex: 'none', background: 'rgba(139,139,149,.12)', color: '#8b8b95', border: '1px solid rgba(139,139,149,.35)' } }, [Ic({ n: 'check', size: 9 }), h('span', null, tr('map.subClosed'))]) : null,
         ]),
@@ -22533,7 +22541,7 @@ const listIssueRow = function (h, st, x, isOpen, narrow, blockOf, colorOf, multi
         h('div', { style: { marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, width: '100%' } }, [
           h('div', { className: 'dsws-tags', 'data-dsws-labels': JSON.stringify(labels.map(function (l) { return l.name })) }, [
             labels.map(function (l, i) {
-              return h('span', { key: i, className: 'dsws-chip', style: { fontSize: 10, background: hexA(l.color, 0.18) || 'rgba(188,140,255,.16)', color: l.color ? '#' + l.color : '#bc8cff', border: '1px solid ' + (darken(l.color, 0.16) || 'rgba(188,140,255,.6)') } }, l.name)
+              return h('span', { key: i, 'data-spec-count': l.name === 'spec' && specInfo(st, x) ? 1 : undefined, title: l.name === 'spec' && specInfo(st, x) ? specCount(specInfo(st, x)) : undefined, 'aria-label': l.name === 'spec' && specInfo(st, x) ? 'spec · ' + specCount(specInfo(st, x)) : undefined, className: 'dsws-chip', style: { fontSize: 10, background: hexA(l.color, 0.18) || 'rgba(188,140,255,.16)', color: l.color ? '#' + l.color : '#bc8cff', border: '1px solid ' + (darken(l.color, 0.16) || 'rgba(188,140,255,.6)') } }, l.name === 'spec' && specInfo(st, x) ? specLabel(specInfo(st, x)) : l.name)
             }),
             labels.length > 0 ? h(Tip, { content: tr('list.tagsTitle', { names: allNames }) }, h('span', chipProps({ key: 'more', className: 'dsws-chip dsws-more', onClick: openPop }), '+0')) : null,
             blocked ? ((blk.map === null || blk.map === undefined)
@@ -22601,6 +22609,94 @@ const fitMapRows = function () {
         if (!it.fits) it.idcol.classList.remove('h')
       }
     }
+const specIndexes = new WeakMap();
+function specIdentity(row) {
+  return String(row?.effortId || '') + '#' + String(row?.key || row?.number);
+}
+function buildSpecIndex(st, extras) {
+  const snapshot = st.snapshot || {};
+  const byId = new Map();
+  const put = row => { if (row && row.number != null) byId.set(specIdentity(row), row); };
+  const roots = (snapshot.issues || []).concat((snapshot.maps || []).flatMap(map => map.tickets || []), snapshot.specs || []);
+  roots.forEach(row => (row.children || []).forEach(put));
+  // Root/paginated rows own their full metadata; a nested projection must not
+  // replace dependency or action information for the same issue identity.
+  roots.forEach(put);
+  (extras || []).forEach(put);
+  const specs = new Map();
+  const mapChildren = new Set();
+  const childrenOf = new Map();
+  for (const row of byId.values()) if (specTagged(row)) {
+    specs.set(specIdentity(row), row);
+    childrenOf.set(specIdentity(row), new Set((row.children || []).map(specIdentity)));
+  }
+  for (const map of snapshot.maps || []) for (const child of map.tickets || []) mapChildren.add(specIdentity(child));
+  return { snapshot: st.snapshot, byId, specs, mapChildren, childrenOf, pool: [...byId.values()] };
+}
+function specIndex(st) {
+  let index = specIndexes.get(st);
+  if (!index || index.snapshot !== st.snapshot) {
+    index = buildSpecIndex(st, issuePageRowsOf(st, 'list'));
+    specIndexes.set(st, index);
+  }
+  return index;
+}
+function specTagged(row) {
+  const labels = Array.isArray(row?.labels) ? row.labels : (row?.labels?.nodes || []);
+  return !!row && labels.some(label => (typeof label === 'string' ? label : label.name) === 'spec') && row.type !== 'map' && !labels.some(label => (typeof label === 'string' ? label : label.name) === 'wayfinder:map');
+}
+function specFor(st, row) {
+  if (!row || row.parentKey == null) return null;
+  return specIndex(st).specs.get(specIdentity({ key: row.parentKey, effortId: row.effortId })) || null;
+}
+function specInfo(st, row) {
+  if (!specTagged(row)) return null;
+  return specIndex(st).specs.get(specIdentity(row)) || row;
+}
+function specDependenciesUnknown(st, row) {
+  const current = specIndex(st).byId.get(specIdentity(row)) || row;
+  return !!current?.dependenciesRead && current.dependenciesRead.state !== 'complete';
+}
+function specExecutionHeld(st, row) {
+  const current = specIndex(st).byId.get(specIdentity(row)) || row;
+  return specDependenciesUnknown(st, current) || !!current?.dependenciesRead?.openKeys?.length;
+}
+function specComplete(spec) {
+  return !!spec && spec.childrenRead?.state === 'complete' && Number.isInteger(spec.childrenRead.total) && spec.childrenRead.total === (spec.children || []).length;
+}
+function specCount(spec) {
+  if (!specComplete(spec)) return spec.childrenRead?.state === 'failed' ? '子票读取失败 · 完成数未知' : '子票读取不完整 · 已读取 ' + (spec.children || []).length + ' 张，完成数未知';
+  return '子票 ' + (spec.children || []).filter(child => child.state === 'CLOSED').length + '/' + spec.childrenRead.total;
+}
+function specLabel(spec) {
+  return specComplete(spec) ? 'spec ' + (spec.children || []).filter(child => child.state === 'CLOSED').length + '/' + spec.childrenRead.total : 'spec ?';
+}
+function specOpenWork(st, row) {
+  const spec = specInfo(st, row);
+  return !!spec && (!specComplete(spec) || (spec.children || []).some(child => child.state !== 'CLOSED'));
+}
+function specStateText(st, row) {
+  const spec = specInfo(st, row);
+  return (spec?.children || []).some(child => child.state !== 'CLOSED') ? '规格已关闭 · 还有未完成子票' : '规格已关闭 · 子票读取未完成';
+}
+function specListRows(st, rows) {
+  const index = buildSpecIndex(st, rows);
+  specIndexes.set(st, index);
+  const pool = index.pool;
+  const base = rows.concat(pool.filter(row => specTagged(row) || specFor(st, row)));
+  const seen = new Set();
+  const query = String(st.specSearch || '').trim().toLowerCase();
+  return (query ? pool : base).filter(row => {
+    const id = specIdentity(row);
+    if (seen.has(id) || row.isPullRequest === true) return false;
+    seen.add(id);
+    if (query) return ('#' + row.number + ' ' + row.title).toLowerCase().includes(query);
+    if (!specTagged(row) && index.mapChildren.has(id)) return false;
+    const parent = specFor(st, row);
+    const info = parent && specInfo(st, parent);
+    return !specComplete(info) || !index.childrenOf.get(specIdentity(info))?.has(id);
+  });
+}
 const ListTab = ({ st, narrow }) => {
       const cx = React.useContext(DswsCtx)
       const h = cx ? cx.h : React.createElement
@@ -22662,9 +22758,9 @@ const ListTab = ({ st, narrow }) => {
       //   isTicketRow，与 KPI、状态栏共用同一处）。池子（snapshot.issues）本身不动，仍是原样全收。
       // #690：再并上「按需翻回来的那些页」里池子没有的行（issuePageRowsOf 已按身份去掉重复的），
       //   于是已关闭那一堆里既有首屏那一百条、也有用户翻出来的更早的票；静默刷新只换池子，页数据不动。
-      const issues = ticketRowsOf((st.snapshot && Array.isArray(st.snapshot.issues)) ? st.snapshot.issues : []).concat(issuePageRowsOf(st, 'list'))
-      const openIssues = issues.filter(function (x) { return x.state !== 'CLOSED' })
-      const closedIssues = issues.filter(function (x) { return x.state === 'CLOSED' })
+      const issues = specListRows(st, ticketRowsOf((st.snapshot && Array.isArray(st.snapshot.issues)) ? st.snapshot.issues : []).concat(issuePageRowsOf(st, 'list')))
+      const openIssues = issues.filter(function (x) { return x.state !== 'CLOSED' || specOpenWork(st, x) })
+      const closedIssues = issues.filter(function (x) { return x.state === 'CLOSED' && (st.stateFilter === 'closed' || !specOpenWork(st, x)) })
       // #374：多维排序 —— map 行恒置顶，map 组与普通组各自按所选维度排序；默认 更新时间↓（与现状一致）
       const sortIssues = function (arr) {
         const dir = st.sortDir === 'asc' ? 1 : -1
@@ -22720,7 +22816,7 @@ const ListTab = ({ st, narrow }) => {
       // #374：状态过滤（全部/Open/阻塞/已关闭）与 label 过滤叠加
       // v1.3.3 T3：blocked 过滤真正实现 —— open 且存在 open 阻塞者（blockOf 命中）
       const showOpen = st.stateFilter !== 'closed'
-      const showClosedList = st.stateFilter === 'closed'
+      const showClosedList = st.stateFilter === 'closed' || !!String(st.specSearch || '').trim()
       // v1.5：多选标签过滤（OR 语义：命中任一选中标签即显示）
       const byLabel = function (x) {
         const ls = st.lblFilters || []
@@ -22798,7 +22894,8 @@ const ListTab = ({ st, narrow }) => {
         ]) : null,
         // B Timeline 定版（2026-08-28）：全屏红卡（NoRepoCard）不再挂载于列表页顶部——
         //   远端未关联/环境未就绪由检查页行内红卡表达，列表页保持 KPI + 列表（无顶部错误信息）
-        // KPI 行 + 环境提示（v18-30：可接/占用 = 列表 open issue 口径）
+        h('input', { type: 'search', 'aria-label': '搜索任务', 'data-spec-search': 1, placeholder: '搜索任务（含规格子票）', value: st.specSearch || '', onInput: function(e) { st.specSearch = e.target.value; emit(st) }, style: { width: '100%', boxSizing: 'border-box', marginBottom: 8, padding: '5px 8px', background: 'var(--dsw-alias-bg-layer-1)', color: 'var(--dsw-alias-label-primary)', border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 6 } }),
+      // KPI 行 + 环境提示（v18-30：可接/占用 = 列表 open issue 口径）
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap', position: 'relative' } }, [
           kpi(kpiFrontier, tr('list.kpi.takeable'), 'target', '#4ade80'),
           kpi(kpiOcc, tr('list.kpi.occupied'), 'lock', '#f0883e'),
@@ -22894,7 +22991,7 @@ const ListTab = ({ st, narrow }) => {
         // v14-4⑤：列表底部「已关闭 (N)」折叠行（仅「全部」状态显示；默认收起，只占一行，展开可见）
         // #689：文案改成「已关闭 N（已加载 x）」—— N 是后端计数说的总数，x 是列表里真加载到的行数；
         //   两个不一样时（本仓现在就是）用户一眼能看出「还有多少没装进来」，而不是以为列表就是全部。
-        (st.stateFilter === 'all' && closedRows.length) ? h('details', { style: { marginTop: 8 }, onToggle: function (e) { const open = !!(e && e.target && e.target.open); st.closedFoldOpen = open; emit(st); if (open) loadIssuePage(st, { view: 'list' }) } }, [
+        (st.stateFilter === 'all' && !String(st.specSearch || '').trim() && closedRows.length) ? h('details', { style: { marginTop: 8 }, onToggle: function (e) { const open = !!(e && e.target && e.target.open); st.closedFoldOpen = open; emit(st); if (open) loadIssuePage(st, { view: 'list' }) } }, [
           h('summary', { style: { fontSize: 11, color: 'var(--dsw-alias-label-caption,#8b8b95)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 2px', userSelect: 'none' } }, [
             Ic({ n: 'check', size: 11 }),
             h('span', null, tr('list.closedN', { n: foldCounts ? foldCounts.closed : closedRows.length, x: closedRows.length })),

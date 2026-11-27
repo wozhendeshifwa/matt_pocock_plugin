@@ -14,6 +14,7 @@ import { ghClient } from './client.js'
 import { normalizeIssue } from './normalize.js'
 import { classifyGhError } from './errors.js'
 import { repairParentLinksREST } from './parent-repair.js'
+import { enrichSpecChildren } from './spec-children.js'
 import { rosterAdoptList, rosterUpsert } from './roster.js'
 import { LIST_QUERY, GET_QUERY, LIST_PR_QUERY, GET_PR_QUERY } from './queries.js'
 import { fetchAllPullsREST, enrichRestPRs, enrichSinglePR } from './pulls.js'
@@ -225,9 +226,11 @@ export async function listIssues(repo, filter, ctx) {
       //   未知由调用方缺失表示为 null）。界面新鲜时只有 quota 才说「配额耗尽」，other 与未知一律
       //   说中性那句，一个字不许提配额。旧判据 isRateLimitError 一处不动（裸 403 照旧走老路）。
       try { if (ctx && ctx.memo) rosterAdoptList(ctx.memo, restNorm, filter) } catch (eU) {}
+      await enrichSpecChildren(restNorm, parsed, ctx, { dependenciesKnown: false })
       return { ok: true, data: applyIssueFilter(restNorm, filter), fallback: 'rest', fallbackReason: fbCause }
     }
     try { if (ctx && ctx.memo) rosterAdoptList(ctx.memo, all, filter) } catch (eU) {}
+    await enrichSpecChildren(all, parsed, ctx)
     return { ok: true, data: applyIssueFilter(all, filter) }
   } catch (e) {
     const kind = classifyGhError(e, ctx)
