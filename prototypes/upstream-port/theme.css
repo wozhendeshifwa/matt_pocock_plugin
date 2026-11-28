@@ -352,3 +352,230 @@ html:root body .mattskills-shell :is(.dsws-btn, button, input, textarea, select)
   background: var(--dsw-alias-bg-layer-1) !important;
   cursor: not-allowed;
 }
+
+/* Neutral surfaces for the existing skill reader. The variables are scoped to
+   its actual roots because vendor :root declarations load after this sheet. */
+html:root body :is(.pixel-tab, .pixel-overlay, .pixel-modal) {
+  --pixel-frame: var(--dsw-alias-border-l1);
+  --pixel-paper: var(--dsw-alias-bg-base);
+  --pixel-card: var(--dsw-alias-bg-layer-1);
+  --pixel-ink: var(--dsw-alias-label-primary);
+  --pixel-ink2: var(--dsw-alias-label-secondary);
+  --pixel-shadow: transparent;
+  --pixel-gold: var(--dsw-alias-focus-ring);
+  --pixel-acc: var(--dsw-alias-label-primary);
+  --pixel-ok: var(--dsw-alias-state-success-primary);
+  --pixel-bad: var(--dsw-alias-state-danger-primary);
+  --pixel-warn: var(--dsw-alias-state-warning-primary);
+  --pixel-stripe: var(--dsw-alias-border-l1);
+  --pixel-popline: var(--dsw-alias-bg-layer-1);
+  --pixel-hi: var(--dsw-alias-interactive-bg-hover);
+  --pixel-link: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  color: var(--dsw-alias-label-primary);
+}
+html:root body :is(.pixel-modal, .pixel-toc, .pixel-statusline, .pixel-skillrow, .pixel-banner) {
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: none;
+  transform: none;
+  animation: none;
+}
+html:root body .pixel-modal { box-sizing: border-box; max-width: calc(100vw - 24px); }
+html:root body .pixel-overlay { padding: 12px; box-sizing: border-box; background: #0006; }
+html:root body .pixel-seal { display: none; }
+html:root body :is(.pixel-top, .pixel-bot) {
+  font: 600 14px/1.5 var(--dsw-font-family);
+  border-width: 1px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+html:root body .pixel-top > span:first-child { white-space: normal; overflow-wrap: anywhere; flex: 1 1 120px; }
+html:root body .pixel-body { min-height: 0; padding: 12px; overflow: auto; }
+html:root body .pixel-doc { font: 14px/1.5 var(--dsw-font-family); overflow-wrap: anywhere; }
+html:root body .pixel-doc :is(h1,h2,h3) {
+  font-family: var(--dsw-font-family); letter-spacing: normal; box-shadow: none;
+  border-width: 1px; border-radius: 6px;
+}
+html:root body .pixel-doc h1 { font-size: 18px; }
+html:root body .pixel-doc h2 { font-size: 16px; }
+html:root body .pixel-doc :is(pre, code) {
+  box-shadow: none; border-width: 1px; border-radius: 6px;
+  color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-2);
+  font-family: var(--ds-font-family-code, ui-monospace, Consolas, Menlo, monospace);
+}
+html:root body .pixel-doc pre { white-space: pre; overflow: auto; max-width: 100%; box-sizing: border-box; }
+html:root body .pixel-doc pre code { white-space: pre; }
+html:root body .pixel-doc blockquote { background: var(--dsw-alias-bg-layer-2); border-width: 2px; }
+html:root body :is(.pixel-toc b, .pixel-num, .pixel-stack, .pixel-sname) {
+  font-family: var(--dsw-font-family); letter-spacing: normal; border-width: 1px;
+}
+html:root body .pixel-skillrow { flex-wrap: wrap; gap: 8px; }
+html:root body .pixel-suse { white-space: normal; overflow: visible; overflow-wrap: anywhere; min-width: 100px; }
+html:root body .pixel-skillrow.rec { background: var(--dsw-alias-bg-layer-2); }
+html:root body .pixel-btn {
+  font: 13px/1.5 var(--dsw-font-family); min-height: 32px; box-sizing: border-box;
+  border: 1px solid var(--dsw-alias-border-l1); border-radius: 6px;
+  padding: 4px 10px; box-shadow: none; transform: none;
+  background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary);
+}
+html:root body .pixel-btn.hot { background: var(--dsw-alias-label-primary); color: var(--dsw-alias-bg-base); }
+html:root body .pixel-btn:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); outline: none; }
+html:root body .pixel-btn:focus-visible { outline: 2px solid var(--dsw-alias-focus-ring); outline-offset: 2px; }
+html:root body .pixel-tab {
+  background: var(--dsw-alias-bg-base); border: 0; box-shadow: none; padding: 0;
+}
+html:root body .pixel-tab .dsws-grp { color: var(--dsw-alias-label-primary); letter-spacing: normal; }
+html:root body .pixel-tab .dsws-grp svg { color: inherit; }
+html:root body .pixel-tab :is(.dsws-seg,.dsws-chip) {
+  font: 12px/1.5 var(--dsw-font-family); border-width: 1px; border-radius: 6px; box-shadow: none;
+}
+html:root body :is(.pixel-toc b, .pixel-toc .pixel-num, .pixel-top) {
+  color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1); text-shadow: none;
+}
+html:root body :is(.pixel-top,.pixel-doc h1,.pixel-doc h2,.pixel-doc h3,.pixel-sname) { text-shadow: none; filter: none; }
+html:root body .pixel-toc { border-radius: 6px; overflow: hidden; }
+html:root body .pixel-toc a:hover {
+  background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary);
+}
+html:root body .pixel-toc a:hover .pixel-num {
+  background: transparent; color: var(--dsw-alias-label-primary);
+}
+html:root body .pixel-doc ol > li::before {
+  color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1);
+  font: 12px/1.5 var(--dsw-font-family); border-width: 1px; border-radius: 4px; box-shadow: none;
+}
+/* The current catalog has no segment filter, but keep the legacy selected
+   style readable if an upstream view starts rendering that control again. */
+html:root body .pixel-tab .dsws-seg.on {
+  background: var(--dsw-alias-label-primary); color: var(--dsw-alias-bg-base);
+}
+html:root body .pixel-ic { border-width: 1px; border-radius: 4px; }
+html:root body .pixel-ic-err {
+  color: var(--dsw-alias-state-danger-primary); background: var(--dsw-alias-state-danger-background);
+}
+html:root body .pixel-ic-ok {
+  color: var(--dsw-alias-state-success-primary); background: var(--dsw-alias-state-success-background);
+}
+html:root body .pixel-ic-warn {
+  color: var(--dsw-alias-state-warning-primary); background: var(--dsw-alias-state-warning-background);
+}
+html:root body .pixel-ic-idle {
+  color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-2);
+}
+html:root body .pixel-banner { color: var(--dsw-alias-state-danger-primary); background: var(--dsw-alias-state-danger-background); border-color: var(--dsw-alias-state-danger-border); }
+html:root body .pixel-banner.warn { color: var(--dsw-alias-state-warning-primary); background: var(--dsw-alias-state-warning-background); border-color: var(--dsw-alias-state-warning-border); }
+html:root body [data-native-map-destination] { color: var(--dsw-alias-label-primary) !important; font-size: 14px !important; }
+html:root body [data-native-map] .dsws-start .cap { color: var(--dsw-alias-label-primary); }
+html:root body [data-native-map] .dsws-gate .g.open { box-shadow: none; color: var(--dsw-alias-state-success-primary); border-color: var(--dsw-alias-state-success-border); }
+html:root body [data-native-map] .dsws-layerTag .layerNo { font-family: var(--dsw-font-family); }
+html:root body [data-native-map] .dsws-ring-txt { font-size: 13px; }
+
+/* Update/help and logging portals keep semantic statuses within the host palette. */
+html:root body :is(.dsh-upd,.dsh-upd-entry,.dsh-upd-overlay) {
+  --dsh-update-bg: var(--dsw-alias-bg-base);
+  --dsh-update-bg-soft: var(--dsw-alias-bg-layer-1);
+  --dsh-update-fg: var(--dsw-alias-label-primary);
+  --dsh-update-muted: var(--dsw-alias-label-secondary);
+  --dsh-update-border: var(--dsw-alias-border-l1);
+  --dsh-update-border-strong: var(--dsw-alias-border-l2);
+  --dsh-update-button-bg: var(--dsw-alias-bg-layer-1);
+  --dsh-update-primary: var(--dsw-alias-label-primary);
+  --dsh-update-ok-border: var(--dsw-alias-state-success-primary);
+  --dsh-update-warn-border: var(--dsw-alias-state-warning-primary);
+  --dsh-update-warn-bg: var(--dsw-alias-state-warning-background);
+  --dsh-update-bad-border: var(--dsw-alias-state-danger-primary);
+  font-family: var(--dsw-font-family);
+}
+html:root body [data-dsws-logmenu] { font: 13px/1.5 var(--dsw-font-family); color: var(--dsw-alias-label-primary); max-height: calc(100dvh - 24px); overflow: auto; box-sizing: border-box; box-shadow: none !important; }
+html:root body [data-dsws-logmenu] button {
+  font: 13px/1.5 var(--dsw-font-family) !important; min-height: 32px;
+  color: var(--dsw-alias-label-primary) !important;
+}
+html:root body [data-dsws-logmenu] button:focus-visible { outline: 2px solid var(--dsw-alias-focus-ring); outline-offset: 2px; }
+
+/* Map hierarchy, statuses and reveal behavior stay intact; only the independent
+   neon surface is replaced. Label chips keep their per-label colors. */
+html:root body .mattskills-shell :is(.dsws-layers,.dsws-layerbox,.dsws-node) {
+  background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px; box-shadow: none;
+}
+html:root body .mattskills-shell :is(.dsws-layerbox.cur,.dsws-node.now) { border-color: var(--dsw-alias-border-l2); }
+html:root body .mattskills-shell .dsws-node .icbox { background: var(--dsw-alias-bg-layer-2); }
+html:root body .mattskills-shell .dsws-node .tt {
+  font-size: 14px; line-height: 1.5; display: block; overflow: visible;
+  -webkit-line-clamp: unset; overflow-wrap: anywhere; word-break: normal;
+}
+html:root body .mattskills-shell :is(.dsws-node .no,.dsws-node .tag,.dsws-layers .cap,.dsws-layers .row2) { font-size: 12px; }
+html:root body .mattskills-shell .dsws-layers .seg.curr {
+  background: var(--dsw-alias-label-primary); box-shadow: none;
+}
+html:root body .mattskills-shell .dsws-layers .seg.past { background: var(--dsw-alias-state-success-primary); }
+html:root body .mattskills-shell .dsws-layers .row2 .cur { color: var(--dsw-alias-label-primary); }
+html:root body .mattskills-shell .dsws-node.done { opacity: 1; color: var(--dsw-alias-label-secondary); }
+
+/* Body portals need the same contract as shell controls. Keep this explicit so
+   schema fields, label colors and diff tokens are not recolored by a wildcard. */
+html:root body :is(.dsws-modal, [data-map-mode-overlay], .pixel-overlay) {
+  font: 14px/1.5 var(--dsw-font-family); color: var(--dsw-alias-label-primary);
+}
+html:root body :is(.dsws-modalbox, [data-map-mode-dialog]) {
+  box-sizing: border-box; max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px);
+  overflow: auto; color: var(--dsw-alias-label-primary) !important;
+  background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px; box-shadow: none !important; overflow-wrap: anywhere;
+}
+html:root body :is(.dsws-modal,[data-map-mode-overlay]) :is(button,input:not([type=checkbox]):not([type=radio]),select,textarea) {
+  box-sizing: border-box; min-height: 32px; max-width: 100%;
+  font: 13px/1.5 var(--dsw-font-family); padding: 4px 10px;
+  border: 1px solid var(--dsw-alias-border-l1); border-radius: 6px;
+  color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1);
+}
+html:root body :is(.dsws-modal,[data-map-mode-overlay]) .dsws-btn.primary {
+  background: var(--dsw-alias-label-primary) !important; color: var(--dsw-alias-bg-base) !important; border-color: transparent !important;
+}
+html:root body :is(.dsws-modal,[data-map-mode-overlay]) button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
+html:root body :is(.dsws-modal,[data-map-mode-overlay]) :is(button,input,select,textarea):focus-visible {
+  outline: 2px solid var(--dsw-alias-focus-ring); outline-offset: 2px;
+}
+html:root body .dsws-modalbox div:has(> label[role=radio]) { flex-wrap: wrap; }
+html:root body .dsws-modalbox label[role=radio] {
+  box-sizing: border-box; min-width: 0; flex: 1 1 120px !important;
+  white-space: normal !important; overflow-wrap: anywhere;
+  font: 13px/1.5 var(--dsw-font-family); min-height: 32px; border-radius: 6px !important;
+  background: var(--dsw-alias-bg-layer-1) !important; color: var(--dsw-alias-label-primary) !important;
+}
+html:root body .dsws-modalbox label[role=radio][aria-checked=true] {
+  background: var(--dsw-alias-interactive-bg-active) !important; border-color: var(--dsw-alias-border-l2) !important;
+}
+html:root body .dsws-modalbox label[role=radio]:focus-visible { outline: 2px solid var(--dsw-alias-focus-ring); outline-offset: 2px; }
+html:root body .mattskills-shell .mattskills-tabs button.is-active {
+  color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-active);
+  border-color: var(--dsw-alias-border-l2);
+}
+html:root body .mattskills-shell textarea:is(.dsws-ta,.dsws-cfg-ta) {
+  font-family: var(--ds-font-family-code, ui-monospace, Consolas, Menlo, monospace);
+}
+
+/* Layout follows the effective CSS viewport, including app zoom. No root
+   overflow clipping: long prose wraps, technical content scrolls locally. */
+.mattskills-shell, .mattskills-tabpanel, .dsws-body, .sandbox-tasks { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.mattskills-tabs { flex-wrap: wrap; }
+html:root body .mattskills-shell .dsws-tabs { flex-wrap: wrap; overflow: visible; white-space: normal; row-gap: 6px; }
+html:root body .mattskills-shell .dsws-layer { grid-template-columns: repeat(auto-fit,minmax(min(190px,100%),1fr)); }
+html:root body .mattskills-shell :is(.dsws-node .row1,.dsws-node .meta,.dsws-layerTag,.dsws-layers .row1,.dsws-layers .row2) { flex-wrap: wrap; }
+html:root body .mattskills-shell .sandbox-tasks { font-size: 14px; overflow-wrap: anywhere; }
+html:root body .mattskills-shell .sandbox-tasks pre {
+  white-space: pre !important; overflow-wrap: normal !important; overflow: auto;
+  max-width: 100%; font-family: var(--ds-font-family-code,ui-monospace,Consolas,Menlo,monospace);
+}
+html:root body .mattskills-shell .sandbox-tasks .facts { background: var(--dsw-alias-bg-layer-1); border-color: var(--dsw-alias-border-l1); }
+html:root body .mattskills-shell .sandbox-tasks :is(input,select,textarea,button) { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+html:root body .mattskills-shell .sandbox-tasks [aria-selected=true] { background: var(--dsw-alias-interactive-bg-active); }
+@media (max-width: 520px) {
+  html:root body .mattskills-shell .dsws-body { padding: 8px !important; }
+  html:root body .mattskills-shell .dsws-stickybar { margin-left: -8px; margin-right: -8px; padding-left: 8px; padding-right: 8px; }
+  html:root body .mattskills-shell .dsws-layer { grid-template-columns: minmax(0,1fr); }
+  html:root body .mattskills-shell .dsws-node .acts { gap: 6px; }
+}

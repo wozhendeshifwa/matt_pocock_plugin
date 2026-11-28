@@ -16,6 +16,7 @@
     "skills.beforeUse",
     "issueActions.bottomBar",
     "versionControl.fullPaths",
-    "issueActions.directCurrent"
+    "issueActions.directCurrent",
+    "nativeVisual.mapSurfaces"
   ]
 }
