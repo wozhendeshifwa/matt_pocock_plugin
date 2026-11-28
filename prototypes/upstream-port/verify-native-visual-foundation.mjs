@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdtemp, rm, access } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
+import { runChromiumVisual } from './test-fixtures/chromium-visual-fixture.mjs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -19,68 +19,6 @@ assert.ok(browser, 'Set DECK_TEST_BROWSER to a Chromium executable for real layo
 const dir = await mkdtemp(path.join(tmpdir(), 'deck-native-foundation-'));
 const client = await readFile(new URL('dist/client.js', import.meta.url), 'utf8');
 const css = await readFile(new URL('theme.css', import.meta.url), 'utf8');
-
-// CDP sends real pointer and keyboard input; page-side
-// observations still read the actual rendered controls and computed styles.
-async function pointerRun(html, width) {
-  const profile = path.join(dir, 'pointer-profile');
-  const child = spawn(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--no-first-run', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, '--window-size=' + (width + 100) + ',1000', pathToFileURL(html).href], { windowsHide: true, stdio: 'ignore' });
-  let browserFailure;
-  // Observe termination before polling for the port. A later once('exit') can
-  // miss an early exit, leaving cleanup waiting on an event already delivered.
-  const exited = new Promise(resolve => {
-    child.once('error', error => {
-      browserFailure = new Error('Chromium could not start: ' + error.message);
-      resolve();
-    });
-    child.once('exit', (code, signal) => {
-      browserFailure ??= new Error('Chromium exited before browser verification completed: ' + (signal ?? code));
-      resolve();
-    });
-  });
-  let socket;
-  const pending = new Map();
-  let nextId = 0;
-  const call = (method, params = {}) => new Promise((resolve,reject) => { const id = ++nextId; pending.set(id,{resolve,reject}); socket.send(JSON.stringify({id,method,params})); });
-  try {
-    let port;
-    for (let i=0;i<100;i++) {
-      if (browserFailure) throw browserFailure;
-      try { port = Number((await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0]); break; }
-      catch { await new Promise(r=>setTimeout(r,50)); }
-    }
-    if (browserFailure) throw browserFailure;
-    assert.ok(port, 'Chromium exposes its local test CDP endpoint');
-    const targets = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
-    const target = targets.find(x=>x.type==='page');
-    socket = new WebSocket(target.webSocketDebuggerUrl);
-    await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true});});
-    socket.addEventListener('message',event=>{const m=JSON.parse(event.data);const item=pending.get(m.id);if(item){pending.delete(m.id);m.error?item.reject(new Error(m.error.message)):item.resolve(m.result);}});
-    const evaluate = async expression => (await call('Runtime.evaluate',{expression,returnByValue:true})).result.value;
-    for (let i=0;i<600;i++) {
-      const request = await evaluate('window.__hoverRequest || null');
-      if (request) {
-        await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:request.x,y:request.y});
-        await new Promise(r=>setTimeout(r,80));
-        await evaluate('window.__hoverRequest=null;window.__hoverDone();true');
-      }
-      const keyboard=await evaluate('window.__keyboardRequest || null');
-      if (keyboard) {
-        await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:keyboard.shift?8:0});
-        await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:keyboard.shift?8:0});
-        await evaluate('window.__keyboardRequest=null;window.__keyboardDone();true');
-      }
-      const result = await evaluate('window.__result || null');
-      if (result) return result;
-      await new Promise(r=>setTimeout(r,25));
-    }
-    assert.fail('real-pointer production UI test timed out');
-  } finally {
-    socket?.close();
-    if (!browserFailure && child.exitCode === null && child.signalCode === null) child.kill();
-    await exited;
-  }
-}
 
 async function scenario() {
   const check = (condition, message) => { if (!condition) throw new Error(message); };
@@ -204,7 +142,7 @@ async function scenario() {
 try {
   const html=path.join(dir,'case.html');
   await writeFile(html,`<!doctype html><meta charset="utf-8"><style>${css}</style><main id="root"></main><script>${client.replace(/<\/script/gi,'<\\/script')}</script><script>(${scenario})().then(value=>{window.__result={ok:true,value}}).catch(e=>{window.__result={ok:false,error:e.stack}})</script>`);
-  const report=await pointerRun(html,760);
+  const report=await runChromiumVisual(html,760,{browser,dir});
   assert.equal(report.ok,true,report.error);
   console.log('PASS production native visual foundation: '+JSON.stringify(report.value));
 } finally { await rm(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200}); }
