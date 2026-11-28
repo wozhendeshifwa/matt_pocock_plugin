@@ -27,6 +27,7 @@ const tests = fs.readdirSync(sandbox).filter(name => name.endsWith('.test.mjs'))
 if (!tests.length) throw new Error('沙箱测试清单为空。');
 run('sandbox regressions', sandbox, ['--test', ...tests]);
 run('sidebar build', sidebar, ['build.mjs']);
+run('native visual foundation', sidebar, ['verify-native-visual-foundation.mjs']);
 run('map execution mode dialog', sidebar, ['verify-map-mode-dialog.mjs']);
 for (const file of ['verify-spec-list.mjs', 'verify-spec-resilience.mjs']) run(file, sidebar, [file]);
 for (const file of ['verify-project-switch.mjs', 'verify-rpc-manifest.mjs', 'verify-write-policy.mjs']) run(file, sidebar, [file]);

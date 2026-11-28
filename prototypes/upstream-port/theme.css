@@ -1,19 +1,32 @@
 :root {
   color-scheme: light dark;
   --dsw-font-family: var(--font-sans, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
-  --dsw-alias-bg-base: var(--background, light-dark(#ffffff, #10131a));
-  --dsw-alias-bg-layer-1: var(--card, var(--background, light-dark(#ffffff, #16181d)));
-  --dsw-alias-bg-layer-2: var(--popover, var(--card, var(--background, light-dark(#ffffff, #1b1d23))));
-  --dsw-alias-bg-layer-3: var(--muted, color-mix(in srgb, var(--background, light-dark(#ffffff, #10131a)) 82%, var(--foreground, light-dark(#111827, #e6edf3)) 18%));
-  --dsw-alias-label-primary: var(--foreground, light-dark(#111827, #e6edf3));
-  --dsw-alias-label-secondary: var(--muted-foreground, light-dark(#4b5563, #a1a1aa));
-  --dsw-alias-label-caption: var(--muted-foreground, light-dark(#6b7280, #8b8b95));
-  --dsw-alias-border-l1: var(--border, light-dark(#e5e7eb, #2a2d35));
-  --dsw-alias-border-l2: color-mix(in srgb, var(--border, light-dark(#e5e7eb, #2a2d35)) 65%, var(--foreground, light-dark(#111827, #e6edf3)) 35%);
-  --dsw-alias-interactive-bg-hover: color-mix(in srgb, var(--foreground, light-dark(#111827, #e6edf3)) 7%, transparent);
-  --dsw-alias-interactive-bg-active: var(--accent, color-mix(in srgb, var(--foreground, light-dark(#111827, #e6edf3)) 11%, transparent));
-  --dsw-alias-interactive-bg-primary: var(--primary, light-dark(#7c3aed, #c084fc));
-  --dsw-alias-state-success-primary: var(--green, light-dark(#15803d, #4ade80));
+  --dsw-alias-bg-base: var(--color-background-primary, var(--background, light-dark(#ffffff, #181818)));
+  --dsw-alias-bg-layer-1: var(--color-background-secondary, var(--card, var(--background, light-dark(#f7f7f7, #202020))));
+  --dsw-alias-bg-layer-2: var(--color-background-tertiary, var(--popover, var(--card, var(--background, light-dark(#eeeeee, #292929)))));
+  --dsw-alias-bg-layer-3: var(--color-background-tertiary, var(--muted, color-mix(in srgb, var(--dsw-alias-bg-base) 90%, var(--dsw-alias-label-primary) 10%)));
+  --dsw-alias-label-primary: var(--color-text-primary, var(--foreground, light-dark(#202020, #eeeeee)));
+  --dsw-alias-label-secondary: var(--color-text-secondary, var(--muted-foreground, light-dark(#595959, #b8b8b8)));
+  --dsw-alias-label-caption: var(--color-text-tertiary, var(--muted-foreground, light-dark(#686868, #a8a8a8)));
+  --dsw-alias-border-l1: var(--color-border-primary, var(--border, light-dark(#dedede, #3b3b3b)));
+  --dsw-alias-border-l2: var(--color-border-secondary, color-mix(in srgb, var(--dsw-alias-border-l1) 65%, var(--dsw-alias-label-primary) 35%));
+  --dsw-alias-focus-ring: var(--color-ring-primary, var(--ring, var(--dsw-alias-label-primary)));
+  --dsw-alias-interactive-bg-hover: color-mix(in srgb, var(--dsw-alias-label-primary) 7%, var(--dsw-alias-bg-layer-1));
+  --dsw-alias-interactive-bg-active: var(--accent, color-mix(in srgb, var(--dsw-alias-label-primary) 11%, var(--dsw-alias-bg-layer-1)));
+  --dsw-alias-interactive-bg-primary: var(--dsw-alias-label-primary);
+  --dsw-alias-interactive-label-primary: var(--dsw-alias-bg-base);
+  --dsw-alias-state-success-primary: var(--color-text-success, var(--green, light-dark(#15803d, #4ade80)));
+  --dsw-alias-state-danger-primary: var(--color-text-danger, var(--red, light-dark(#b91c1c, #f87171)));
+  --dsw-alias-state-warning-primary: var(--color-text-warning, var(--yellow, light-dark(#92400e, #fbbf24)));
+  --dsw-alias-state-info-primary: var(--color-text-info, var(--blue, light-dark(#1d4ed8, #60a5fa)));
+  --dsw-alias-state-success-background: var(--color-background-success, color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-success-border: var(--color-border-success, color-mix(in srgb, var(--dsw-alias-state-success-primary) 35%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-danger-background: var(--color-background-danger, color-mix(in srgb, var(--dsw-alias-state-danger-primary) 10%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-danger-border: var(--color-border-danger, color-mix(in srgb, var(--dsw-alias-state-danger-primary) 35%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-warning-background: var(--color-background-warning, color-mix(in srgb, var(--dsw-alias-state-warning-primary) 10%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-warning-border: var(--color-border-warning, color-mix(in srgb, var(--dsw-alias-state-warning-primary) 35%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-info-background: var(--color-background-info, color-mix(in srgb, var(--dsw-alias-state-info-primary) 10%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-info-border: var(--color-border-info, color-mix(in srgb, var(--dsw-alias-state-info-primary) 35%, var(--dsw-alias-bg-base)));
 }
 
 :root[data-theme="light"] {
@@ -35,6 +48,9 @@ body,
 
 body {
   margin: 0;
+  font-family: var(--dsw-font-family);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 html {
@@ -113,7 +129,7 @@ html {
 }
 
 .mattskills-board-actions button:focus-visible {
-  outline: 2px solid currentColor;
+  outline: 2px solid var(--dsw-alias-focus-ring);
   outline-offset: 2px;
 }
 
@@ -124,7 +140,7 @@ html {
   border-radius: 6px;
   background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-secondary);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -193,12 +209,12 @@ html:root body [data-vc-root] {
   --vc-line2: var(--dsw-alias-border-l2);
   --vc-accent: var(--dsw-alias-state-success-primary);
   --vc-accent-ink: light-dark(#ffffff, #052e16);
-  --vc-danger: light-dark(#b91c1c, #f87171);
-  --vc-warn: light-dark(#92400e, #fbbf24);
-  --vc-info: light-dark(#1d4ed8, #60a5fa);
+  --vc-danger: var(--dsw-alias-state-danger-primary);
+  --vc-warn: var(--dsw-alias-state-warning-primary);
+  --vc-info: var(--dsw-alias-state-info-primary);
   --vc-radius: 6px;
   --vc-shell-radius: 6px;
-  --vc-btn-h: 26px;
+  --vc-btn-h: 32px;
   --vc-row-h: 30px;
   --vc-row-py: 6px;
   --vc-row-px: 8px;
@@ -214,10 +230,10 @@ html:root body [data-vc-root] {
 
 html:root body [data-vc-root] .dsws-btn {
   font-family: var(--dsw-font-family) !important;
-  font-size: 12px !important;
+  font-size: 13px !important;
   line-height: 1.5 !important;
-  padding: 3px 10px !important;
-  min-height: 0;
+  padding: 4px 10px !important;
+  min-height: 32px;
   border: 1px solid var(--dsw-alias-border-l1);
   border-radius: 6px;
   background: var(--dsw-alias-bg-layer-1);
@@ -233,14 +249,14 @@ html:root body [data-vc-root] .dsws-btn:hover {
 }
 
 html:root body [data-vc-root] .dsws-btn.primary {
-  background: #c084fc;
+  background: var(--dsw-alias-interactive-bg-primary);
   border-color: transparent;
-  color: #140a1e;
+  color: var(--dsw-alias-interactive-label-primary);
   font-weight: 600 !important;
 }
 
 html:root body [data-vc-root] .dsws-btn.primary:hover {
-  border-color: rgba(20, 10, 30, .55);
+  border-color: var(--dsw-alias-interactive-label-primary);
 }
 
 html:root body [data-vc-root] :is(input, textarea, select) {
@@ -257,10 +273,9 @@ html:root body [data-vc-root] :is(input, textarea, select) {
   color: var(--dsw-alias-label-primary);
 }
 
-/* Use the main panel's established focus treatment for ordinary controls.
-   The compact board icons retain their dedicated currentColor focus rule. */
+/* Ordinary controls and compact board icons follow the same host ring. */
 .mattskills-shell :is(.dsws-btn:not([data-board-action]), input, textarea, select):focus-visible {
-  outline: 2px solid #58a6ff;
+  outline: 2px solid var(--dsw-alias-focus-ring);
   outline-offset: 2px;
 }
 
@@ -288,4 +303,52 @@ html:root body [data-vc-root] :is([data-vc-path], [data-vc-file-path]) {
   min-width: 0;
   overflow: auto !important;
   text-overflow: clip !important;
+}
+
+/* Shared ordinary controls. Keep code, diff and path typography local. */
+html:root body .mattskills-shell :is(.dsws-panel, [data-dsws-host]) {
+  font-family: var(--dsw-font-family);
+  font-size: 14px !important;
+  line-height: 1.5;
+}
+
+html:root body .mattskills-shell :is(.dsws-btn, .mattskills-tabs button, .sandbox-tasks button, input:where(:not([type=checkbox]):not([type=radio])), textarea, select) {
+  box-sizing: border-box;
+  min-height: 32px;
+  font-family: var(--dsw-font-family);
+  font-size: 13px !important;
+  line-height: 1.5;
+  padding: 4px 10px !important;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+html:root body .mattskills-shell :is(.dsws-btn, .mattskills-tabs button, .sandbox-tasks button):hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  border-color: var(--dsw-alias-border-l2);
+  box-shadow: none;
+}
+html:root body .mattskills-shell :is(.dsws-ta, .dsws-cfg-ta) {
+  font-family: var(--ds-font-family-code, ui-monospace, Consolas, Menlo, monospace);
+}
+html:root body .mattskills-shell .dsws-btn.primary {
+  background: var(--dsw-alias-interactive-bg-primary);
+  border-color: transparent;
+  color: var(--dsw-alias-interactive-label-primary);
+}
+html:root body .mattskills-shell .dsws-btn.primary:hover:not(:disabled) {
+  box-shadow: none;
+  background: color-mix(in srgb, var(--dsw-alias-interactive-bg-primary) 92%, var(--dsw-alias-bg-base));
+  border-color: var(--dsw-alias-interactive-label-primary);
+}
+html:root body .mattskills-shell :is(button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--dsw-alias-focus-ring);
+  outline-offset: 2px;
+}
+html:root body .mattskills-shell :is(.dsws-btn, button, input, textarea, select):disabled {
+  opacity: 1 !important;
+  color: var(--dsw-alias-label-secondary) !important;
+  background: var(--dsw-alias-bg-layer-1) !important;
+  cursor: not-allowed;
 }
