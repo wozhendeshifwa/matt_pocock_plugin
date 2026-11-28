@@ -2826,10 +2826,72 @@ const L_CARDS = {
 
     // ============================================================
     const tr = (...args) => codexSkillText(codexOriginalTr(...args));
+function mapExecutionRequest(url = '<编号或链接>', mode = 'autonomous') {
+  const autonomous = mode === 'autonomous';
+  return `$wayfinder
+
+请自主推进主线地图：
+${url}
+
+持续执行，直到地图目标及必要验收完成。
+
+## 执行模式
+
+${autonomous ? '完全自主、静默输入：在任务范围及已有授权内，所有常规输入、选择和确认均由 AI 自主完成；优先采用推荐方案，不等待用户回复。' : '按需交互：AI 自主处理常规工作；关键决策或信息不足时询问用户，并附推荐方案。'}
+
+本次执行采用上述模式，不再询问模式。用户可随时切换模式，也可指定哪些事项必须询问。
+
+${autonomous ? `完全自主、静默输入的授权与边界：
+- 明确覆盖 wayfinder 中需要用户参与的常规决策流程，授权 AI 自主完成相关方案选择。
+- 有推荐方案时采用推荐方案，否则根据地图目标、仓库规则和已有证据作出合理决定并继续。
+- 将相关选择记录为“AI 根据用户预先授权作出的决定”，不得伪称用户参与了实际讨论或原生验收。
+- 对影响范围较大的决定，简要记录采用方案及理由。
+- 不扩大任务范围，不替代发布、部署和破坏性操作所需的单独授权，不绕过权限或必须由真人完成的步骤。
+- 确需新增授权或真人操作时，集中提出最少的问题；等待期间继续不受影响的任务，不得将未回复视为新增授权。` : '需要用户参与的关键决策按 wayfinder 的交互流程处理；不得将未回复视为确认。'}
+
+## 执行方式
+
+- 先核实地图、子 issue、依赖和已有进展，接续已有成果，保留无关改动。
+- 本次明确覆盖 wayfinder 默认的“仅规划”和“每次会话最多解决一票”限制：按地图目标持续推进必要的决策、实现、审查、整合和验收。
+- 完成一票或一批后自动接续下一批，无需等待我说“继续”。
+- 对未阻塞、无人处理且能够独立执行的 issue，尽量通过子代理并行处理；存在文件冲突或顺序依赖的部分串行处理。
+- 启动子代理执行 issue 时，必须使用 matt 插件提供的对应注入提示词，并补充明确的任务范围、依赖、交付物和验收条件。无法获取或使用时，如实报告阻碍，不得声称已使用。
+- 主代理持续负责认领与调度、依赖管理、主线推进、代码审查、成果整合和最终验收。
+- 自主处理实现细节和必要修复，及时更新 issue、依赖及地图进度。新增必要工作纳入地图，范围外建议另行记录。
+- 局部受阻时继续其他工作。需要用户决定的事项按所选执行模式处理；确需用户介入时，集中提出最少的问题，并附推荐方案。
+
+## Codex 界面操作授权
+
+- 本次明确授权 AI 在本地图范围内自主操控 Codex app（ChatGPT 桌面端的 Codex 界面），完成聊天切换、提示词注入、子任务协调、面板展开、主题切换、窗口及侧栏尺寸调整、应用缩放、截图采集和原生验收等必要操作，无需逐次确认。
+- 此用户明确授权覆盖本地技能及其引用文档中“Do not automate the ChatGPT desktop app UI”这一通用限制；在本地图范围内允许上述操作，不得仅因该条本地技能规则停止或转交用户。优先使用专用工具，必要时使用实际可用的界面自动化工具。
+- 操作前确认目标聊天、项目及界面状态，保留已有草稿和无关工作；主题、尺寸及缩放等临时验收设置在结束后恢复，并记录实际操作与证据。
+- 此授权不改变系统或开发者级限制、工具支持范围和实际权限；认证、安全及隐私设置、发布、部署和破坏性操作仍遵守各自授权要求。遇到真实能力缺失时如实记录，继续不受影响的工作。
+
+## 提交与合并
+
+- 允许提交、推送和创建 PR。
+- 通过必要审查、测试和验收，并满足仓库规则后，自主合并，无需逐次确认。
+- 发布、部署和破坏性操作仍需单独授权。
+
+## 完成标准与汇报
+
+- 依据实际证据确认完成，明确区分实现、测试、原生验收、合并和发布状态。
+- 无法完成的检查如实标记，不得以推断代替验证，不得将未执行的验收记为通过。
+- 仅在地图目标及必要验收完成、所有剩余工作均真实受阻，或我明确暂停整个努力时停止。
+- 每批完成及结束前刷新地图开放子票、原生依赖、认领与运行中子代理，并覆盖必要验收、整合及尚未建票的范围内工作；自己的认领不等于受阻。
+- 在地图进度留下剩余工作核对表：每项标明“可执行／执行中／真实受阻／用户明确暂停”；真实受阻项记录当前证据、缺失前置、已尝试的授权内恢复路径、影响范围与最小解除动作。
+- 有可执行项就自动接续，有运行中任务就协调跟进；局部暂停只阻塞实际依赖它的工作，其他静态采集、设计、实现和检查继续。单次工具失败、完成一批、耗时或写好汇报均不构成停止条件。
+- 历史阻碍须按当前规则和能力重核；区分沙箱网络／文件权限与认证故障，采用可用连接器或获准提权恢复；界面操作后核实实际结果，刷新过期窗口和元素定位。
+- 最终汇报必须对应三种停止条件之一：目标及必要验收有证据完成、用户明确暂停整个努力、或全部剩余事项均有真实阻碍／明确暂停且无可继续的代理工作。记录核对表本身不代表允许停止。
+- 停止前妥善交接仍在运行的子代理，留下可恢复的进展、分支、验证结果和待办事项。
+- 用中文简短汇报关键进展，避免逐步播报常规操作。
+- 结束时说明完成项、验证与合并情况、剩余阻碍，以及需要我的最小行动；无需我行动时明确说明。`;
+}
 const ISSUE_ACTION_COMMON = "先读取最新正文、全部评论、标签、认领、父子与阻塞关系及已有实施记录，已完成先核验，新阻塞先处理；关联地图仅作背景，不扩大本次范围。Issue 操作优先 deck_ 工具，先认领并及时用 deck_issue_report 上报。技能按实际可用来源读取规则，技能名注入不等于已加载。结束前把真实状态及未完成的下一步写入正文；完成才关闭，关闭时在所属地图 Decisions so far 追加票名、链接与一句话结论。";
 const SUPPLEMENTAL_ACTIONS = {"pr":{"required":["scope","branch"],"goal":"生成或修订 PR 正文草稿，按 Summary、Evidence、Merge Danger 记录实际变化、前后证据、可逆性及影响范围。验证记录先查，缺失或未验证如实标注。仅起草正文，不发布正文、不创建 PR、不推送、不合并；这些需要另行明确指令。"},"retro":{"required":["session","record"],"recommend":["stage"],"goal":"读取指定编码会话原始证据，核对已有检查与指令，按严重程度列出证据、问题、环境改进建议及收益；先提供候选供用户选择，再决定修改文件或建票。不默认当前会话，不以项目目录冒充会话标识。"},"code-review":{"required":["scope","baseline"],"goal":"审查指定范围的改动，进行中改动亦可；按仓库标准及来源规格报告可定位的证据和验证缺口，不擅自假设 main 或当前分支。修复进入统一 $implement-spec 流程，不能省略 implement-spec 自带最终审查。"}};
 const ACTION_CONTEXT_LABELS = {"scope":"改动范围","branch":"分支或 PR","baseline":"比较基线","session":"目标编码会话","record":"原始会话记录","stage":"阶段／观察"};
 function renderIssueActionRequest({ skill, target, goal, missing = [], facts = '' }) {
+  if (skill === 'wayfinder' && !missing.length) return goal;
   const prefix = missing.length ? '先查证补齐：' + missing.join('、') + '；只能询问无法自行取得的信息，补齐前不执行本补充动作。' : skill ? '$' + skill : '';
   const header = '目标：' + target.title + '\nIssue：' + target.url + '\n标签事实：' + (target.labels.join('、') || '无标签');
   return (prefix ? prefix + '\n\n' : '') + header + (facts ? '\n' + facts : '') + '\n\n' + goal + '\n\n' + ISSUE_ACTION_COMMON;
@@ -2865,7 +2927,7 @@ function issueActionRequest(issue, url) {
     if (has('wayfinder:grilling')) { skill = 'grill-with-docs'; kind = 'discuss'; goal = '围绕目标、范围、约束、取舍与验收讨论；人来定夺，确认后写正文，对齐后提醒 $to-spec；bug 背景不触发自动修复。'; }
     else if (has('wayfinder:research')) { skill = 'research'; kind = 'research'; goal = '围绕明确问题开展研究，提供可信来源、发现、不确定性及决策影响；bug 背景不触发自动修复。'; }
     else if (has('wayfinder:prototype')) { skill = 'prototype'; kind = 'prototype'; goal = '围绕明确设计问题制作抛弃式原型，以用户反馈确认取舍；不当作产品交付，bug 背景不触发自动修复。'; }
-    else if (has('wayfinder:map')) { skill = 'wayfinder'; kind = 'execute'; goal = '读取 Destination、Notes 和最新 frontier，协调地图；具体票使用各自工作技能，不将整图当代码实施任务。'; }
+    else if (has('wayfinder:map')) { skill = 'wayfinder'; kind = 'execute'; goal = mapExecutionRequest(url); }
     else if (has('bug')) { skill = 'diagnosing-bugs'; kind = 'fix'; goal = '先复现并定位根因，记录证据。仅状态允许且规格及实施票齐备后，才用 $implement-spec 修复。' + codePreparation; }
     else if (has('wayfinder:task')) {
       skill = 'triage'; kind = 'execute'; goal = '先查证这是代码还是非代码任务，不凭 task 标签猜测。' + codePreparation + '非代码任务使用匹配专项技能，否则明确任务说明；类型不明先 $triage。';
@@ -4683,7 +4745,69 @@ function getWizardSteps(wizardAction) {
     //   哪 15 条该带、哪 8 条不该带（逐条写明理由）写在 tests/verify-prompts.js 的 TOOL_SECTION_IDS 与
     //   TOOL_SECTION_ABSENT_IDS 两张表里，门禁按它们正反两向断言。要改这条规则，请连那两张表和这段注释一起改，
     //   不要再在文本里逐条拍脑袋（#779 全量加、#791 才发现与金样门禁打架，就是这么来的）。
+function mapExecutionRequest(url = '<编号或链接>', mode = 'autonomous') {
+  const autonomous = mode === 'autonomous';
+  return `$wayfinder
+
+请自主推进主线地图：
+${url}
+
+持续执行，直到地图目标及必要验收完成。
+
+## 执行模式
+
+${autonomous ? '完全自主、静默输入：在任务范围及已有授权内，所有常规输入、选择和确认均由 AI 自主完成；优先采用推荐方案，不等待用户回复。' : '按需交互：AI 自主处理常规工作；关键决策或信息不足时询问用户，并附推荐方案。'}
+
+本次执行采用上述模式，不再询问模式。用户可随时切换模式，也可指定哪些事项必须询问。
+
+${autonomous ? `完全自主、静默输入的授权与边界：
+- 明确覆盖 wayfinder 中需要用户参与的常规决策流程，授权 AI 自主完成相关方案选择。
+- 有推荐方案时采用推荐方案，否则根据地图目标、仓库规则和已有证据作出合理决定并继续。
+- 将相关选择记录为“AI 根据用户预先授权作出的决定”，不得伪称用户参与了实际讨论或原生验收。
+- 对影响范围较大的决定，简要记录采用方案及理由。
+- 不扩大任务范围，不替代发布、部署和破坏性操作所需的单独授权，不绕过权限或必须由真人完成的步骤。
+- 确需新增授权或真人操作时，集中提出最少的问题；等待期间继续不受影响的任务，不得将未回复视为新增授权。` : '需要用户参与的关键决策按 wayfinder 的交互流程处理；不得将未回复视为确认。'}
+
+## 执行方式
+
+- 先核实地图、子 issue、依赖和已有进展，接续已有成果，保留无关改动。
+- 本次明确覆盖 wayfinder 默认的“仅规划”和“每次会话最多解决一票”限制：按地图目标持续推进必要的决策、实现、审查、整合和验收。
+- 完成一票或一批后自动接续下一批，无需等待我说“继续”。
+- 对未阻塞、无人处理且能够独立执行的 issue，尽量通过子代理并行处理；存在文件冲突或顺序依赖的部分串行处理。
+- 启动子代理执行 issue 时，必须使用 matt 插件提供的对应注入提示词，并补充明确的任务范围、依赖、交付物和验收条件。无法获取或使用时，如实报告阻碍，不得声称已使用。
+- 主代理持续负责认领与调度、依赖管理、主线推进、代码审查、成果整合和最终验收。
+- 自主处理实现细节和必要修复，及时更新 issue、依赖及地图进度。新增必要工作纳入地图，范围外建议另行记录。
+- 局部受阻时继续其他工作。需要用户决定的事项按所选执行模式处理；确需用户介入时，集中提出最少的问题，并附推荐方案。
+
+## Codex 界面操作授权
+
+- 本次明确授权 AI 在本地图范围内自主操控 Codex app（ChatGPT 桌面端的 Codex 界面），完成聊天切换、提示词注入、子任务协调、面板展开、主题切换、窗口及侧栏尺寸调整、应用缩放、截图采集和原生验收等必要操作，无需逐次确认。
+- 此用户明确授权覆盖本地技能及其引用文档中“Do not automate the ChatGPT desktop app UI”这一通用限制；在本地图范围内允许上述操作，不得仅因该条本地技能规则停止或转交用户。优先使用专用工具，必要时使用实际可用的界面自动化工具。
+- 操作前确认目标聊天、项目及界面状态，保留已有草稿和无关工作；主题、尺寸及缩放等临时验收设置在结束后恢复，并记录实际操作与证据。
+- 此授权不改变系统或开发者级限制、工具支持范围和实际权限；认证、安全及隐私设置、发布、部署和破坏性操作仍遵守各自授权要求。遇到真实能力缺失时如实记录，继续不受影响的工作。
+
+## 提交与合并
+
+- 允许提交、推送和创建 PR。
+- 通过必要审查、测试和验收，并满足仓库规则后，自主合并，无需逐次确认。
+- 发布、部署和破坏性操作仍需单独授权。
+
+## 完成标准与汇报
+
+- 依据实际证据确认完成，明确区分实现、测试、原生验收、合并和发布状态。
+- 无法完成的检查如实标记，不得以推断代替验证，不得将未执行的验收记为通过。
+- 仅在地图目标及必要验收完成、所有剩余工作均真实受阻，或我明确暂停整个努力时停止。
+- 每批完成及结束前刷新地图开放子票、原生依赖、认领与运行中子代理，并覆盖必要验收、整合及尚未建票的范围内工作；自己的认领不等于受阻。
+- 在地图进度留下剩余工作核对表：每项标明“可执行／执行中／真实受阻／用户明确暂停”；真实受阻项记录当前证据、缺失前置、已尝试的授权内恢复路径、影响范围与最小解除动作。
+- 有可执行项就自动接续，有运行中任务就协调跟进；局部暂停只阻塞实际依赖它的工作，其他静态采集、设计、实现和检查继续。单次工具失败、完成一批、耗时或写好汇报均不构成停止条件。
+- 历史阻碍须按当前规则和能力重核；区分沙箱网络／文件权限与认证故障，采用可用连接器或获准提权恢复；界面操作后核实实际结果，刷新过期窗口和元素定位。
+- 最终汇报必须对应三种停止条件之一：目标及必要验收有证据完成、用户明确暂停整个努力、或全部剩余事项均有真实阻碍／明确暂停且无可继续的代理工作。记录核对表本身不代表允许停止。
+- 停止前妥善交接仍在运行的子代理，留下可恢复的进展、分支、验证结果和待办事项。
+- 用中文简短汇报关键进展，避免逐步播报常规操作。
+- 结束时说明完成项、验证与合并情况、剩余阻碍，以及需要我的最小行动；无需我行动时明确说明。`;
+}
     const codexContextRequest = function contextRequest(id, values = {}, language = 'zh') {
+  if (id === 'mapExecute') return mapExecutionRequest(values.url || '<编号或链接>');
   const en = language === 'en';
   const v = (key, fallback) => {
     const value=values[key];
@@ -4702,7 +4826,8 @@ function getWizardSteps(wizardAction) {
     'tpl.execute':['implement-spec','实施目标规格及其关联实施票图。先查明规格、依赖和授权范围；缺规格或实施票时，只补缺项（to-spec / to-tickets），满足前置条件再实施。','Implement the intended spec and its ticket graph. Establish the spec, dependencies and authorized scope first; use to-spec / to-tickets only for missing artifacts before implementation.'],
     'tpl.takeover':['','先查证需要人工处理的原因、具体步骤及验证点；Agent 完成其余可做工作。','Verify why human action is needed, the exact steps and checks; the agent handles the remaining feasible work.'],
     'tpl.supplement':['grilling','先查证可自行取得的事实，只请用户补充实质缺口；信息补齐后回到分流。','Look up available facts first, ask only for substantive gaps, then return to triage.'],
-    mapExecute:['wayfinder','读取目的地、Notes、最新子票及阻塞关系，按地图规则推进下一张可接票；不默认接管整图实施。','Read Destination, Notes, current children and dependencies; advance the next eligible ticket under map rules, without taking over the entire map implementation.'],
+    mapExecute:['wayfinder',mapExecutionRequest(values.url || '<编号或链接>'),mapExecutionRequest(values.url || '<编号或链接>')],
+    wayfinder:['wayfinder','先查明明确目的地、目标是地图还是普通议题，以及用户授权的工作范围，再按 wayfinder 绘图或推进决策；关联来源仅供背景，不自动授权整图实施。','Establish the destination, whether the target is a map or an ordinary topic, and the authorized scope; then chart or work through decisions with wayfinder. Related sources are context only, not authorization to implement a whole map.'],
     mapInspect:['wayfinder','核验地图目的地、决策索引、子票、阻塞与迷雾，报告下一步；未经指示不实施整图。','Inspect the destination, decision index, children, dependencies and fog; report the next step without implementing the entire map.'],
     complete:['wayfinder','核验地图真实完成状态及未通过的验收；由证据决定能否收尾，不把统计完成当产品完成。','Verify actual completion and unmet acceptance criteria; completion statistics alone do not prove delivery.'],
     newWayfinder:['wayfinder','与用户确定目的地并绘制决策地图；需求描述待用户补充。','Agree the destination with the user and chart a decision map; the user supplies the requirement.'],
@@ -4726,7 +4851,7 @@ function getWizardSteps(wizardAction) {
   };
   const name = String(values.skill || '').replace(/^[$/]/,'');
   actions.handoff=['handoff','为明确目标会话生成可追溯交接；先核验会话、原始记录和保存位置，缺项先定位。','Create a traceable handoff for an identified conversation; verify its original records and save destination, locating missing context first.'];
-  const aliases = { 'implement-spec':'tpl.execute', implement:'tpl.execute', research:'tpl.research', prototype:'tpl.prototype', handoff:'tpl.handoff1', 'grill-with-docs':'tpl.discuss', triage:'tpl.diagnose', wayfinder:'mapExecute' };
+  const aliases = { 'implement-spec':'tpl.execute', implement:'tpl.execute', research:'tpl.research', prototype:'tpl.prototype', handoff:'tpl.handoff1', 'grill-with-docs':'tpl.discuss', triage:'tpl.diagnose' };
   for(const [skill, action] of Object.entries(aliases))if(!actions[skill])actions[skill]=actions[action];
   const a = actions[id] || actions[name] || (id === 'skill' ? [name,en ? 'Follow the skill for the explicitly identified goal and scope; locate missing context before work.' : '围绕明确目标与范围遵循该技能；目标或必要参数缺失先定位补齐。',en ? 'Follow the skill for the explicitly identified goal and scope; locate missing context before work.' : '围绕明确目标与范围遵循该技能；目标或必要参数缺失先定位补齐。'] : ['',en ? 'Locate the intended action and its required parameters before proceeding.' : '先定位目标动作及其必要参数，再继续。','Locate the intended action and its required parameters before proceeding.']);
   const lines = [a[0] ? '$'+a[0] : '', en ? a[2] : a[1], (en ? 'Project: ' : '项目：')+project];
@@ -21398,9 +21523,51 @@ function actionDraftState(st, number, effortId) {
   if (!drafts.has(key)) drafts.set(key, {});
   return drafts.get(key);
 }
+function MapExecutionModeDialog({ target, onConfirm, onCancel, disabled }) {
+  const h = React.createElement;
+  const [mode, setMode] = React.useState('autonomous');
+  const ref = React.useRef(null);
+  const titleId = React.useId();
+  const groupName = React.useId();
+  React.useEffect(() => {
+    const previous = document.activeElement;
+    ref.current?.querySelector('input:checked')?.focus();
+    return () => { if (previous?.isConnected) previous.focus(); };
+  }, []);
+  return portalTop(h('div', { 'data-map-mode-overlay': '', onClick: e => e.stopPropagation(), style: { position: 'fixed', inset: 0, zIndex: 1100, background: '#0006', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 } },
+    h('div', { ref, role: 'dialog', 'aria-modal': true, 'aria-labelledby': titleId, 'data-map-mode-dialog': '', onKeyDown: e => {
+      e.stopPropagation();
+      if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+      if (e.key === 'Tab') {
+        const controls = [...ref.current.querySelectorAll('input:checked, button:not(:disabled)')];
+        const first = controls[0], last = controls[controls.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    }, style: { width: '100%', maxWidth: 420, maxHeight: 'calc(100vh - 32px)', overflow: 'auto', boxSizing: 'border-box', padding: 20, borderRadius: 12, background: 'var(--dsw-alias-bg-layer-2)', color: 'var(--foreground, inherit)', border: '1px solid var(--dsw-alias-border-l1)', boxShadow: '0 8px 32px #0004', whiteSpace: 'normal', textAlign: 'left' } }, [
+      h('h2', { key: 'title', id: titleId, style: { fontSize: 16, margin: '0 0 12px' } }, '选择地图执行模式'),
+      h('p', { key: 'target', style: { fontSize: 12, margin: '0 0 12px' } }, target === 'new' ? '确认后填入新聊天，不会自动发送。' : '确认后填入当前聊天，不会自动发送。'),
+      ...[
+        ['autonomous', '完全自主、静默输入', 'AI 自主处理常规决策，优先采用推荐方案。'],
+        ['interactive', '按需交互', '关键决策或信息不足时询问你，并附推荐方案。'],
+      ].map(([value, title, description]) => h('label', { key: value, style: { display: 'flex', gap: 8, alignItems: 'flex-start', margin: '12px 0', cursor: 'pointer' } }, [
+        h('input', { key: 'radio', type: 'radio', name: groupName, value, checked: mode === value, onChange: () => setMode(value) }),
+        h('span', { key: 'text' }, [h('strong', { key: 'name', style: { display: 'block', fontSize: 13 } }, title), h('span', { key: 'description', style: { fontSize: 12 } }, description)]),
+      ])),
+      h('p', { key: 'boundary', style: { fontSize: 12 } }, '发布、部署和破坏性操作仍需单独授权。'),
+      h('div', { key: 'buttons', style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 } }, [
+        h('button', { key: 'cancel', type: 'button', className: 'dsws-btn', onClick: onCancel }, '取消'),
+        h('button', { key: 'confirm', type: 'button', className: 'dsws-btn primary', disabled, onClick: () => onConfirm(mode) }, '确认填入'),
+      ]),
+    ])));
+}
 function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
   const state = actionDraftState(st, issue?.number || '', issue?.effortId || '');
   const scope = actionDraftKey(st, '', '');
+  const [modeSelection, setModeSelection] = React.useState(null);
+  React.useEffect(() => {
+    setModeSelection(previous => previous?.scope === scope && previous?.number === issue?.number && previous?.effortId === issue?.effortId ? previous : null);
+  }, [scope, issue?.number, issue?.effortId]);
   const operations = ctx.get('draftOperations');
   React.useSyncExternalStore(operations.subscribe, operations.getSnapshot);
   const pending = operations.pending;
@@ -21432,6 +21599,13 @@ function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
     } finally { operations.end(token); }
   };
   const h = React.createElement;
+  const choose = target => {
+    const request = issueActionRequest(issue, issueUrlFor(st, issue.number, issue.effortId || '') || '#' + issue.number);
+    if (request.skill !== 'wayfinder' || request.kind !== 'execute' || !request.target.labels.includes('wayfinder:map')) { run(target); return; }
+    try {
+      setModeSelection({ target, request, scope, number: issue.number, effortId: issue.effortId, identity: actions?.captureTarget?.() });
+    } catch (error) { update({ status: '无法确认目标聊天：' + String(error.message || error), retry: null }); }
+  };
   const notice = operations.notice?.scope === actionDraftKey(st, '', '') ? operations.notice : null;
   React.useEffect(() => {
     if (!toolbar || !notice || notice.feedback.retry || notice.feedback.status === '正在填入…') return;
@@ -21455,8 +21629,14 @@ function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
     ]);
   }
   return h('span', { 'data-issue-direct-actions': true, style: { display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, minWidth: 0, maxWidth: '100%' } }, [
-    h('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '填入当前聊天，不会自动发送' : actions?.capabilities?.reason || '当前聊天不可用', onClick: e => { e.stopPropagation(); run('active'); }, style: { background: colorHex, fontSize: 11, padding: '2px 6px' } }, pending ? '填入中…' : '填入当前聊天'),
-    h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'aria-label': '填入新聊天', disabled: pending || !newAvailable, title: newAvailable ? '填入新聊天，沿用来源项目及实际目录，不会自动发送' : actions?.capabilities?.newReason || actions?.capabilities?.reason || '新聊天不可用', onClick: e => { e.stopPropagation(); run('new'); }, style: { fontSize: 11, padding: '2px 6px' } }, '填入新聊天'),
+    modeSelection && modeSelection.scope === scope && modeSelection.number === issue?.number ? h(MapExecutionModeDialog, { key: 'mode', target: modeSelection.target, disabled: pending, onCancel: () => setModeSelection(null), onConfirm: mode => {
+      const { target, request, identity } = modeSelection;
+      setModeSelection(null);
+      const text = request.text.replace(mapExecutionRequest(request.target.url), mapExecutionRequest(request.target.url, mode));
+      run(target, { ...request, text }, identity);
+    } }) : null,
+    h('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '填入当前聊天，不会自动发送' : actions?.capabilities?.reason || '当前聊天不可用', onClick: e => { e.stopPropagation(); choose('active'); }, style: { background: colorHex, fontSize: 11, padding: '2px 6px' } }, pending ? '填入中…' : '填入当前聊天'),
+    h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'aria-label': '填入新聊天', disabled: pending || !newAvailable, title: newAvailable ? '填入新聊天，沿用来源项目及实际目录，不会自动发送' : actions?.capabilities?.newReason || actions?.capabilities?.reason || '新聊天不可用', onClick: e => { e.stopPropagation(); choose('new'); }, style: { fontSize: 11, padding: '2px 6px' } }, '填入新聊天'),
   ]);
 }
 const IssueDetail = function (props) {

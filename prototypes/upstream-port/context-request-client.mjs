@@ -1,4 +1,5 @@
 import { contextRequest, CONTEXT_REQUEST_IDS } from './context-requests.mjs';
+import { mapExecutionRequest } from './map-execution-prompt.mjs';
 
 export function adaptContextRequests(source) {
   function once(before, after) {
@@ -11,7 +12,7 @@ export function adaptContextRequests(source) {
   const legacy=source.slice(start,end);
   const oldIds=[...legacy.matchAll(/^\s*"([^"]+)":/gm)].map(m=>m[1]);
   for(const id of oldIds)if(!CONTEXT_REQUEST_IDS.includes(id))throw new Error('Unreviewed request purpose: '+id);
-  source=source.slice(0,start)+'    const codexContextRequest = '+contextRequest.toString()+';\n    const PROMPTS = '+JSON.stringify(Object.fromEntries(CONTEXT_REQUEST_IDS.map(id=>[id,{version:2}])))+';\n'+source.slice(end);
+  source=source.slice(0,start)+mapExecutionRequest.toString()+'\n    const codexContextRequest = '+contextRequest.toString()+';\n    const PROMPTS = '+JSON.stringify(Object.fromEntries(CONTEXT_REQUEST_IDS.map(id=>[id,{version:2}])))+';\n'+source.slice(end);
   once("      let s = (promptLang() === 'en' && p.en) ? p.en : (p.zh || '')", "      let s = codexContextRequest(id, params || {}, promptLang())");
   once("      if (!p) return ''", "      if (!p) return codexContextRequest('unknown', Object.assign({sourceAction:id},params||{}), promptLang())");
   once("    const promptTextFor = function (st, id, params) { return promptText(id, backendParamsFor(st, params)) }", `    const codexRequestParams = function (st, params) {
