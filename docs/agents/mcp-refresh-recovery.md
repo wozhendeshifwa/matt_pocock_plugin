@@ -34,3 +34,23 @@ codex queue --thread <原 UUID> --message <含唯一恢复标记及进度指针�
 执行 `node scripts/mcp-refresh-recovery.mjs cancel --lease <lease>`。返回 `cancelled` 表示尚可取消；`already-consumed` 表示发送已被消费，不能许诺撤销。意图默认在 `.scratch/mcp-refresh-recovery/<UUID>/`；相邻 `.result.json`、`.ready.json`、`.cancelled`、`.consumed` 和 `.watch-lock` 是运行证据，保留到演练核对结束。
 
 官方行为依据：[Codex queue](https://learn.chatgpt.com/docs/developer-commands?surface=cli#cli-codex-queue)、[Interrupt hooks](https://learn.chatgpt.com/docs/hooks#interrupt)。`Interrupt` hook 的输出本身不能重启 turn；本方案预先启动独立的一次性助手，不绕过 hook 信任。
+
+## 桌面 stdio 宿主的 connector 传输
+
+本机当前桌面 app-server 使用 stdio，官方 `queue --resume` 找不到可连接 daemon，不能据 `queued` 宣称恢复，也不为此新建 daemon 或切换宿主。仅针对 Deck MCP 进程刷新，可使用 `scripts/mcp-refresh-connector-recovery.mjs` 作为现有 watcher 的替代传输。该脚本绝不执行 CLI：它沿用原 watcher 的双条件、稳定窗口、取消、正常完成、新 turn 和最长 180 秒限制，原子消费后只写相邻 `.connector-request.json`。返回 `connector-requested`、`deliveryVerified:false`、`resumeVerified:false`，表示已交接请求，尚未投递。
+
+使用已有 `arm` 创建 lease 后，独立隐藏进程运行：
+
+```text
+node scripts/mcp-refresh-connector-recovery.mjs watch --lease <lease>
+```
+
+刷新前同时确认该 watcher 的 `.ready.json` 和原聊天派生的 guardian 子代理已就绪。guardian 必须获用户明确授权向原聊天发送恢复 checkpoint，限定原 UUID、host、项目、turn 和同一 lease，遵守其有效期及取消条件。它只等待请求文件；出现请求后立即执行：
+
+```text
+node scripts/mcp-refresh-connector-recovery.mjs claim --lease <lease>
+```
+
+只有返回 `claimed` 才可调用受支持的 `send_message_to_thread`，以返回的 `thread` 和 `prompt`、预先核实的原 host 投递一次；省略 model/thinking 以保留设置。领取重新验证 rollout 身份、checkpoint 所在项目、请求字段及固定恢复提示词、当前 turn、后端退出、匹配中断、取消、正常完成、新 turn 和有效期，并通过 `.connector-claimed.json` 的独占创建限制一次领取。返回其他状态或抛错均不投递。领取后应立即发送；若这期间已知取消、到期或新 turn，应停止。领取与外部工具调用无法组成事务，工具结果未知时不重试，领取标记不能删除后重用。工具成功也只算投递证据，原聊天实际重新执行仍须另行观察。
+
+生命周期边界：本次受控实验记录 `.scratch/native-visual-109/lifecycle-probe/child-result.json` 表明指定父 turn 被中断后，child 自然完成了原聊天的只读工具调用，时间早于后续 followup。这仅支持继续演练当前版本的 Deck MCP 刷新路径。官方[子代理文档](https://learn.chatgpt.com/docs/agent-configuration/subagents)没有保证父 turn 中断后的存活；不得推广到整个 app-server 重启、应用退出、任意版本或永久后台守护。真实 Deck 刷新、自动投递和原聊天接续须用同一演练单独验收。若 guardian 就绪未确认，则不得触发可能中断聊天的刷新。

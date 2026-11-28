@@ -14,6 +14,7 @@ const exists=async file=>{try{await stat(file);return true;}catch(e){if(e.code==
 const json=async file=>JSON.parse(await readFile(file,'utf8'));
 const save=(file,value)=>writeFile(file,JSON.stringify(value,null,2)+'\n');
 const events=text=>text.split('\n').flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}});
+export const buildRecoveryPrompt=record=>`[MCP-REFRESH-RECOVERY:${record.token}] 刷新后端后的同一会话恢复。目标会话 ${record.thread}，项目 ${record.cwd}。先读取进度记录 ${record.checkpoint}，核对会话、项目、最新来源与已完成工作，再接续必要任务。保留现有草稿、模型、授权边界和明确暂停项；不要重新执行已完成动作。此为用户已授权的一次性自动恢复。`;
 function terminalEvent(tail,turn){
  if(tail.some(e=>e.type==='event_msg'&&e.payload?.type==='task_started'&&e.payload.turn_id!==turn))return 'superseded';
  if(tail.some(e=>e.type==='event_msg'&&e.payload?.type==='task_complete'&&e.payload.turn_id===turn))return 'completed';
@@ -90,7 +91,7 @@ export async function watchRecovery(lease,io={}){
    const settled=terminalEvent(await appendedEvents(record),record.turn);if(settled)return finish({status:settled});
    try{await writeFile(lease+'.consumed',record.token,{flag:'wx'});}catch(e){if(e.code==='EEXIST')return {status:'already-consumed'};throw e;}
    if(await exists(lease+'.cancelled'))return finish({status:'cancelled'});
-   const message=`[MCP-REFRESH-RECOVERY:${record.token}] 刷新后端后的同一会话恢复。目标会话 ${record.thread}，项目 ${record.cwd}。先读取进度记录 ${record.checkpoint}，核对会话、项目、最新来源与已完成工作，再接续必要任务。保留现有草稿、模型、授权边界和明确暂停项；不要重新执行已完成动作。此为用户已授权的一次性自动恢复。`;
+   const message=buildRecoveryPrompt(record);
    try{
     const result=await (io.runCli??((cli,args)=>execFileAsync(cli,args,{cwd:record.cwd,windowsHide:true,timeout:15000,maxBuffer:65536})))(record.cli,['queue','--thread',record.thread,'--message',message,'--resume']);
     const stdout=String(result.stdout??''),stderr=String(result.stderr??'');
