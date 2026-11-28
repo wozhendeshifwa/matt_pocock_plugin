@@ -1,0 +1,79 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AFK 工作流抛弃式原型</title>
+<style>body{font:16px/1.6 system-ui;color:#234;background:#f4f6f8;max-width:1150px;margin:30px auto;padding:0 20px}section,article{background:white;padding:18px;border:1px solid #dbe1e8;border-radius:8px;margin:16px 0}button,select{font:inherit;background:white;border:1px solid #bdc9d5;border-radius:5px;padding:7px 12px;margin:4px;cursor:pointer}button:disabled{opacity:.4}button.active{background:#246bc2;color:white}h1{font-size:28px}h2{font-size:20px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}dl{display:grid;grid-template-columns:95px 1fr}dd{margin:0;overflow-wrap:anywhere}#notice{background:#e6effb;padding:12px}#history{max-height:200px;overflow:auto}small{color:#567}</style>
+<h1>AFK 软件工厂：工作流能否守住边界？</h1><p>抛弃式逻辑原型。探索三张确认工单能否独立推进、共用两轮返工预算，并在回包丢失、输出变化和重启时保留正确状态。全部模型、沙箱、检查和审查由按钮模拟，没有真实执行、合并或发布。</p><p><small>AI 根据用户预先授权作出的设计决定；不是真人反馈或原生验收。“模拟重启”复制内存检查点，真实刷新会丢失状态，不能证明持久恢复。</small></p>
+<section><h2>当前批次</h2><p id="batch"></p><p id="notice" role="status"></p><div class="cards" id="cards"></div></section>
+<section><h2>自由探索</h2><p>任意点击均可；非法转换显示拒绝原因。</p><select id="target" aria-label="选择工单"><option>A</option><option>B</option><option>C</option></select><div id="actions"></div><button id="reset">重置批次</button><button id="restart">模拟检查点重启</button></section>
+<section><h2>分步导览</h2><nav id="tabs"></nav><p id="description"></p><div id="steps"></div><p id="expect"></p></section><section><h2>事件与证据</h2><ol id="history"></ol></section>
+<script>
+// Pure state model: no DOM, storage, network, clocks or real execution.
+const FactoryModel=(()=>{
+const copy=x=>JSON.parse(JSON.stringify(x));
+const task=(id,deps)=>({id,deps,phase:'queued',paused:false,round:0,execution:null,output:0,check:null,review:null,pending:null,launches:0,integration:null});
+const initial=()=>({limit:2,sequence:0,tasks:{A:task('A',[]),B:task('B',['A']),C:task('C',[])},message:'已确认三张合成工单：A与C独立，B依赖A。',events:[]});
+function reduce(previous,action){
+const s=copy(previous),t=s.tasks[action.id];
+const reject=reason=>({...copy(previous),message:'拒绝：'+reason});
+const done=message=>{s.message=message;s.events.push(message);return s;};
+const fail=reason=>{t.pending=reason;t.phase=t.round>=2?'exhausted':'rework';return done(t.id+'：'+reason+(t.round>=2?'；两轮预算耗尽，停止自动修改。':'；等待返工。'));};
+if(action.type==='restart')return done('模拟重启：检查点保留人工暂停、执行身份及返工预算；未知执行仍需核实。');
+if(!t)return reject('工单不存在。');
+if(action.type==='pause'){if(t.phase==='exhausted')return reject('终态不能暂停。');t.paused=true;return done(t.id+'：人工暂停；此模型在步骤间暂停，真实进程仍需停止确认。');}
+if(action.type==='resume'){if(!t.paused)return reject('工单未暂停。');if(t.phase!=='queued'&&t.deps.some(id=>t.integration?.[id]!==s.tasks[id].output))return reject('前驱输入已改变；须重新确认输入与集成基线，本原型不自动恢复过期执行。');t.paused=false;return done(t.id+'：明确解除暂停，保留轮次。');}
+if(t.paused)return reject(t.id+'人工暂停中，必须明确恢复。');
+if(action.type==='integrate'){
+ if(!t.deps.length)return reject('无前驱需要集成。');
+ if(t.phase!=='queued')return reject('只为尚未开始的后继核实集成基线。');
+ if(t.deps.some(id=>s.tasks[id].phase!=='ready'||s.tasks[id].paused))return reject('前驱未达可审阅或已暂停。');
+ t.integration=Object.fromEntries(t.deps.map(id=>[id,s.tasks[id].output]));return done(t.id+'：模拟集成检查通过，固定前驱输出版本为新集成基线。');
+}
+if(action.type==='start'||action.type==='lostStart'){
+ if(t.phase!=='queued')return reject('已有执行或不在排队；禁止重复开工。');
+ if(t.deps.some(id=>s.tasks[id].phase!=='ready'||s.tasks[id].paused))return reject('依赖未达可审阅或已暂停。');
+ if(t.deps.some(id=>t.integration?.[id]!==s.tasks[id].output))return reject('缺少对应当前前驱输出的集成基线证据。');
+ if(Object.values(s.tasks).filter(x=>['running','unknown'].includes(x.phase)).length>=s.limit)return reject('容量满；未知执行也占槽。');
+ t.execution='模拟执行-'+(++s.sequence);t.launches++;t.phase=action.type==='lostStart'?'unknown':'running';return done(t.id+'：'+t.execution+(t.phase==='unknown'?'已派发但丢回包，先核实。':'开始第0轮。'));
+}
+if(action.type==='reconcile'){if(t.phase!=='unknown')return reject('无待核实执行。');t.phase='running';return done(t.id+'：原执行仍运行，继续同一执行；启动次数不变。');}
+if(action.type==='output'){if(t.phase!=='running')return reject('需要已核实运行执行。');t.output++;t.check=null;t.review=null;t.phase='check';return done(t.id+'：输出v'+t.output+'，需要检查与独立审查。');}
+if(action.type==='checkPass'||action.type==='checkFail'){if(t.phase!=='check')return reject('当前不在检查阶段。');if(action.type==='checkFail')return fail('检查失败');t.check=t.output;t.phase='review';return done(t.id+'：检查通过绑定v'+t.output+'，待独立审查。');}
+if(action.type==='reviewPass'||action.type==='reviewFail'){if(t.phase!=='review'||t.check!==t.output)return reject('须先取得当前输出检查证据。');if(action.type==='reviewFail')return fail('独立审查阻断');t.review=t.output;t.phase='ready';return done(t.id+'：检查与独立审查均绑定v'+t.output+'，可审阅；未合并未发布。');}
+if(action.type==='rework'){if(t.phase!=='rework'||t.round>=2)return reject('不是可返工状态或预算耗尽。');if(Object.values(s.tasks).filter(x=>['running','unknown'].includes(x.phase)).length>=s.limit)return reject('容量满；返工也须等待执行槽位，未知执行占槽。');t.round++;t.pending=null;t.phase='running';t.check=null;t.review=null;return done(t.id+'：预留第'+t.round+'轮返工，检查与审查共用轮数。');}
+if(action.type==='mutate'){
+ if(!['check','review','ready'].includes(t.phase))return reject('先生成输出。');
+ t.output++;t.check=null;t.review=null;t.phase='check';
+ for(const other of Object.values(s.tasks))if(other.deps.includes(t.id)){other.integration=null;if(other.phase!=='queued'){other.paused=true;other.check=null;other.review=null;if(other.phase==='ready')other.phase='check';}}
+ return done(t.id+'：外部变更故障注入使输出变为v'+t.output+'，旧证据和后继集成基线失效；已启动直接后继暂停。此按钮不授权预算外修改。');
+}
+return reject('不支持的动作。');
+}
+return{initial,reduce};
+})();
+</script>
+<script>
+let current=FactoryModel.initial(),tab=0,step=0;
+const labels={start:'开始执行',integrate:'核实集成基线',lostStart:'派发但丢回包',reconcile:'核实原执行仍运行',output:'生成输出',checkPass:'检查通过',checkFail:'检查失败',reviewPass:'独立审查通过',reviewFail:'独立审查阻断',rework:'开始下一轮返工',mutate:'注入外部输出变化',pause:'人工暂停',resume:'明确恢复'};
+const names={queued:'排队',running:'执行中',unknown:'执行结果未知',check:'待检查',review:'待独立审查',ready:'可审阅',rework:'待返工',exhausted:'返工耗尽'};
+const a=(type,id='A')=>({type,id}),good=id=>[a('start',id),a('output',id),a('checkPass',id),a('reviewPass',id)];
+const tours=[
+{name:'正常交付',description:'A通过后还须核实集成基线，B才能开始；C独立。',steps:[a('start','B'),...good('A'),a('start','B'),a('integrate','B'),...good('C'),...good('B')],expect:'三单可审阅；B在依赖或集成证据缺失时被拒绝；未合并未发布。'},
+{name:'共用两轮与耗尽',description:'第0轮检查失败，第1轮审查失败，第2轮仍失败后停止。',steps:[a('start'),a('output'),a('checkFail'),a('rework'),a('output'),a('checkPass'),a('reviewFail'),a('rework'),a('output'),a('checkFail'),a('rework')],expect:'A返工耗尽，轮次2；最后一次返工被拒绝。'},
+{name:'局部暂停',description:'A暂停，B等待，C继续。',steps:[a('pause'),a('start'),a('start','B'),...good('C')],expect:'A人工暂停、B排队、C可审阅。'},
+{name:'丢回包',description:'禁止重复派发；核实原执行后继续。',steps:[a('lostStart'),a('start'),a('output'),a('reconcile'),a('output'),a('checkPass'),a('reviewPass')],expect:'A可审阅且启动次数1；核实前生成输出被拒绝。'},
+{name:'输出变化',description:'旧证据不能用于新版本输出。',steps:[...good('A'),a('mutate'),a('reviewPass'),a('checkPass'),a('reviewPass')],expect:'A最终v2可审阅；直接复用审查被拒绝。'},
+{name:'重启保留',description:'第1轮暂停并模拟重启，不清零预算或绕过暂停。',steps:[a('start'),a('output'),a('checkFail'),a('rework'),a('pause'),a('restart'),a('output'),a('resume'),a('output'),a('checkFail'),a('rework'),a('output'),a('checkFail')],expect:'暂停和第1轮经重启保留，最终第2轮耗尽。'}
+];
+const el=id=>document.getElementById(id);
+function dispatch(action){current=FactoryModel.reduce(current,action);render();}
+function button(text,fn){const b=document.createElement('button');b.textContent=text;b.onclick=fn;return b;}
+function field(dl,key,value){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=key;dd.textContent=value;dl.append(dt,dd);}
+function render(){
+el('notice').textContent=current.message;el('batch').textContent='合成批次demo-1 · 固定模拟基线base-001 · 容量2 · 当前占用'+Object.values(current.tasks).filter(x=>['running','unknown'].includes(x.phase)).length;
+el('cards').replaceChildren();for(const t of Object.values(current.tasks)){const card=document.createElement('article'),h=document.createElement('h2'),dl=document.createElement('dl');h.textContent=t.id+' · '+names[t.phase]+(t.paused?' / 人工暂停':'');card.append(h,dl);for(const[key,value]of[['依赖',t.deps.join('、')||'无'],['返工预算',t.round+' / 2（首次为第0轮）'],['执行身份',t.execution||'无'],['启动次数',t.launches],['输出版本',t.output?'v'+t.output:'无'],['检查证据',t.check===null?'无有效证据':'通过/v'+t.check],['独立审查',t.review===null?'无有效证据':'通过/v'+t.review],['阻断发现',t.pending||'无'],['结果边界','未合并 · 未发布']])field(dl,key,value);el('cards').append(card);}
+for(const t of Object.values(current.tasks)){const card=el('cards').children[['A','B','C'].indexOf(t.id)];field(card.querySelector('dl'),'集成基线',t.deps.length?(t.integration?Object.entries(t.integration).map(([id,v])=>id+'输出v'+v).join('、'):'无有效证据'):'无需前驱集成');}
+el('history').replaceChildren();for(const event of current.events){const li=document.createElement('li');li.textContent=event;el('history').append(li);}
+el('tabs').replaceChildren();tours.forEach((tour,i)=>{const b=button(tour.name,()=>{tab=i;step=0;current=FactoryModel.initial();render();});b.className=i===tab?'active':'';el('tabs').append(b);});
+const tour=tours[tab];el('description').textContent=tour.description;el('expect').textContent='预期：'+tour.expect;el('steps').replaceChildren();tour.steps.forEach((action,i)=>{const b=button((i+1)+'. '+(action.type==='restart'?'模拟重启':action.id+' '+labels[action.type]),()=>{step++;dispatch(action);});b.disabled=i!==step;el('steps').append(b);});if(step>=tour.steps.length){const p=document.createElement('p');p.textContent='导览结束。请对照状态读取结果；不是自动测试通过声明。';el('steps').append(p);}
+}
+for(const[type,label]of Object.entries(labels))el('actions').append(button(label,()=>dispatch({type,id:el('target').value})));
+el('reset').onclick=()=>{current=FactoryModel.initial();step=0;render();};el('restart').onclick=()=>dispatch({type:'restart'});render();
+</script></html>
