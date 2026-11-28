@@ -23,6 +23,7 @@ for (const directory of [path.join(root, 'scripts'), sandbox, sidebar]) {
   }
 }
 console.log(`[check] PASS syntax (${syntaxFiles} files)`);
+run('same-chat MCP refresh recovery', root, ['--test', 'scripts/mcp-refresh-recovery.test.mjs']);
 const tests = fs.readdirSync(sandbox).filter(name => name.endsWith('.test.mjs')).sort();
 if (!tests.length) throw new Error('沙箱测试清单为空。');
 run('sandbox regressions', sandbox, ['--test', ...tests]);

@@ -2,6 +2,8 @@
 
 Applies when the user authorizes continuing across tickets. Respect the user's execution scope and any explicitly paused work.
 
+Before a backend/MCP refresh that can interrupt the active turn, follow `docs/agents/mcp-refresh-recovery.md`: save the original thread/project/checkpoint, arm a bounded one-shot recovery outside that server's lifetime, and verify readiness before refreshing. In autonomous silent mode, task-scoped local candidate reload and same-thread recovery are authorized; external releases/deployments and paused work retain their boundaries. Verify actual execution resumed in the original thread, rather than treating a queued message as completion.
+
 After each batch, and before ending the turn:
 
 1. Refresh the map's open children, native dependencies, assignees and running agents. Include required acceptance, integration and known in-scope work not yet ticketed. An assigned ticket is not automatically blocked: check its owner and actual progress, including your own claims.

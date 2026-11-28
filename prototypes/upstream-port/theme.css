@@ -333,13 +333,13 @@ html:root body .mattskills-shell :is(.dsws-ta, .dsws-cfg-ta) {
   font-family: var(--ds-font-family-code, ui-monospace, Consolas, Menlo, monospace);
 }
 html:root body .mattskills-shell .dsws-btn.primary {
-  background: var(--dsw-alias-interactive-bg-primary);
+  background: var(--dsw-alias-interactive-bg-primary) !important;
   border-color: transparent;
   color: var(--dsw-alias-interactive-label-primary);
 }
 html:root body .mattskills-shell .dsws-btn.primary:hover:not(:disabled) {
   box-shadow: none;
-  background: color-mix(in srgb, var(--dsw-alias-interactive-bg-primary) 92%, var(--dsw-alias-bg-base));
+  background: color-mix(in srgb, var(--dsw-alias-interactive-bg-primary) 92%, var(--dsw-alias-bg-base)) !important;
   border-color: var(--dsw-alias-interactive-label-primary);
 }
 html:root body .mattskills-shell :is(button, input, textarea, select):focus-visible {

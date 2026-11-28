@@ -39,7 +39,12 @@ async function scenario() {
   const selection = { backendId: 'github', source: 'explicit' };
   const snapshot = { ok: true, value: { ok: true, workspaceRoot: '/fixture', repoRoot: '/fixture', repo: {owner:'fixture',name:'repo'}, repository: { backend:'github',name: 'fixture/repo',refId:'fixture/repo' }, issues: [issue], maps: [], labels: [], selection, backendModules: [{ id: 'github' }] } };
   const envelope = value => ({ ok: true, value });
+  let finishDraft;
   window.MattSkillsCodex.mount(document.getElementById('root'), {
+    codexActions: {
+      capabilities: { reliableDraft: true, active: true, new: true },
+      prefill(target) { return new Promise(resolve => { finishDraft=()=>resolve({status:'filled',target}); }); },
+    },
     sessions: { list: { getSnapshot: () => state, subscribe: () => () => {} }, get: () => session },
     connection: { rpc: { async call(c, e, r) {
       calls.push(r.method);
@@ -95,6 +100,31 @@ async function scenario() {
     const tabs=document.querySelector('.mattskills-tabs');
     check(getComputedStyle(tabs).backgroundColor==='rgb(229, 221, 204)','host secondary background applies');
     check(getComputedStyle(button).borderTopColor==='rgb(160, 138, 108)','host primary border applies');
+    [...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='列表').click();
+    await until(()=>document.querySelector('[aria-label="#94 Style pointer fixture"]'));
+    for (const surface of ['list', 'detail']) {
+      if (surface==='detail') document.querySelector('[aria-label="#94 Style pointer fixture"]').click();
+      await until(()=>document.querySelector('[data-issue-direct-actions] [aria-label="填入当前聊天"]'));
+      const direct=document.querySelector('[data-issue-direct-actions] [aria-label="填入当前聊天"]');
+      check(!direct.disabled, surface+' direct-fill is enabled through the host boundary');
+      direct.scrollIntoView({block:'center'});
+      await pointerTo(null);
+      const style=getComputedStyle(direct);
+      check(style.backgroundColor===fg&&style.color===bg, surface+' direct-fill primary uses host inversion in '+mode+': '+style.backgroundColor+'/'+style.color);
+      await keyboardFocus(direct);
+      check(getComputedStyle(direct).outlineColor==='rgb(174, 57, 103)'&&getComputedStyle(direct).outlineWidth==='2px', surface+' direct-fill keyboard focus follows host ring in '+mode);
+      await pointerTo(direct);
+      check(direct.matches(':hover')&&getComputedStyle(direct).backgroundColor!==fg, surface+' direct-fill has real pointer hover feedback in '+mode);
+      finishDraft=null;
+      direct.click();
+      await until(()=>finishDraft&&direct.disabled);
+      check(getComputedStyle(direct).backgroundColor==='rgb(229, 221, 204)'&&getComputedStyle(direct).color==='rgb(90, 73, 54)', surface+' pending direct-fill keeps readable disabled colors in '+mode);
+      finishDraft();
+      await until(()=>!direct.disabled);
+      await pointerTo(null);
+    }
+    document.querySelector('[data-detail-back-text]').closest('button').click();
+    await until(()=>document.querySelector('[aria-label="#94 Style pointer fixture"]'));
     const tab=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='版本管理');tab.click();
     await until(()=>document.querySelector('[data-vc-root] input'));
     const vc=document.querySelector('[data-vc-root]');

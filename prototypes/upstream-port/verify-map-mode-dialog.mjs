@@ -50,6 +50,10 @@ for (const detail of [false, true]) {
         assert.ok(write.text.includes('https://github.com/fixture/repo/issues/10'));
         assert.ok(write.text.includes(mode === 'interactive' ? '按需交互：' : '完全自主、静默输入：'));
         assert.ok(!write.text.includes(mode === 'interactive' ? '完全自主、静默输入：' : '按需交互：'));
+        assert.equal(write.text.includes('静默模式允许为当前任务加载已审查、已测试本地候选'), mode === 'autonomous', 'local reload authorization follows the selected mode');
+        for (const required of ['后端刷新前保存原会话 UUID', '一次性恢复助手', '原会话实际重新执行为准']) {
+          assert.ok(write.text.includes(required), 'same-chat recovery contract missing: ' + required);
+        }
         assert.doesNotMatch(write.text, /\[[ x]\]|按勾选项执行/);
         assert.ok(write.text.includes('自主操控 Codex app'));
         for (const required of ['每批完成及结束前刷新', '可执行／执行中／真实受阻／用户明确暂停', '自己的认领不等于受阻', '局部暂停只阻塞实际依赖它的工作', '单次工具失败', '最小解除动作', '用户明确暂停整个努力']) {
