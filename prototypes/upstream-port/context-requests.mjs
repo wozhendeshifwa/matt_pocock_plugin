@@ -1,7 +1,9 @@
 // Version 2 is the only active request catalog. Legacy stored text stays intact
 // for recovery; it is deliberately not an input to request composition.
+import { mapExecutionRequest } from './map-execution-prompt.mjs';
 export const CONTEXT_REQUEST_VERSION = 2;
 export function contextRequest(id, values = {}, language = 'zh') {
+  if (id === 'mapExecute') return mapExecutionRequest(values.url || '<编号或链接>');
   const en = language === 'en';
   const v = (key, fallback) => {
     const value=values[key];
@@ -20,7 +22,8 @@ export function contextRequest(id, values = {}, language = 'zh') {
     'tpl.execute':['implement-spec','实施目标规格及其关联实施票图。先查明规格、依赖和授权范围；缺规格或实施票时，只补缺项（to-spec / to-tickets），满足前置条件再实施。','Implement the intended spec and its ticket graph. Establish the spec, dependencies and authorized scope first; use to-spec / to-tickets only for missing artifacts before implementation.'],
     'tpl.takeover':['','先查证需要人工处理的原因、具体步骤及验证点；Agent 完成其余可做工作。','Verify why human action is needed, the exact steps and checks; the agent handles the remaining feasible work.'],
     'tpl.supplement':['grilling','先查证可自行取得的事实，只请用户补充实质缺口；信息补齐后回到分流。','Look up available facts first, ask only for substantive gaps, then return to triage.'],
-    mapExecute:['wayfinder','读取目的地、Notes、最新子票及阻塞关系，按地图规则推进下一张可接票；不默认接管整图实施。','Read Destination, Notes, current children and dependencies; advance the next eligible ticket under map rules, without taking over the entire map implementation.'],
+    mapExecute:['wayfinder',mapExecutionRequest(values.url || '<编号或链接>'),mapExecutionRequest(values.url || '<编号或链接>')],
+    wayfinder:['wayfinder','先查明明确目的地、目标是地图还是普通议题，以及用户授权的工作范围，再按 wayfinder 绘图或推进决策；关联来源仅供背景，不自动授权整图实施。','Establish the destination, whether the target is a map or an ordinary topic, and the authorized scope; then chart or work through decisions with wayfinder. Related sources are context only, not authorization to implement a whole map.'],
     mapInspect:['wayfinder','核验地图目的地、决策索引、子票、阻塞与迷雾，报告下一步；未经指示不实施整图。','Inspect the destination, decision index, children, dependencies and fog; report the next step without implementing the entire map.'],
     complete:['wayfinder','核验地图真实完成状态及未通过的验收；由证据决定能否收尾，不把统计完成当产品完成。','Verify actual completion and unmet acceptance criteria; completion statistics alone do not prove delivery.'],
     newWayfinder:['wayfinder','与用户确定目的地并绘制决策地图；需求描述待用户补充。','Agree the destination with the user and chart a decision map; the user supplies the requirement.'],
@@ -44,7 +47,7 @@ export function contextRequest(id, values = {}, language = 'zh') {
   };
   const name = String(values.skill || '').replace(/^[$/]/,'');
   actions.handoff=['handoff','为明确目标会话生成可追溯交接；先核验会话、原始记录和保存位置，缺项先定位。','Create a traceable handoff for an identified conversation; verify its original records and save destination, locating missing context first.'];
-  const aliases = { 'implement-spec':'tpl.execute', implement:'tpl.execute', research:'tpl.research', prototype:'tpl.prototype', handoff:'tpl.handoff1', 'grill-with-docs':'tpl.discuss', triage:'tpl.diagnose', wayfinder:'mapExecute' };
+  const aliases = { 'implement-spec':'tpl.execute', implement:'tpl.execute', research:'tpl.research', prototype:'tpl.prototype', handoff:'tpl.handoff1', 'grill-with-docs':'tpl.discuss', triage:'tpl.diagnose' };
   for(const [skill, action] of Object.entries(aliases))if(!actions[skill])actions[skill]=actions[action];
   const a = actions[id] || actions[name] || (id === 'skill' ? [name,en ? 'Follow the skill for the explicitly identified goal and scope; locate missing context before work.' : '围绕明确目标与范围遵循该技能；目标或必要参数缺失先定位补齐。',en ? 'Follow the skill for the explicitly identified goal and scope; locate missing context before work.' : '围绕明确目标与范围遵循该技能；目标或必要参数缺失先定位补齐。'] : ['',en ? 'Locate the intended action and its required parameters before proceeding.' : '先定位目标动作及其必要参数，再继续。','Locate the intended action and its required parameters before proceeding.']);
   const lines = [a[0] ? '$'+a[0] : '', en ? a[2] : a[1], (en ? 'Project: ' : '项目：')+project];

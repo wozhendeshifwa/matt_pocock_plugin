@@ -2826,10 +2826,51 @@ const L_CARDS = {
 
     // ============================================================
     const tr = (...args) => codexSkillText(codexOriginalTr(...args));
+function mapExecutionRequest(url = '<编号或链接>', mode = 'autonomous') {
+  const autonomous = mode === 'autonomous';
+  return `$wayfinder
+
+请自主推进主线地图：
+${url}
+
+## 执行模式
+
+${autonomous ? '完全自主、静默输入：在任务范围和已有授权内，由 AI 完成常规输入、选择及确认，包括 wayfinder 的常规决策；优先推荐方案，否则依据目标、仓库规则和证据决定，不等待回复。重要选择简记理由，并注明“AI 根据用户预先授权作出的决定”。' : '按需交互：AI 自主处理常规工作；关键决策或信息不足时，按 wayfinder 流程集中询问最少问题，并附推荐方案。'}
+沿用此模式，不再询问；用户可随时切换或指定必问事项。确需新增授权或真人操作时再询问，等待期间继续其他工作；未回复不构成授权。不得将 AI 决策写成用户讨论或原生验收。
+
+## 持续推进
+
+- 先核实地图、子 issue、依赖和进展，接续已有成果，保留无关改动。本次覆盖 wayfinder 的“仅规划／每会话一票”默认限制，持续完成范围内的决策、实现、审查、整合和验收，无需等待“继续”。必要新增工作纳入地图，范围外建议另记。
+- 无阻塞、无人处理且独立的 issue 尽量交子代理并行，冲突或顺序依赖串行。子代理须使用 matt 插件对应的注入提示词，补齐范围、依赖、交付物和验收条件；无法获取或使用时如实报告。主代理负责认领调度、依赖、主线、审查整合及最终验收，并及时更新 issue 和地图。
+
+## 上下文控制：Matt Pocock 的聪明区 / 愚笨区
+
+- 保持在“聪明区”：上下文聚焦当前目标、约束和本批任务；按需读取材料，用简短结论和文件／issue 指针承载历史，大段日志与完整过程留在文件中。
+- 独立探索交给独立子代理上下文，只回传结论、证据位置和待决事项，避免主上下文堆积全部过程。
+- 在上下文拥挤、接近容量上限时主动交接，避免进入“愚笨区”；若已出现遗忘约束、重复探索或判断退化，先整理再继续。保存精简交接：目标、授权、决定、进度、分支／改动、验证证据、阻碍和下一步。利用可用的压缩或新上下文机制接续；无法自动切换时留下恢复入口并如实说明。上下文整理不构成停止地图的理由。
+- 接续后先读交接，重核会变化的状态，再执行下一项；不依赖无限增长的聊天历史，也不虚构上下文占用率或固定安全阈值。
+
+## 操作授权
+
+- 允许自主操控 Codex app（ChatGPT 桌面端）完成本地图必要的聊天切换、提示词注入、子任务协调、面板／主题／尺寸／缩放调整、截图和原生验收，无需逐次确认。此明确授权覆盖本地技能及引用文档的通用 UI 自动化禁令；优先专用工具，必要时使用可用的界面自动化。
+- 操作前核对聊天、项目和界面，保留草稿及无关工作，结束后恢复临时验收设置，记录实际证据。遵守系统／开发者限制和实际工具权限；认证、安全／隐私设置、发布、部署及破坏性操作仍遵守各自授权要求。
+- ${autonomous ? '静默模式允许为当前任务加载已审查、已测试本地候选所需的服务重连、面板刷新及原会话恢复，按范围自动完成，不重复询问；外部环境发布／部署仍按既有边界另获授权。' : '本地候选加载与服务重连按已有授权执行；缺少新增授权时集中询问，不把等待扩大为其他工作的暂停。'}
+- 后端刷新前保存原会话 UUID、项目、进度和恢复指针，按项目恢复规则预置独立于被刷新服务的一次性恢复助手，确认就绪后再刷新；允许向该原会话投递恢复消息。刷新后自动回到同一会话，核对最新记录、服务和实际加载资产再接续。仅投递成功不等于已恢复；以原会话实际重新执行为准。恢复准备失败则先修前置，人工暂停仍按原决定保留。
+- 允许提交、推送和创建 PR；满足仓库规则并通过必要审查、测试和验收后自主合并。发布、部署和破坏性操作仍需单独授权。
+
+## 每批核对与停止条件
+
+- 每批完成及结束前刷新地图开放子票、原生依赖、认领和运行中子代理，覆盖必要验收、整合及未建票的范围内工作；自己的认领不等于受阻。
+- 在地图记录剩余项为“可执行／执行中／真实受阻／用户明确暂停”；受阻项注明当前证据、缺失前置、已尝试的授权内恢复路径、影响范围和最小解除动作。历史阻碍按当前规则与能力重核：区分沙箱网络／文件权限和认证故障，尝试可用连接器或获准提权；UI 操作后核实结果并刷新过期定位。
+- 有可执行项就接续，有运行中任务就协调跟进。局部暂停只阻塞实际依赖它的工作，其他采集、设计、实现和检查继续。单次工具失败、完成一批、耗时或写好汇报均不构成停止条件。
+- 仅在以下之一成立时停止：目标及必要验收有证据完成；用户明确暂停整个努力；全部剩余项均真实受阻／明确暂停，且无可继续的代理工作。记录核对表本身不代表允许停止；停止前保存恢复指针并妥善交接子代理。
+- 用中文简短汇报批次进展；最终说明对应停止条件、完成项、验证与合并状态、阻碍及用户最小行动（无需行动也说明）。区分实现、测试、原生验收、合并和发布，未执行的检查如实标记，不以推断代替验证。`;
+}
 const ISSUE_ACTION_COMMON = "先读取最新正文、全部评论、标签、认领、父子与阻塞关系及已有实施记录，已完成先核验，新阻塞先处理；关联地图仅作背景，不扩大本次范围。Issue 操作优先 deck_ 工具，先认领并及时用 deck_issue_report 上报。技能按实际可用来源读取规则，技能名注入不等于已加载。结束前把真实状态及未完成的下一步写入正文；完成才关闭，关闭时在所属地图 Decisions so far 追加票名、链接与一句话结论。";
 const SUPPLEMENTAL_ACTIONS = {"pr":{"required":["scope","branch"],"goal":"生成或修订 PR 正文草稿，按 Summary、Evidence、Merge Danger 记录实际变化、前后证据、可逆性及影响范围。验证记录先查，缺失或未验证如实标注。仅起草正文，不发布正文、不创建 PR、不推送、不合并；这些需要另行明确指令。"},"retro":{"required":["session","record"],"recommend":["stage"],"goal":"读取指定编码会话原始证据，核对已有检查与指令，按严重程度列出证据、问题、环境改进建议及收益；先提供候选供用户选择，再决定修改文件或建票。不默认当前会话，不以项目目录冒充会话标识。"},"code-review":{"required":["scope","baseline"],"goal":"审查指定范围的改动，进行中改动亦可；按仓库标准及来源规格报告可定位的证据和验证缺口，不擅自假设 main 或当前分支。修复进入统一 $implement-spec 流程，不能省略 implement-spec 自带最终审查。"}};
 const ACTION_CONTEXT_LABELS = {"scope":"改动范围","branch":"分支或 PR","baseline":"比较基线","session":"目标编码会话","record":"原始会话记录","stage":"阶段／观察"};
 function renderIssueActionRequest({ skill, target, goal, missing = [], facts = '' }) {
+  if (skill === 'wayfinder' && !missing.length) return goal;
   const prefix = missing.length ? '先查证补齐：' + missing.join('、') + '；只能询问无法自行取得的信息，补齐前不执行本补充动作。' : skill ? '$' + skill : '';
   const header = '目标：' + target.title + '\nIssue：' + target.url + '\n标签事实：' + (target.labels.join('、') || '无标签');
   return (prefix ? prefix + '\n\n' : '') + header + (facts ? '\n' + facts : '') + '\n\n' + goal + '\n\n' + ISSUE_ACTION_COMMON;
@@ -2865,7 +2906,7 @@ function issueActionRequest(issue, url) {
     if (has('wayfinder:grilling')) { skill = 'grill-with-docs'; kind = 'discuss'; goal = '围绕目标、范围、约束、取舍与验收讨论；人来定夺，确认后写正文，对齐后提醒 $to-spec；bug 背景不触发自动修复。'; }
     else if (has('wayfinder:research')) { skill = 'research'; kind = 'research'; goal = '围绕明确问题开展研究，提供可信来源、发现、不确定性及决策影响；bug 背景不触发自动修复。'; }
     else if (has('wayfinder:prototype')) { skill = 'prototype'; kind = 'prototype'; goal = '围绕明确设计问题制作抛弃式原型，以用户反馈确认取舍；不当作产品交付，bug 背景不触发自动修复。'; }
-    else if (has('wayfinder:map')) { skill = 'wayfinder'; kind = 'execute'; goal = '读取 Destination、Notes 和最新 frontier，协调地图；具体票使用各自工作技能，不将整图当代码实施任务。'; }
+    else if (has('wayfinder:map')) { skill = 'wayfinder'; kind = 'execute'; goal = mapExecutionRequest(url); }
     else if (has('bug')) { skill = 'diagnosing-bugs'; kind = 'fix'; goal = '先复现并定位根因，记录证据。仅状态允许且规格及实施票齐备后，才用 $implement-spec 修复。' + codePreparation; }
     else if (has('wayfinder:task')) {
       skill = 'triage'; kind = 'execute'; goal = '先查证这是代码还是非代码任务，不凭 task 标签猜测。' + codePreparation + '非代码任务使用匹配专项技能，否则明确任务说明；类型不明先 $triage。';
@@ -4683,7 +4724,48 @@ function getWizardSteps(wizardAction) {
     //   哪 15 条该带、哪 8 条不该带（逐条写明理由）写在 tests/verify-prompts.js 的 TOOL_SECTION_IDS 与
     //   TOOL_SECTION_ABSENT_IDS 两张表里，门禁按它们正反两向断言。要改这条规则，请连那两张表和这段注释一起改，
     //   不要再在文本里逐条拍脑袋（#779 全量加、#791 才发现与金样门禁打架，就是这么来的）。
+function mapExecutionRequest(url = '<编号或链接>', mode = 'autonomous') {
+  const autonomous = mode === 'autonomous';
+  return `$wayfinder
+
+请自主推进主线地图：
+${url}
+
+## 执行模式
+
+${autonomous ? '完全自主、静默输入：在任务范围和已有授权内，由 AI 完成常规输入、选择及确认，包括 wayfinder 的常规决策；优先推荐方案，否则依据目标、仓库规则和证据决定，不等待回复。重要选择简记理由，并注明“AI 根据用户预先授权作出的决定”。' : '按需交互：AI 自主处理常规工作；关键决策或信息不足时，按 wayfinder 流程集中询问最少问题，并附推荐方案。'}
+沿用此模式，不再询问；用户可随时切换或指定必问事项。确需新增授权或真人操作时再询问，等待期间继续其他工作；未回复不构成授权。不得将 AI 决策写成用户讨论或原生验收。
+
+## 持续推进
+
+- 先核实地图、子 issue、依赖和进展，接续已有成果，保留无关改动。本次覆盖 wayfinder 的“仅规划／每会话一票”默认限制，持续完成范围内的决策、实现、审查、整合和验收，无需等待“继续”。必要新增工作纳入地图，范围外建议另记。
+- 无阻塞、无人处理且独立的 issue 尽量交子代理并行，冲突或顺序依赖串行。子代理须使用 matt 插件对应的注入提示词，补齐范围、依赖、交付物和验收条件；无法获取或使用时如实报告。主代理负责认领调度、依赖、主线、审查整合及最终验收，并及时更新 issue 和地图。
+
+## 上下文控制：Matt Pocock 的聪明区 / 愚笨区
+
+- 保持在“聪明区”：上下文聚焦当前目标、约束和本批任务；按需读取材料，用简短结论和文件／issue 指针承载历史，大段日志与完整过程留在文件中。
+- 独立探索交给独立子代理上下文，只回传结论、证据位置和待决事项，避免主上下文堆积全部过程。
+- 在上下文拥挤、接近容量上限时主动交接，避免进入“愚笨区”；若已出现遗忘约束、重复探索或判断退化，先整理再继续。保存精简交接：目标、授权、决定、进度、分支／改动、验证证据、阻碍和下一步。利用可用的压缩或新上下文机制接续；无法自动切换时留下恢复入口并如实说明。上下文整理不构成停止地图的理由。
+- 接续后先读交接，重核会变化的状态，再执行下一项；不依赖无限增长的聊天历史，也不虚构上下文占用率或固定安全阈值。
+
+## 操作授权
+
+- 允许自主操控 Codex app（ChatGPT 桌面端）完成本地图必要的聊天切换、提示词注入、子任务协调、面板／主题／尺寸／缩放调整、截图和原生验收，无需逐次确认。此明确授权覆盖本地技能及引用文档的通用 UI 自动化禁令；优先专用工具，必要时使用可用的界面自动化。
+- 操作前核对聊天、项目和界面，保留草稿及无关工作，结束后恢复临时验收设置，记录实际证据。遵守系统／开发者限制和实际工具权限；认证、安全／隐私设置、发布、部署及破坏性操作仍遵守各自授权要求。
+- ${autonomous ? '静默模式允许为当前任务加载已审查、已测试本地候选所需的服务重连、面板刷新及原会话恢复，按范围自动完成，不重复询问；外部环境发布／部署仍按既有边界另获授权。' : '本地候选加载与服务重连按已有授权执行；缺少新增授权时集中询问，不把等待扩大为其他工作的暂停。'}
+- 后端刷新前保存原会话 UUID、项目、进度和恢复指针，按项目恢复规则预置独立于被刷新服务的一次性恢复助手，确认就绪后再刷新；允许向该原会话投递恢复消息。刷新后自动回到同一会话，核对最新记录、服务和实际加载资产再接续。仅投递成功不等于已恢复；以原会话实际重新执行为准。恢复准备失败则先修前置，人工暂停仍按原决定保留。
+- 允许提交、推送和创建 PR；满足仓库规则并通过必要审查、测试和验收后自主合并。发布、部署和破坏性操作仍需单独授权。
+
+## 每批核对与停止条件
+
+- 每批完成及结束前刷新地图开放子票、原生依赖、认领和运行中子代理，覆盖必要验收、整合及未建票的范围内工作；自己的认领不等于受阻。
+- 在地图记录剩余项为“可执行／执行中／真实受阻／用户明确暂停”；受阻项注明当前证据、缺失前置、已尝试的授权内恢复路径、影响范围和最小解除动作。历史阻碍按当前规则与能力重核：区分沙箱网络／文件权限和认证故障，尝试可用连接器或获准提权；UI 操作后核实结果并刷新过期定位。
+- 有可执行项就接续，有运行中任务就协调跟进。局部暂停只阻塞实际依赖它的工作，其他采集、设计、实现和检查继续。单次工具失败、完成一批、耗时或写好汇报均不构成停止条件。
+- 仅在以下之一成立时停止：目标及必要验收有证据完成；用户明确暂停整个努力；全部剩余项均真实受阻／明确暂停，且无可继续的代理工作。记录核对表本身不代表允许停止；停止前保存恢复指针并妥善交接子代理。
+- 用中文简短汇报批次进展；最终说明对应停止条件、完成项、验证与合并状态、阻碍及用户最小行动（无需行动也说明）。区分实现、测试、原生验收、合并和发布，未执行的检查如实标记，不以推断代替验证。`;
+}
     const codexContextRequest = function contextRequest(id, values = {}, language = 'zh') {
+  if (id === 'mapExecute') return mapExecutionRequest(values.url || '<编号或链接>');
   const en = language === 'en';
   const v = (key, fallback) => {
     const value=values[key];
@@ -4702,7 +4784,8 @@ function getWizardSteps(wizardAction) {
     'tpl.execute':['implement-spec','实施目标规格及其关联实施票图。先查明规格、依赖和授权范围；缺规格或实施票时，只补缺项（to-spec / to-tickets），满足前置条件再实施。','Implement the intended spec and its ticket graph. Establish the spec, dependencies and authorized scope first; use to-spec / to-tickets only for missing artifacts before implementation.'],
     'tpl.takeover':['','先查证需要人工处理的原因、具体步骤及验证点；Agent 完成其余可做工作。','Verify why human action is needed, the exact steps and checks; the agent handles the remaining feasible work.'],
     'tpl.supplement':['grilling','先查证可自行取得的事实，只请用户补充实质缺口；信息补齐后回到分流。','Look up available facts first, ask only for substantive gaps, then return to triage.'],
-    mapExecute:['wayfinder','读取目的地、Notes、最新子票及阻塞关系，按地图规则推进下一张可接票；不默认接管整图实施。','Read Destination, Notes, current children and dependencies; advance the next eligible ticket under map rules, without taking over the entire map implementation.'],
+    mapExecute:['wayfinder',mapExecutionRequest(values.url || '<编号或链接>'),mapExecutionRequest(values.url || '<编号或链接>')],
+    wayfinder:['wayfinder','先查明明确目的地、目标是地图还是普通议题，以及用户授权的工作范围，再按 wayfinder 绘图或推进决策；关联来源仅供背景，不自动授权整图实施。','Establish the destination, whether the target is a map or an ordinary topic, and the authorized scope; then chart or work through decisions with wayfinder. Related sources are context only, not authorization to implement a whole map.'],
     mapInspect:['wayfinder','核验地图目的地、决策索引、子票、阻塞与迷雾，报告下一步；未经指示不实施整图。','Inspect the destination, decision index, children, dependencies and fog; report the next step without implementing the entire map.'],
     complete:['wayfinder','核验地图真实完成状态及未通过的验收；由证据决定能否收尾，不把统计完成当产品完成。','Verify actual completion and unmet acceptance criteria; completion statistics alone do not prove delivery.'],
     newWayfinder:['wayfinder','与用户确定目的地并绘制决策地图；需求描述待用户补充。','Agree the destination with the user and chart a decision map; the user supplies the requirement.'],
@@ -4726,7 +4809,7 @@ function getWizardSteps(wizardAction) {
   };
   const name = String(values.skill || '').replace(/^[$/]/,'');
   actions.handoff=['handoff','为明确目标会话生成可追溯交接；先核验会话、原始记录和保存位置，缺项先定位。','Create a traceable handoff for an identified conversation; verify its original records and save destination, locating missing context first.'];
-  const aliases = { 'implement-spec':'tpl.execute', implement:'tpl.execute', research:'tpl.research', prototype:'tpl.prototype', handoff:'tpl.handoff1', 'grill-with-docs':'tpl.discuss', triage:'tpl.diagnose', wayfinder:'mapExecute' };
+  const aliases = { 'implement-spec':'tpl.execute', implement:'tpl.execute', research:'tpl.research', prototype:'tpl.prototype', handoff:'tpl.handoff1', 'grill-with-docs':'tpl.discuss', triage:'tpl.diagnose' };
   for(const [skill, action] of Object.entries(aliases))if(!actions[skill])actions[skill]=actions[action];
   const a = actions[id] || actions[name] || (id === 'skill' ? [name,en ? 'Follow the skill for the explicitly identified goal and scope; locate missing context before work.' : '围绕明确目标与范围遵循该技能；目标或必要参数缺失先定位补齐。',en ? 'Follow the skill for the explicitly identified goal and scope; locate missing context before work.' : '围绕明确目标与范围遵循该技能；目标或必要参数缺失先定位补齐。'] : ['',en ? 'Locate the intended action and its required parameters before proceeding.' : '先定位目标动作及其必要参数，再继续。','Locate the intended action and its required parameters before proceeding.']);
   const lines = [a[0] ? '$'+a[0] : '', en ? a[2] : a[1], (en ? 'Project: ' : '项目：')+project];
@@ -20986,7 +21069,7 @@ const MapDetail = ({ st, g, drill }) => {
       // T4 #554：顶部返回只弹一层（上一级是地图就回到上一级地图，是工单就回到该工单，
       // 栈空才回列表）。直接调弹栈，不经过按种类守卫的旧入口，混合栈也只退一级。
       const goBack = function () { popNav(st) }
-      return h('div', null, [
+      return h('div', { 'data-native-map': true }, [
         // 顶部操作行拆到 MapDetailTop.js（#807：本文件贴着 350 行上限；不换行/逐字折叠/新会话实心/补图标都在那一份）。
         h(MapDetailTop, { st: st, m: m, navCrumb: navCrumb, effStats: effStats, goBack: goBack }),
         // #691：编号 + 标题 + 「本图 N 张子票（已关闭 M 张）」那一行，整块拆到 MapDetailHead.js
@@ -21008,7 +21091,7 @@ const MapDetail = ({ st, g, drill }) => {
           ]),
         ]) : null,
         // T17 修订：Destination 走 markdown 渲染（**加粗** 等不再裸露；去 ellip 允许换行）
-        h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 4, fontSize: 12, color: '#4ade80', margin: '4px 0 2px' } }, [Ic({ n: 'target', size: 12, style: { marginTop: 2, flex: 'none' } }), h('div', { style: { flex: 1, minWidth: 0 } }, m.destination ? mdToHtml(m.destination, { st: st }) : tr('list.noDest'))]),
+        h('div', { 'data-native-map-destination': true, style: { display: 'flex', alignItems: 'flex-start', gap: 4, fontSize: 12, color: '#4ade80', margin: '4px 0 2px' } }, [Ic({ n: 'target', size: 12, style: { marginTop: 2, flex: 'none' } }), h('div', { style: { flex: 1, minWidth: 0 } }, m.destination ? mdToHtml(m.destination, { st: st }) : tr('list.noDest'))]),
         // T17 修订：正文详情（Notes）默认折叠 —— <details> 收起，点击展开
         h('details', { style: { margin: '2px 0 4px' } }, [
           h('summary', { style: { fontSize: 11, color: 'var(--dsw-alias-label-secondary,#a1a1aa)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 } }, [
@@ -21398,9 +21481,51 @@ function actionDraftState(st, number, effortId) {
   if (!drafts.has(key)) drafts.set(key, {});
   return drafts.get(key);
 }
+function MapExecutionModeDialog({ target, onConfirm, onCancel, disabled }) {
+  const h = React.createElement;
+  const [mode, setMode] = React.useState('autonomous');
+  const ref = React.useRef(null);
+  const titleId = React.useId();
+  const groupName = React.useId();
+  React.useEffect(() => {
+    const previous = document.activeElement;
+    ref.current?.querySelector('input:checked')?.focus();
+    return () => { if (previous?.isConnected) previous.focus(); };
+  }, []);
+  return portalTop(h('div', { 'data-map-mode-overlay': '', onClick: e => e.stopPropagation(), style: { position: 'fixed', inset: 0, zIndex: 1100, background: '#0006', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 } },
+    h('div', { ref, role: 'dialog', 'aria-modal': true, 'aria-labelledby': titleId, 'data-map-mode-dialog': '', onKeyDown: e => {
+      e.stopPropagation();
+      if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+      if (e.key === 'Tab') {
+        const controls = [...ref.current.querySelectorAll('input:checked, button:not(:disabled)')];
+        const first = controls[0], last = controls[controls.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    }, style: { width: '100%', maxWidth: 420, maxHeight: 'calc(100vh - 32px)', overflow: 'auto', boxSizing: 'border-box', padding: 20, borderRadius: 12, background: 'var(--dsw-alias-bg-layer-2)', color: 'var(--foreground, inherit)', border: '1px solid var(--dsw-alias-border-l1)', boxShadow: '0 8px 32px #0004', whiteSpace: 'normal', textAlign: 'left' } }, [
+      h('h2', { key: 'title', id: titleId, style: { fontSize: 16, margin: '0 0 12px' } }, '选择地图执行模式'),
+      h('p', { key: 'target', style: { fontSize: 12, margin: '0 0 12px' } }, target === 'new' ? '确认后填入新聊天，不会自动发送。' : '确认后填入当前聊天，不会自动发送。'),
+      ...[
+        ['autonomous', '完全自主、静默输入', 'AI 自主处理常规决策，优先采用推荐方案。'],
+        ['interactive', '按需交互', '关键决策或信息不足时询问你，并附推荐方案。'],
+      ].map(([value, title, description]) => h('label', { key: value, style: { display: 'flex', gap: 8, alignItems: 'flex-start', margin: '12px 0', cursor: 'pointer' } }, [
+        h('input', { key: 'radio', type: 'radio', name: groupName, value, checked: mode === value, onChange: () => setMode(value) }),
+        h('span', { key: 'text' }, [h('strong', { key: 'name', style: { display: 'block', fontSize: 13 } }, title), h('span', { key: 'description', style: { fontSize: 12 } }, description)]),
+      ])),
+      h('p', { key: 'boundary', style: { fontSize: 12 } }, '发布、部署和破坏性操作仍需单独授权。'),
+      h('div', { key: 'buttons', style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 } }, [
+        h('button', { key: 'cancel', type: 'button', className: 'dsws-btn', onClick: onCancel }, '取消'),
+        h('button', { key: 'confirm', type: 'button', className: 'dsws-btn primary', disabled, onClick: () => onConfirm(mode) }, '确认填入'),
+      ]),
+    ])));
+}
 function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
   const state = actionDraftState(st, issue?.number || '', issue?.effortId || '');
   const scope = actionDraftKey(st, '', '');
+  const [modeSelection, setModeSelection] = React.useState(null);
+  React.useEffect(() => {
+    setModeSelection(previous => previous?.scope === scope && previous?.number === issue?.number && previous?.effortId === issue?.effortId ? previous : null);
+  }, [scope, issue?.number, issue?.effortId]);
   const operations = ctx.get('draftOperations');
   React.useSyncExternalStore(operations.subscribe, operations.getSnapshot);
   const pending = operations.pending;
@@ -21432,6 +21557,13 @@ function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
     } finally { operations.end(token); }
   };
   const h = React.createElement;
+  const choose = target => {
+    const request = issueActionRequest(issue, issueUrlFor(st, issue.number, issue.effortId || '') || '#' + issue.number);
+    if (request.skill !== 'wayfinder' || request.kind !== 'execute' || !request.target.labels.includes('wayfinder:map')) { run(target); return; }
+    try {
+      setModeSelection({ target, request, scope, number: issue.number, effortId: issue.effortId, identity: actions?.captureTarget?.() });
+    } catch (error) { update({ status: '无法确认目标聊天：' + String(error.message || error), retry: null }); }
+  };
   const notice = operations.notice?.scope === actionDraftKey(st, '', '') ? operations.notice : null;
   React.useEffect(() => {
     if (!toolbar || !notice || notice.feedback.retry || notice.feedback.status === '正在填入…') return;
@@ -21455,8 +21587,14 @@ function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
     ]);
   }
   return h('span', { 'data-issue-direct-actions': true, style: { display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, minWidth: 0, maxWidth: '100%' } }, [
-    h('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '填入当前聊天，不会自动发送' : actions?.capabilities?.reason || '当前聊天不可用', onClick: e => { e.stopPropagation(); run('active'); }, style: { background: colorHex, fontSize: 11, padding: '2px 6px' } }, pending ? '填入中…' : '填入当前聊天'),
-    h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'aria-label': '填入新聊天', disabled: pending || !newAvailable, title: newAvailable ? '填入新聊天，沿用来源项目及实际目录，不会自动发送' : actions?.capabilities?.newReason || actions?.capabilities?.reason || '新聊天不可用', onClick: e => { e.stopPropagation(); run('new'); }, style: { fontSize: 11, padding: '2px 6px' } }, '填入新聊天'),
+    modeSelection && modeSelection.scope === scope && modeSelection.number === issue?.number ? h(MapExecutionModeDialog, { key: 'mode', target: modeSelection.target, disabled: pending, onCancel: () => setModeSelection(null), onConfirm: mode => {
+      const { target, request, identity } = modeSelection;
+      setModeSelection(null);
+      const text = request.text.replace(mapExecutionRequest(request.target.url), mapExecutionRequest(request.target.url, mode));
+      run(target, { ...request, text }, identity);
+    } }) : null,
+    h('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '填入当前聊天，不会自动发送' : actions?.capabilities?.reason || '当前聊天不可用', onClick: e => { e.stopPropagation(); choose('active'); }, style: { background: colorHex, fontSize: 11, padding: '2px 6px' } }, pending ? '填入中…' : '填入当前聊天'),
+    h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'aria-label': '填入新聊天', disabled: pending || !newAvailable, title: newAvailable ? '填入新聊天，沿用来源项目及实际目录，不会自动发送' : actions?.capabilities?.newReason || actions?.capabilities?.reason || '新聊天不可用', onClick: e => { e.stopPropagation(); choose('new'); }, style: { fontSize: 11, padding: '2px 6px' } }, '填入新聊天'),
   ]);
 }
 const IssueDetail = function (props) {

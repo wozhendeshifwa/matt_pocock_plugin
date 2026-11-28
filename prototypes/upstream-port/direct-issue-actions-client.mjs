@@ -1,7 +1,50 @@
-// Plain generated requests go straight to the editable host draft.
+// Only map execution asks for a mode before writing the editable host draft.
+export function MapExecutionModeDialog({ target, onConfirm, onCancel, disabled }) {
+  const h = React.createElement;
+  const [mode, setMode] = React.useState('autonomous');
+  const ref = React.useRef(null);
+  const titleId = React.useId();
+  const groupName = React.useId();
+  React.useEffect(() => {
+    const previous = document.activeElement;
+    ref.current?.querySelector('input:checked')?.focus();
+    return () => { if (previous?.isConnected) previous.focus(); };
+  }, []);
+  return portalTop(h('div', { 'data-map-mode-overlay': '', onClick: e => e.stopPropagation(), style: { position: 'fixed', inset: 0, zIndex: 1100, background: '#0006', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 } },
+    h('div', { ref, role: 'dialog', 'aria-modal': true, 'aria-labelledby': titleId, 'data-map-mode-dialog': '', onKeyDown: e => {
+      e.stopPropagation();
+      if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+      if (e.key === 'Tab') {
+        const controls = [...ref.current.querySelectorAll('input:checked, button:not(:disabled)')];
+        const first = controls[0], last = controls[controls.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    }, style: { width: '100%', maxWidth: 420, maxHeight: 'calc(100vh - 32px)', overflow: 'auto', boxSizing: 'border-box', padding: 20, borderRadius: 12, background: 'var(--dsw-alias-bg-layer-2)', color: 'var(--foreground, inherit)', border: '1px solid var(--dsw-alias-border-l1)', boxShadow: '0 8px 32px #0004', whiteSpace: 'normal', textAlign: 'left' } }, [
+      h('h2', { key: 'title', id: titleId, style: { fontSize: 16, margin: '0 0 12px' } }, '选择地图执行模式'),
+      h('p', { key: 'target', style: { fontSize: 12, margin: '0 0 12px' } }, target === 'new' ? '确认后填入新聊天，不会自动发送。' : '确认后填入当前聊天，不会自动发送。'),
+      ...[
+        ['autonomous', '完全自主、静默输入', 'AI 自主处理常规决策，优先采用推荐方案。'],
+        ['interactive', '按需交互', '关键决策或信息不足时询问你，并附推荐方案。'],
+      ].map(([value, title, description]) => h('label', { key: value, style: { display: 'flex', gap: 8, alignItems: 'flex-start', margin: '12px 0', cursor: 'pointer' } }, [
+        h('input', { key: 'radio', type: 'radio', name: groupName, value, checked: mode === value, onChange: () => setMode(value) }),
+        h('span', { key: 'text' }, [h('strong', { key: 'name', style: { display: 'block', fontSize: 13 } }, title), h('span', { key: 'description', style: { fontSize: 12 } }, description)]),
+      ])),
+      h('p', { key: 'boundary', style: { fontSize: 12 } }, '发布、部署和破坏性操作仍需单独授权。'),
+      h('div', { key: 'buttons', style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 } }, [
+        h('button', { key: 'cancel', type: 'button', className: 'dsws-btn', onClick: onCancel }, '取消'),
+        h('button', { key: 'confirm', type: 'button', className: 'dsws-btn primary', disabled, onClick: () => onConfirm(mode) }, '确认填入'),
+      ]),
+    ])));
+}
+
 export function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = false }) {
   const state = actionDraftState(st, issue?.number || '', issue?.effortId || '');
   const scope = actionDraftKey(st, '', '');
+  const [modeSelection, setModeSelection] = React.useState(null);
+  React.useEffect(() => {
+    setModeSelection(previous => previous?.scope === scope && previous?.number === issue?.number && previous?.effortId === issue?.effortId ? previous : null);
+  }, [scope, issue?.number, issue?.effortId]);
   const operations = ctx.get('draftOperations');
   React.useSyncExternalStore(operations.subscribe, operations.getSnapshot);
   const pending = operations.pending;
@@ -33,6 +76,13 @@ export function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = fals
     } finally { operations.end(token); }
   };
   const h = React.createElement;
+  const choose = target => {
+    const request = issueActionRequest(issue, issueUrlFor(st, issue.number, issue.effortId || '') || '#' + issue.number);
+    if (request.skill !== 'wayfinder' || request.kind !== 'execute' || !request.target.labels.includes('wayfinder:map')) { run(target); return; }
+    try {
+      setModeSelection({ target, request, scope, number: issue.number, effortId: issue.effortId, identity: actions?.captureTarget?.() });
+    } catch (error) { update({ status: '无法确认目标聊天：' + String(error.message || error), retry: null }); }
+  };
   const notice = operations.notice?.scope === actionDraftKey(st, '', '') ? operations.notice : null;
   React.useEffect(() => {
     if (!toolbar || !notice || notice.feedback.retry || notice.feedback.status === '正在填入…') return;
@@ -56,15 +106,21 @@ export function DirectIssueActions({ st, issue, colorHex, narrow, toolbar = fals
     ]);
   }
   return h('span', { 'data-issue-direct-actions': true, style: { display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, minWidth: 0, maxWidth: '100%' } }, [
-    h('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '填入当前聊天，不会自动发送' : actions?.capabilities?.reason || '当前聊天不可用', onClick: e => { e.stopPropagation(); run('active'); }, style: { background: colorHex, fontSize: 11, padding: '2px 6px' } }, pending ? '填入中…' : '填入当前聊天'),
-    h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'aria-label': '填入新聊天', disabled: pending || !newAvailable, title: newAvailable ? '填入新聊天，沿用来源项目及实际目录，不会自动发送' : actions?.capabilities?.newReason || actions?.capabilities?.reason || '新聊天不可用', onClick: e => { e.stopPropagation(); run('new'); }, style: { fontSize: 11, padding: '2px 6px' } }, '填入新聊天'),
+    modeSelection && modeSelection.scope === scope && modeSelection.number === issue?.number ? h(MapExecutionModeDialog, { key: 'mode', target: modeSelection.target, disabled: pending, onCancel: () => setModeSelection(null), onConfirm: mode => {
+      const { target, request, identity } = modeSelection;
+      setModeSelection(null);
+      const text = request.text.replace(mapExecutionRequest(request.target.url), mapExecutionRequest(request.target.url, mode));
+      run(target, { ...request, text }, identity);
+    } }) : null,
+    h('button', { key: 'active', type: 'button', className: 'dsws-btn primary', 'aria-label': '填入当前聊天', disabled: pending || !available, title: available ? '填入当前聊天，不会自动发送' : actions?.capabilities?.reason || '当前聊天不可用', onClick: e => { e.stopPropagation(); choose('active'); }, style: { background: colorHex, fontSize: 11, padding: '2px 6px' } }, pending ? '填入中…' : '填入当前聊天'),
+    h('button', { key: 'new', type: 'button', className: 'dsws-btn', 'aria-label': '填入新聊天', disabled: pending || !newAvailable, title: newAvailable ? '填入新聊天，沿用来源项目及实际目录，不会自动发送' : actions?.capabilities?.newReason || actions?.capabilities?.reason || '新聊天不可用', onClick: e => { e.stopPropagation(); choose('new'); }, style: { fontSize: 11, padding: '2px 6px' } }, '填入新聊天'),
   ]);
 }
 
 export function adaptDirectIssueActions(source) {
   const insert = 'const IssueDetail = function (props) {';
   if (source.split(insert).length !== 2) throw new Error('Direct Issue detail boundary changed');
-  source = source.replace(insert, DirectIssueActions.toString() + '\n' + insert);
+  source = source.replace(insert, MapExecutionModeDialog.toString() + '\n' + DirectIssueActions.toString() + '\n' + insert);
   // Let the two compact draft buttons wrap when a narrow row needs it.
   for (const before of [
     "h('div', { style: { display: 'flex', alignItems: 'center', gap: 3, flex: 'none', marginLeft: 'auto' } }, [",

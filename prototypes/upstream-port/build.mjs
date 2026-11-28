@@ -13,6 +13,7 @@ import { adaptBottomActionBar } from "./bottom-action-bar-client.mjs";
 import { adaptSkillPreparation } from "./skill-preparation-client.mjs";
 import { adaptVersionControlPaths } from "./version-control-style-client.mjs";
 import { adaptDirectIssueActions } from "./direct-issue-actions-client.mjs";
+import { adaptNativeVisualSurfaces } from "./native-visual-surface-client.mjs";
 
 const runtime = await build({
   entryPoints: [new URL("browser-runtime.mjs", import.meta.url).pathname.replace(/^\/(\w:)/, "$1")],
@@ -64,6 +65,7 @@ if (adapted.split(handoffAck).length !== 2) throw new Error('Handoff acknowledgm
 adapted = adapted.replace(handoffAck, '      if (await inject(st, text) === false) return;');
 adapted = adaptSkillPreparation(adapted);
 adapted = adaptVersionControlPaths(adapted);
+adapted = adaptNativeVisualSurfaces(adapted);
 const cacheAnchor = 'const diskGetSnapshot = function (k) {';
 // Expose the existing two-step handoff on the board, without duplicating its
 // document resolution or host draft routing in a second implementation.
@@ -107,6 +109,6 @@ await writeFile(new URL("manifest.json", output), JSON.stringify({
   upstreamVersion: "1.8.0-rc.7",
   upstreamClientSha256: createHash("sha256").update(original).digest("hex"),
   output: "client.js",
-  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay", "skills.beforeUse", "issueActions.bottomBar", "versionControl.fullPaths", "issueActions.directCurrent"],
+  adaptedBoundaries: ["inject", "openTextInNewSession", "diskGetSnapshot", "useStore.subscription", "DetailsDock.headerActions", "comments.pagination", "skills.dollarPrefix", "issueActions.scenarioDraft", "context.requests.v2", "skills.sourceDisplay", "skills.beforeUse", "issueActions.bottomBar", "versionControl.fullPaths", "issueActions.directCurrent", "nativeVisual.mapSurfaces"],
 }, null, 2) + "\n");
 console.log("Built original MattSkills client with Codex mounting adapter");

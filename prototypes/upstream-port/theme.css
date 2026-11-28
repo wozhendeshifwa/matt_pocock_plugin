@@ -1,19 +1,32 @@
 :root {
   color-scheme: light dark;
   --dsw-font-family: var(--font-sans, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
-  --dsw-alias-bg-base: var(--background, light-dark(#ffffff, #10131a));
-  --dsw-alias-bg-layer-1: var(--card, var(--background, light-dark(#ffffff, #16181d)));
-  --dsw-alias-bg-layer-2: var(--popover, var(--card, var(--background, light-dark(#ffffff, #1b1d23))));
-  --dsw-alias-bg-layer-3: var(--muted, color-mix(in srgb, var(--background, light-dark(#ffffff, #10131a)) 82%, var(--foreground, light-dark(#111827, #e6edf3)) 18%));
-  --dsw-alias-label-primary: var(--foreground, light-dark(#111827, #e6edf3));
-  --dsw-alias-label-secondary: var(--muted-foreground, light-dark(#4b5563, #a1a1aa));
-  --dsw-alias-label-caption: var(--muted-foreground, light-dark(#6b7280, #8b8b95));
-  --dsw-alias-border-l1: var(--border, light-dark(#e5e7eb, #2a2d35));
-  --dsw-alias-border-l2: color-mix(in srgb, var(--border, light-dark(#e5e7eb, #2a2d35)) 65%, var(--foreground, light-dark(#111827, #e6edf3)) 35%);
-  --dsw-alias-interactive-bg-hover: color-mix(in srgb, var(--foreground, light-dark(#111827, #e6edf3)) 7%, transparent);
-  --dsw-alias-interactive-bg-active: var(--accent, color-mix(in srgb, var(--foreground, light-dark(#111827, #e6edf3)) 11%, transparent));
-  --dsw-alias-interactive-bg-primary: var(--primary, light-dark(#7c3aed, #c084fc));
-  --dsw-alias-state-success-primary: var(--green, light-dark(#15803d, #4ade80));
+  --dsw-alias-bg-base: var(--color-background-primary, var(--background, light-dark(#ffffff, #181818)));
+  --dsw-alias-bg-layer-1: var(--color-background-secondary, var(--card, var(--background, light-dark(#f7f7f7, #202020))));
+  --dsw-alias-bg-layer-2: var(--color-background-tertiary, var(--popover, var(--card, var(--background, light-dark(#eeeeee, #292929)))));
+  --dsw-alias-bg-layer-3: var(--color-background-tertiary, var(--muted, color-mix(in srgb, var(--dsw-alias-bg-base) 90%, var(--dsw-alias-label-primary) 10%)));
+  --dsw-alias-label-primary: var(--color-text-primary, var(--foreground, light-dark(#202020, #eeeeee)));
+  --dsw-alias-label-secondary: var(--color-text-secondary, var(--muted-foreground, light-dark(#595959, #b8b8b8)));
+  --dsw-alias-label-caption: var(--color-text-tertiary, var(--muted-foreground, light-dark(#686868, #a8a8a8)));
+  --dsw-alias-border-l1: var(--color-border-primary, var(--border, light-dark(#dedede, #3b3b3b)));
+  --dsw-alias-border-l2: var(--color-border-secondary, color-mix(in srgb, var(--dsw-alias-border-l1) 65%, var(--dsw-alias-label-primary) 35%));
+  --dsw-alias-focus-ring: var(--color-ring-primary, var(--ring, var(--dsw-alias-label-primary)));
+  --dsw-alias-interactive-bg-hover: color-mix(in srgb, var(--dsw-alias-label-primary) 7%, var(--dsw-alias-bg-layer-1));
+  --dsw-alias-interactive-bg-active: var(--accent, color-mix(in srgb, var(--dsw-alias-label-primary) 11%, var(--dsw-alias-bg-layer-1)));
+  --dsw-alias-interactive-bg-primary: var(--dsw-alias-label-primary);
+  --dsw-alias-interactive-label-primary: var(--dsw-alias-bg-base);
+  --dsw-alias-state-success-primary: var(--color-text-success, var(--green, light-dark(#15803d, #4ade80)));
+  --dsw-alias-state-danger-primary: var(--color-text-danger, var(--red, light-dark(#b91c1c, #f87171)));
+  --dsw-alias-state-warning-primary: var(--color-text-warning, var(--yellow, light-dark(#92400e, #fbbf24)));
+  --dsw-alias-state-info-primary: var(--color-text-info, var(--blue, light-dark(#1d4ed8, #60a5fa)));
+  --dsw-alias-state-success-background: var(--color-background-success, color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-success-border: var(--color-border-success, color-mix(in srgb, var(--dsw-alias-state-success-primary) 35%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-danger-background: var(--color-background-danger, color-mix(in srgb, var(--dsw-alias-state-danger-primary) 10%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-danger-border: var(--color-border-danger, color-mix(in srgb, var(--dsw-alias-state-danger-primary) 35%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-warning-background: var(--color-background-warning, color-mix(in srgb, var(--dsw-alias-state-warning-primary) 10%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-warning-border: var(--color-border-warning, color-mix(in srgb, var(--dsw-alias-state-warning-primary) 35%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-info-background: var(--color-background-info, color-mix(in srgb, var(--dsw-alias-state-info-primary) 10%, var(--dsw-alias-bg-base)));
+  --dsw-alias-state-info-border: var(--color-border-info, color-mix(in srgb, var(--dsw-alias-state-info-primary) 35%, var(--dsw-alias-bg-base)));
 }
 
 :root[data-theme="light"] {
@@ -35,6 +48,9 @@ body,
 
 body {
   margin: 0;
+  font-family: var(--dsw-font-family);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 html {
@@ -113,7 +129,7 @@ html {
 }
 
 .mattskills-board-actions button:focus-visible {
-  outline: 2px solid currentColor;
+  outline: 2px solid var(--dsw-alias-focus-ring);
   outline-offset: 2px;
 }
 
@@ -124,7 +140,7 @@ html {
   border-radius: 6px;
   background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-secondary);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -193,12 +209,12 @@ html:root body [data-vc-root] {
   --vc-line2: var(--dsw-alias-border-l2);
   --vc-accent: var(--dsw-alias-state-success-primary);
   --vc-accent-ink: light-dark(#ffffff, #052e16);
-  --vc-danger: light-dark(#b91c1c, #f87171);
-  --vc-warn: light-dark(#92400e, #fbbf24);
-  --vc-info: light-dark(#1d4ed8, #60a5fa);
+  --vc-danger: var(--dsw-alias-state-danger-primary);
+  --vc-warn: var(--dsw-alias-state-warning-primary);
+  --vc-info: var(--dsw-alias-state-info-primary);
   --vc-radius: 6px;
   --vc-shell-radius: 6px;
-  --vc-btn-h: 26px;
+  --vc-btn-h: 32px;
   --vc-row-h: 30px;
   --vc-row-py: 6px;
   --vc-row-px: 8px;
@@ -214,10 +230,10 @@ html:root body [data-vc-root] {
 
 html:root body [data-vc-root] .dsws-btn {
   font-family: var(--dsw-font-family) !important;
-  font-size: 12px !important;
+  font-size: 13px !important;
   line-height: 1.5 !important;
-  padding: 3px 10px !important;
-  min-height: 0;
+  padding: 4px 10px !important;
+  min-height: 32px;
   border: 1px solid var(--dsw-alias-border-l1);
   border-radius: 6px;
   background: var(--dsw-alias-bg-layer-1);
@@ -233,14 +249,14 @@ html:root body [data-vc-root] .dsws-btn:hover {
 }
 
 html:root body [data-vc-root] .dsws-btn.primary {
-  background: #c084fc;
+  background: var(--dsw-alias-interactive-bg-primary);
   border-color: transparent;
-  color: #140a1e;
+  color: var(--dsw-alias-interactive-label-primary);
   font-weight: 600 !important;
 }
 
 html:root body [data-vc-root] .dsws-btn.primary:hover {
-  border-color: rgba(20, 10, 30, .55);
+  border-color: var(--dsw-alias-interactive-label-primary);
 }
 
 html:root body [data-vc-root] :is(input, textarea, select) {
@@ -257,10 +273,9 @@ html:root body [data-vc-root] :is(input, textarea, select) {
   color: var(--dsw-alias-label-primary);
 }
 
-/* Use the main panel's established focus treatment for ordinary controls.
-   The compact board icons retain their dedicated currentColor focus rule. */
+/* Ordinary controls and compact board icons follow the same host ring. */
 .mattskills-shell :is(.dsws-btn:not([data-board-action]), input, textarea, select):focus-visible {
-  outline: 2px solid #58a6ff;
+  outline: 2px solid var(--dsw-alias-focus-ring);
   outline-offset: 2px;
 }
 
@@ -288,4 +303,279 @@ html:root body [data-vc-root] :is([data-vc-path], [data-vc-file-path]) {
   min-width: 0;
   overflow: auto !important;
   text-overflow: clip !important;
+}
+
+/* Shared ordinary controls. Keep code, diff and path typography local. */
+html:root body .mattskills-shell :is(.dsws-panel, [data-dsws-host]) {
+  font-family: var(--dsw-font-family);
+  font-size: 14px !important;
+  line-height: 1.5;
+}
+
+html:root body .mattskills-shell :is(.dsws-btn, .mattskills-tabs button, .sandbox-tasks button, input:where(:not([type=checkbox]):not([type=radio])), textarea, select) {
+  box-sizing: border-box;
+  min-height: 32px;
+  font-family: var(--dsw-font-family);
+  font-size: 13px !important;
+  line-height: 1.5;
+  padding: 4px 10px !important;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+html:root body .mattskills-shell :is(.dsws-btn, .mattskills-tabs button, .sandbox-tasks button):hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  border-color: var(--dsw-alias-border-l2);
+  box-shadow: none;
+}
+html:root body .mattskills-shell :is(.dsws-ta, .dsws-cfg-ta) {
+  font-family: var(--ds-font-family-code, ui-monospace, Consolas, Menlo, monospace);
+}
+html:root body .mattskills-shell .dsws-btn.primary {
+  background: var(--dsw-alias-interactive-bg-primary) !important;
+  border-color: transparent;
+  color: var(--dsw-alias-interactive-label-primary);
+}
+html:root body .mattskills-shell .dsws-btn.primary:hover:not(:disabled) {
+  box-shadow: none;
+  background: color-mix(in srgb, var(--dsw-alias-interactive-bg-primary) 92%, var(--dsw-alias-bg-base)) !important;
+  border-color: var(--dsw-alias-interactive-label-primary);
+}
+html:root body .mattskills-shell :is(button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--dsw-alias-focus-ring);
+  outline-offset: 2px;
+}
+html:root body .mattskills-shell :is(.dsws-btn, button, input, textarea, select):disabled {
+  opacity: 1 !important;
+  color: var(--dsw-alias-label-secondary) !important;
+  background: var(--dsw-alias-bg-layer-1) !important;
+  cursor: not-allowed;
+}
+
+/* Neutral surfaces for the existing skill reader. The variables are scoped to
+   its actual roots because vendor :root declarations load after this sheet. */
+html:root body :is(.pixel-tab, .pixel-overlay, .pixel-modal) {
+  --pixel-frame: var(--dsw-alias-border-l1);
+  --pixel-paper: var(--dsw-alias-bg-base);
+  --pixel-card: var(--dsw-alias-bg-layer-1);
+  --pixel-ink: var(--dsw-alias-label-primary);
+  --pixel-ink2: var(--dsw-alias-label-secondary);
+  --pixel-shadow: transparent;
+  --pixel-gold: var(--dsw-alias-focus-ring);
+  --pixel-acc: var(--dsw-alias-label-primary);
+  --pixel-ok: var(--dsw-alias-state-success-primary);
+  --pixel-bad: var(--dsw-alias-state-danger-primary);
+  --pixel-warn: var(--dsw-alias-state-warning-primary);
+  --pixel-stripe: var(--dsw-alias-border-l1);
+  --pixel-popline: var(--dsw-alias-bg-layer-1);
+  --pixel-hi: var(--dsw-alias-interactive-bg-hover);
+  --pixel-link: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  color: var(--dsw-alias-label-primary);
+}
+html:root body :is(.pixel-modal, .pixel-toc, .pixel-statusline, .pixel-skillrow, .pixel-banner) {
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: none;
+  transform: none;
+  animation: none;
+}
+html:root body .pixel-modal { box-sizing: border-box; max-width: calc(100vw - 24px); }
+html:root body .pixel-overlay { padding: 12px; box-sizing: border-box; background: #0006; }
+html:root body .pixel-seal { display: none; }
+html:root body :is(.pixel-top, .pixel-bot) {
+  font: 600 14px/1.5 var(--dsw-font-family);
+  border-width: 1px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+html:root body .pixel-top > span:first-child { white-space: normal; overflow-wrap: anywhere; flex: 1 1 120px; }
+html:root body .pixel-body { min-height: 0; padding: 12px; overflow: auto; }
+html:root body .pixel-doc { font: 14px/1.5 var(--dsw-font-family); overflow-wrap: anywhere; }
+html:root body .pixel-doc :is(h1,h2,h3) {
+  font-family: var(--dsw-font-family); letter-spacing: normal; box-shadow: none;
+  border-width: 1px; border-radius: 6px;
+}
+html:root body .pixel-doc h1 { font-size: 18px; }
+html:root body .pixel-doc h2 { font-size: 16px; }
+html:root body .pixel-doc :is(pre, code) {
+  box-shadow: none; border-width: 1px; border-radius: 6px;
+  color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-2);
+  font-family: var(--ds-font-family-code, ui-monospace, Consolas, Menlo, monospace);
+}
+html:root body .pixel-doc pre { white-space: pre; overflow: auto; max-width: 100%; box-sizing: border-box; }
+html:root body .pixel-doc pre code { white-space: pre; }
+html:root body .pixel-doc blockquote { background: var(--dsw-alias-bg-layer-2); border-width: 2px; }
+html:root body :is(.pixel-toc b, .pixel-num, .pixel-stack, .pixel-sname) {
+  font-family: var(--dsw-font-family); letter-spacing: normal; border-width: 1px;
+}
+html:root body .pixel-skillrow { flex-wrap: wrap; gap: 8px; }
+html:root body .pixel-suse { white-space: normal; overflow: visible; overflow-wrap: anywhere; min-width: 100px; }
+html:root body .pixel-skillrow.rec { background: var(--dsw-alias-bg-layer-2); }
+html:root body .pixel-btn {
+  font: 13px/1.5 var(--dsw-font-family); min-height: 32px; box-sizing: border-box;
+  border: 1px solid var(--dsw-alias-border-l1); border-radius: 6px;
+  padding: 4px 10px; box-shadow: none; transform: none;
+  background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary);
+}
+html:root body .pixel-btn.hot { background: var(--dsw-alias-label-primary); color: var(--dsw-alias-bg-base); }
+html:root body .pixel-btn:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); outline: none; }
+html:root body .pixel-btn:focus-visible { outline: 2px solid var(--dsw-alias-focus-ring); outline-offset: 2px; }
+html:root body .pixel-tab {
+  background: var(--dsw-alias-bg-base); border: 0; box-shadow: none; padding: 0;
+}
+html:root body .pixel-tab .dsws-grp { color: var(--dsw-alias-label-primary); letter-spacing: normal; }
+html:root body .pixel-tab .dsws-grp svg { color: inherit; }
+html:root body .pixel-tab :is(.dsws-seg,.dsws-chip) {
+  font: 12px/1.5 var(--dsw-font-family); border-width: 1px; border-radius: 6px; box-shadow: none;
+}
+html:root body :is(.pixel-toc b, .pixel-toc .pixel-num, .pixel-top) {
+  color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1); text-shadow: none;
+}
+html:root body :is(.pixel-top,.pixel-doc h1,.pixel-doc h2,.pixel-doc h3,.pixel-sname) { text-shadow: none; filter: none; }
+html:root body .pixel-toc { border-radius: 6px; overflow: hidden; }
+html:root body .pixel-toc a:hover {
+  background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary);
+}
+html:root body .pixel-toc a:hover .pixel-num {
+  background: transparent; color: var(--dsw-alias-label-primary);
+}
+html:root body .pixel-doc ol > li::before {
+  color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1);
+  font: 12px/1.5 var(--dsw-font-family); border-width: 1px; border-radius: 4px; box-shadow: none;
+}
+/* The current catalog has no segment filter, but keep the legacy selected
+   style readable if an upstream view starts rendering that control again. */
+html:root body .pixel-tab .dsws-seg.on {
+  background: var(--dsw-alias-label-primary); color: var(--dsw-alias-bg-base);
+}
+html:root body .pixel-ic { border-width: 1px; border-radius: 4px; }
+html:root body .pixel-ic-err {
+  color: var(--dsw-alias-state-danger-primary); background: var(--dsw-alias-state-danger-background);
+}
+html:root body .pixel-ic-ok {
+  color: var(--dsw-alias-state-success-primary); background: var(--dsw-alias-state-success-background);
+}
+html:root body .pixel-ic-warn {
+  color: var(--dsw-alias-state-warning-primary); background: var(--dsw-alias-state-warning-background);
+}
+html:root body .pixel-ic-idle {
+  color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-2);
+}
+html:root body .pixel-banner { color: var(--dsw-alias-state-danger-primary); background: var(--dsw-alias-state-danger-background); border-color: var(--dsw-alias-state-danger-border); }
+html:root body .pixel-banner.warn { color: var(--dsw-alias-state-warning-primary); background: var(--dsw-alias-state-warning-background); border-color: var(--dsw-alias-state-warning-border); }
+html:root body [data-native-map-destination] { color: var(--dsw-alias-label-primary) !important; font-size: 14px !important; }
+html:root body [data-native-map] .dsws-start .cap { color: var(--dsw-alias-label-primary); }
+html:root body [data-native-map] .dsws-gate .g.open { box-shadow: none; color: var(--dsw-alias-state-success-primary); border-color: var(--dsw-alias-state-success-border); }
+html:root body [data-native-map] .dsws-layerTag .layerNo { font-family: var(--dsw-font-family); }
+html:root body [data-native-map] .dsws-ring-txt { font-size: 13px; }
+
+/* Update/help and logging portals keep semantic statuses within the host palette. */
+html:root body :is(.dsh-upd,.dsh-upd-entry,.dsh-upd-overlay) {
+  --dsh-update-bg: var(--dsw-alias-bg-base);
+  --dsh-update-bg-soft: var(--dsw-alias-bg-layer-1);
+  --dsh-update-fg: var(--dsw-alias-label-primary);
+  --dsh-update-muted: var(--dsw-alias-label-secondary);
+  --dsh-update-border: var(--dsw-alias-border-l1);
+  --dsh-update-border-strong: var(--dsw-alias-border-l2);
+  --dsh-update-button-bg: var(--dsw-alias-bg-layer-1);
+  --dsh-update-primary: var(--dsw-alias-label-primary);
+  --dsh-update-ok-border: var(--dsw-alias-state-success-primary);
+  --dsh-update-warn-border: var(--dsw-alias-state-warning-primary);
+  --dsh-update-warn-bg: var(--dsw-alias-state-warning-background);
+  --dsh-update-bad-border: var(--dsw-alias-state-danger-primary);
+  font-family: var(--dsw-font-family);
+}
+html:root body [data-dsws-logmenu] { font: 13px/1.5 var(--dsw-font-family); color: var(--dsw-alias-label-primary); max-height: calc(100dvh - 24px); overflow: auto; box-sizing: border-box; box-shadow: none !important; }
+html:root body [data-dsws-logmenu] button {
+  font: 13px/1.5 var(--dsw-font-family) !important; min-height: 32px;
+  color: var(--dsw-alias-label-primary) !important;
+}
+html:root body [data-dsws-logmenu] button:focus-visible { outline: 2px solid var(--dsw-alias-focus-ring); outline-offset: 2px; }
+
+/* Map hierarchy, statuses and reveal behavior stay intact; only the independent
+   neon surface is replaced. Label chips keep their per-label colors. */
+html:root body .mattskills-shell :is(.dsws-layers,.dsws-layerbox,.dsws-node) {
+  background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px; box-shadow: none;
+}
+html:root body .mattskills-shell :is(.dsws-layerbox.cur,.dsws-node.now) { border-color: var(--dsw-alias-border-l2); }
+html:root body .mattskills-shell .dsws-node .icbox { background: var(--dsw-alias-bg-layer-2); }
+html:root body .mattskills-shell .dsws-node .tt {
+  font-size: 14px; line-height: 1.5; display: block; overflow: visible;
+  -webkit-line-clamp: unset; overflow-wrap: anywhere; word-break: normal;
+}
+html:root body .mattskills-shell :is(.dsws-node .no,.dsws-node .tag,.dsws-layers .cap,.dsws-layers .row2) { font-size: 12px; }
+html:root body .mattskills-shell .dsws-layers .seg.curr {
+  background: var(--dsw-alias-label-primary); box-shadow: none;
+}
+html:root body .mattskills-shell .dsws-layers .seg.past { background: var(--dsw-alias-state-success-primary); }
+html:root body .mattskills-shell .dsws-layers .row2 .cur { color: var(--dsw-alias-label-primary); }
+html:root body .mattskills-shell .dsws-node.done { opacity: 1; color: var(--dsw-alias-label-secondary); }
+
+/* Body portals need the same contract as shell controls. Keep this explicit so
+   schema fields, label colors and diff tokens are not recolored by a wildcard. */
+html:root body :is(.dsws-modal, [data-map-mode-overlay], .pixel-overlay) {
+  font: 14px/1.5 var(--dsw-font-family); color: var(--dsw-alias-label-primary);
+}
+html:root body :is(.dsws-modalbox, [data-map-mode-dialog]) {
+  box-sizing: border-box; max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px);
+  overflow: auto; color: var(--dsw-alias-label-primary) !important;
+  background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px; box-shadow: none !important; overflow-wrap: anywhere;
+}
+html:root body :is(.dsws-modal,[data-map-mode-overlay]) :is(button,input:not([type=checkbox]):not([type=radio]),select,textarea) {
+  box-sizing: border-box; min-height: 32px; max-width: 100%;
+  font: 13px/1.5 var(--dsw-font-family); padding: 4px 10px;
+  border: 1px solid var(--dsw-alias-border-l1); border-radius: 6px;
+  color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1);
+}
+html:root body :is(.dsws-modal,[data-map-mode-overlay]) .dsws-btn.primary {
+  background: var(--dsw-alias-label-primary) !important; color: var(--dsw-alias-bg-base) !important; border-color: transparent !important;
+}
+html:root body :is(.dsws-modal,[data-map-mode-overlay]) button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
+html:root body :is(.dsws-modal,[data-map-mode-overlay]) :is(button,input,select,textarea):focus-visible {
+  outline: 2px solid var(--dsw-alias-focus-ring); outline-offset: 2px;
+}
+html:root body .dsws-modalbox div:has(> label[role=radio]) { flex-wrap: wrap; }
+html:root body .dsws-modalbox label[role=radio] {
+  box-sizing: border-box; min-width: 0; flex: 1 1 120px !important;
+  white-space: normal !important; overflow-wrap: anywhere;
+  font: 13px/1.5 var(--dsw-font-family); min-height: 32px; border-radius: 6px !important;
+  background: var(--dsw-alias-bg-layer-1) !important; color: var(--dsw-alias-label-primary) !important;
+}
+html:root body .dsws-modalbox label[role=radio][aria-checked=true] {
+  background: var(--dsw-alias-interactive-bg-active) !important; border-color: var(--dsw-alias-border-l2) !important;
+}
+html:root body .dsws-modalbox label[role=radio]:focus-visible { outline: 2px solid var(--dsw-alias-focus-ring); outline-offset: 2px; }
+html:root body .mattskills-shell .mattskills-tabs button.is-active {
+  color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-active);
+  border-color: var(--dsw-alias-border-l2);
+}
+html:root body .mattskills-shell textarea:is(.dsws-ta,.dsws-cfg-ta) {
+  font-family: var(--ds-font-family-code, ui-monospace, Consolas, Menlo, monospace);
+}
+
+/* Layout follows the effective CSS viewport, including app zoom. No root
+   overflow clipping: long prose wraps, technical content scrolls locally. */
+.mattskills-shell, .mattskills-tabpanel, .dsws-body, .sandbox-tasks { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.mattskills-tabs { flex-wrap: wrap; }
+html:root body .mattskills-shell .dsws-tabs { flex-wrap: wrap; overflow: visible; white-space: normal; row-gap: 6px; }
+html:root body .mattskills-shell .dsws-layer { grid-template-columns: repeat(auto-fit,minmax(min(190px,100%),1fr)); }
+html:root body .mattskills-shell :is(.dsws-node .row1,.dsws-node .meta,.dsws-layerTag,.dsws-layers .row1,.dsws-layers .row2) { flex-wrap: wrap; }
+html:root body .mattskills-shell .sandbox-tasks { font-size: 14px; overflow-wrap: anywhere; }
+html:root body .mattskills-shell .sandbox-tasks pre {
+  white-space: pre !important; overflow-wrap: normal !important; overflow: auto;
+  max-width: 100%; font-family: var(--ds-font-family-code,ui-monospace,Consolas,Menlo,monospace);
+}
+html:root body .mattskills-shell .sandbox-tasks .facts { background: var(--dsw-alias-bg-layer-1); border-color: var(--dsw-alias-border-l1); }
+html:root body .mattskills-shell .sandbox-tasks :is(input,select,textarea,button) { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+html:root body .mattskills-shell .sandbox-tasks [aria-selected=true] { background: var(--dsw-alias-interactive-bg-active); }
+@media (max-width: 520px) {
+  html:root body .mattskills-shell .dsws-body { padding: 8px !important; }
+  html:root body .mattskills-shell .dsws-stickybar { margin-left: -8px; margin-right: -8px; padding-left: 8px; padding-right: 8px; }
+  html:root body .mattskills-shell .dsws-layer { grid-template-columns: minmax(0,1fr); }
+  html:root body .mattskills-shell .dsws-node .acts { gap: 6px; }
 }

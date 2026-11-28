@@ -1,9 +1,11 @@
 import { createDraftReview } from './draft-review-client.mjs';
+import { mapExecutionRequest } from './map-execution-prompt.mjs';
 // Scenario policy is shared by the existing list and detail actions. Labels
 // describe facts; ambiguous combinations are handed to the agent, not ranked.
 const ISSUE_ACTION_COMMON = '先读取最新正文、全部评论、标签、认领、父子与阻塞关系及已有实施记录，已完成先核验，新阻塞先处理；关联地图仅作背景，不扩大本次范围。Issue 操作优先 deck_ 工具，先认领并及时用 deck_issue_report 上报。技能按实际可用来源读取规则，技能名注入不等于已加载。结束前把真实状态及未完成的下一步写入正文；完成才关闭，关闭时在所属地图 Decisions so far 追加票名、链接与一句话结论。';
 
 export function renderIssueActionRequest({ skill, target, goal, missing = [], facts = '' }) {
+  if (skill === 'wayfinder' && !missing.length) return goal;
   const prefix = missing.length ? '先查证补齐：' + missing.join('、') + '；只能询问无法自行取得的信息，补齐前不执行本补充动作。' : skill ? '$' + skill : '';
   const header = '目标：' + target.title + '\nIssue：' + target.url + '\n标签事实：' + (target.labels.join('、') || '无标签');
   return (prefix ? prefix + '\n\n' : '') + header + (facts ? '\n' + facts : '') + '\n\n' + goal + '\n\n' + ISSUE_ACTION_COMMON;
@@ -48,7 +50,7 @@ export function issueActionRequest(issue, url) {
     if (has('wayfinder:grilling')) { skill = 'grill-with-docs'; kind = 'discuss'; goal = '围绕目标、范围、约束、取舍与验收讨论；人来定夺，确认后写正文，对齐后提醒 $to-spec；bug 背景不触发自动修复。'; }
     else if (has('wayfinder:research')) { skill = 'research'; kind = 'research'; goal = '围绕明确问题开展研究，提供可信来源、发现、不确定性及决策影响；bug 背景不触发自动修复。'; }
     else if (has('wayfinder:prototype')) { skill = 'prototype'; kind = 'prototype'; goal = '围绕明确设计问题制作抛弃式原型，以用户反馈确认取舍；不当作产品交付，bug 背景不触发自动修复。'; }
-    else if (has('wayfinder:map')) { skill = 'wayfinder'; kind = 'execute'; goal = '读取 Destination、Notes 和最新 frontier，协调地图；具体票使用各自工作技能，不将整图当代码实施任务。'; }
+    else if (has('wayfinder:map')) { skill = 'wayfinder'; kind = 'execute'; goal = mapExecutionRequest(url); }
     else if (has('bug')) { skill = 'diagnosing-bugs'; kind = 'fix'; goal = '先复现并定位根因，记录证据。仅状态允许且规格及实施票齐备后，才用 $implement-spec 修复。' + codePreparation; }
     else if (has('wayfinder:task')) {
       skill = 'triage'; kind = 'execute'; goal = '先查证这是代码还是非代码任务，不凭 task 标签猜测。' + codePreparation + '非代码任务使用匹配专项技能，否则明确任务说明；类型不明先 $triage。';
@@ -108,6 +110,6 @@ export function adaptIssueActions(source) {
   replaceOnce('const mapDone=!!(isMap&&', 'const mapDone=!!(!issueActionRequest(x, "").roleConflict&&isMap&&');
   replaceOnce('const mapEmpty=!!(isMap&&', 'const mapEmpty=!!(!issueActionRequest(x, "").roleConflict&&isMap&&');
   const anchor = '    // 1. 技能目录 + 场景推荐映射';
-  replaceOnce(anchor, 'const ISSUE_ACTION_COMMON = ' + JSON.stringify(ISSUE_ACTION_COMMON) + ';\nconst SUPPLEMENTAL_ACTIONS = ' + JSON.stringify(SUPPLEMENTAL_ACTIONS) + ';\nconst ACTION_CONTEXT_LABELS = ' + JSON.stringify(ACTION_CONTEXT_LABELS) + ';\n' + renderIssueActionRequest.toString() + '\n' + supplementalRequirements.toString() + '\n' + issueActionRequest.toString() + '\n' + supplementalActionRequest.toString() + '\n' + canFillIssueActionDraft.toString() + '\n' + sendIssueActionDraft.toString() + '\n' + anchor);
+  replaceOnce(anchor, mapExecutionRequest.toString() + '\nconst ISSUE_ACTION_COMMON = ' + JSON.stringify(ISSUE_ACTION_COMMON) + ';\nconst SUPPLEMENTAL_ACTIONS = ' + JSON.stringify(SUPPLEMENTAL_ACTIONS) + ';\nconst ACTION_CONTEXT_LABELS = ' + JSON.stringify(ACTION_CONTEXT_LABELS) + ';\n' + renderIssueActionRequest.toString() + '\n' + supplementalRequirements.toString() + '\n' + issueActionRequest.toString() + '\n' + supplementalActionRequest.toString() + '\n' + canFillIssueActionDraft.toString() + '\n' + sendIssueActionDraft.toString() + '\n' + anchor);
   return source;
 }
