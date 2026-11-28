@@ -30,13 +30,15 @@ export async function runChromiumVisual(html, width, {browser, dir, screenshotsD
   const call = (method, params = {}) => new Promise((resolve,reject) => { const id = ++nextId; pending.set(id,{resolve,reject}); socket.send(JSON.stringify({id,method,params})); });
   try {
     let port;
-    for (let i=0;i<100;i++) {
+    const startup = performance.now();
+    for (let i=0;i<600;i++) {
       if (browserFailure) throw browserFailure;
       try { port = Number((await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0]); break; }
       catch { await new Promise(r=>setTimeout(r,50)); }
     }
     if (browserFailure) throw browserFailure;
-    assert.ok(port, 'Chromium exposes its local test CDP endpoint (' + browser + '): ' + browserLog);
+    assert.ok(port, 'Chromium exposes its local test CDP endpoint (' + browser + ', ' + Math.round(performance.now() - startup) + 'ms): ' + browserLog);
+    if (performance.now() - startup >= 5000) console.log('[visual] Chromium startup: ' + Math.round(performance.now() - startup) + 'ms');
     const targets = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
     const target = targets.find(x=>x.type==='page');
     socket = new WebSocket(target.webSocketDebuggerUrl);
